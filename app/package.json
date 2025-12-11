@@ -1,0 +1,19 @@
+{
+  "name": "claude-agent-app",
+  "version": "1.0.0",
+  "description": "Monorepo with React frontend and Express backend",
+  "private": true,
+  "packageManager": "npm@10.0.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "start": "npm run start --workspace=backend"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  }
+}

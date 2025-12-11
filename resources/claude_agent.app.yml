@@ -3,4 +3,4 @@ resources:
     claude_agent:
       name: claude-agent
       description: A basic starter application.
-      source_code_path: ../src/app
+      source_code_path: ../app

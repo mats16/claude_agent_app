@@ -1,4 +1,4 @@
-# Node.js + FastAPI Hello World App
+# Claude Agent App
 
 A simple hello world template that demonstrates how to build full-stack applications using Node.js (React) frontend with FastAPI backend for Databricks Apps.
 
@@ -47,11 +47,16 @@ npm run build
 uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
+
+3. **Run as Databricks Apps**
+```bash
+databricks apps run-local --prepare-environment --debug
+```
+
 ## Databricks Apps Deployment
 
-Configured for Databricks Apps with `app.yaml`. Uses `DATABRICKS_APP_PORT` environment variable automatically.
-
-## API
-
-- `GET /api/hello` - Hello world message
-- `GET /docs` - FastAPI interactive documentation
+```bash
+databricks bundle validate --profile <profile_name>
+databricks bundle deploy --profile <profile_name>
+databricks bundle run claude_agent --profile <profile_name>
+```

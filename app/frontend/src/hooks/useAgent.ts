@@ -22,6 +22,7 @@ export function useAgent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('databricks-claude-sonnet-4-5');
   const wsRef = useRef<WebSocket | null>(null);
   const currentResponseRef = useRef<string>('');
   const currentMessageIdRef = useRef<string>('');
@@ -172,14 +173,17 @@ export function useAgent() {
       JSON.stringify({
         type: 'message',
         content,
+        model: selectedModel,
       })
     );
-  }, []);
+  }, [selectedModel]);
 
   return {
     messages,
     isConnected,
     isProcessing,
     sendMessage,
+    selectedModel,
+    setSelectedModel,
   };
 }

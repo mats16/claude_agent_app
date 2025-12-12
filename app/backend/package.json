@@ -11,12 +11,13 @@
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\" --ignore-path ../.gitignore"
   },
   "dependencies": {
-    "fastify": "^4.28.1",
-    "@fastify/websocket": "^10.0.1",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.67",
     "@fastify/static": "^7.0.4",
-    "@anthropic-ai/sdk": "^0.32.1",
+    "@fastify/websocket": "^10.0.1",
+    "dotenv": "^16.4.7",
+    "fastify": "^4.28.1",
     "glob": "^11.0.0",
-    "dotenv": "^16.4.7"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",

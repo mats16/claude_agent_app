@@ -4,7 +4,7 @@ import { useAgent } from './hooks/useAgent';
 
 function App() {
   const [input, setInput] = useState('');
-  const { messages, isConnected, isProcessing, sendMessage } = useAgent();
+  const { messages, isConnected, isProcessing, sendMessage, selectedModel, setSelectedModel } = useAgent();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,11 +27,25 @@ function App() {
     <div className="app">
       <header className="header">
         <h1>Claude Coding Agent</h1>
-        <div className="status">
-          <span
-            className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}
-          ></span>
-          <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+        <div className="header-controls">
+          <div className="model-selector">
+            <label htmlFor="model-select">Model:</label>
+            <select
+              id="model-select"
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              disabled={isProcessing}
+            >
+              <option value="databricks-claude-sonnet-4-5">Claude Sonnet 4.5</option>
+              <option value="databricks-claude-opus-4-5">Claude Opus 4.5</option>
+            </select>
+          </div>
+          <div className="status">
+            <span
+              className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}
+            ></span>
+            <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+          </div>
         </div>
       </header>
 

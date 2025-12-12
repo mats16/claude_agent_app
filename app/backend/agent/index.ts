@@ -1,5 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { getTools, executeTool } from './tools.js';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+
+// Token cache for service principal
+let cachedToken: { token: string; expiresAt: number } | null = null;
 
 // Helper to ensure URL has protocol
 function ensureHttpsProtocol(host: string): string {
@@ -8,13 +10,6 @@ function ensureHttpsProtocol(host: string): string {
   }
   return host;
 }
-
-const anthropicBaseURL = process.env.DATABRICKS_HOST
-  ? `${ensureHttpsProtocol(process.env.DATABRICKS_HOST)}/serving-endpoints/anthropic`
-  : undefined;
-
-// Token cache for service principal
-let cachedToken: { token: string; expiresAt: number } | null = null;
 
 // Get service principal access token from Databricks OAuth2
 async function getServicePrincipalToken(): Promise<string> {
@@ -70,29 +65,6 @@ async function getServicePrincipalToken(): Promise<string> {
   return data.access_token;
 }
 
-// Helper function to create Anthropic client with appropriate token
-async function createAnthropicClient(): Promise<Anthropic> {
-  let token: string;
-
-  // Use service principal token for Databricks, otherwise use local dev token
-  if (process.env.DATABRICKS_HOST) {
-    token = await getServicePrincipalToken();
-  } else {
-    token = process.env.ANTHROPIC_API_KEY || '';
-  }
-
-  return new Anthropic({
-    apiKey: token,
-    baseURL: anthropicBaseURL,
-    // Databricks uses Bearer token authentication instead of x-api-key
-    defaultHeaders: anthropicBaseURL
-      ? {
-          Authorization: `Bearer ${token}`,
-        }
-      : undefined,
-  });
-}
-
 export interface AgentMessage {
   type: 'response' | 'tool_use' | 'tool_result' | 'error' | 'complete';
   content?: any;
@@ -102,98 +74,113 @@ export interface AgentMessage {
   error?: string;
 }
 
-// Process agent request with streaming
+// Process agent request with streaming using Claude Agent SDK
 export async function* processAgentRequest(
   message: string,
-  workspacePath: string
+  workspacePath: string,
+  model?: string
 ): AsyncGenerator<AgentMessage> {
-  // Create client with service principal token
-  const client = await createAnthropicClient();
-  const messages: Anthropic.MessageParam[] = [
-    { role: 'user', content: message },
-  ];
-
-  const tools = getTools(workspacePath);
-  let iterationCount = 0;
-  const maxIterations = 20; // Prevent infinite loops
-
   try {
-    while (iterationCount < maxIterations) {
-      iterationCount++;
+    // Prepare environment variables for Claude Agent SDK
+    const env: Record<string, string> = {
+      ...process.env,
+    } as Record<string, string>;
 
-      // Call Claude API (via Databricks or direct)
-      const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MODEL ?? 'databricks-claude-sonnet-4-5',
-        max_tokens: 4096,
-        tools,
-        messages,
-      });
+    // Set up authentication for Databricks or direct Anthropic
+    let defaultModel: string;
+    if (process.env.DATABRICKS_HOST) {
+      const databricksHost = ensureHttpsProtocol(process.env.DATABRICKS_HOST);
 
-      // Process response content
-      for (const block of response.content) {
-        if (block.type === 'text') {
-          yield {
-            type: 'response',
-            content: block.text,
-          };
-        } else if (block.type === 'tool_use') {
-          yield {
-            type: 'tool_use',
-            toolName: block.name,
-            toolInput: block.input,
-          };
+      // Set ANTHROPIC_BASE_URL for Databricks serving endpoint
+      env.ANTHROPIC_BASE_URL = `${databricksHost}/serving-endpoints/anthropic`;
 
-          // Execute the tool
-          const toolResult = await executeTool(
-            block.name,
-            block.input,
-            workspacePath
-          );
-
-          yield {
-            type: 'tool_result',
-            toolName: block.name,
-            toolResult,
-          };
-
-          // Add tool result to message history
-          messages.push({
-            role: 'assistant',
-            content: response.content,
-          });
-
-          messages.push({
-            role: 'user',
-            content: [
-              {
-                type: 'tool_result',
-                tool_use_id: block.id,
-                content: toolResult,
-              },
-            ],
-          });
-        }
+      // Use existing DATABRICKS_TOKEN if available, otherwise get service principal token
+      let authToken = process.env.DATABRICKS_TOKEN;
+      if (!authToken) {
+        authToken = await getServicePrincipalToken();
       }
-
-      // Check if conversation is complete
-      if (response.stop_reason === 'end_turn') {
-        yield {
-          type: 'complete',
-        };
-        break;
-      } else if (response.stop_reason !== 'tool_use') {
-        yield {
-          type: 'complete',
-        };
-        break;
-      }
+      env.ANTHROPIC_AUTH_TOKEN = authToken;
+      defaultModel = 'databricks-claude-sonnet-4-5';
+    } else if (process.env.ANTHROPIC_API_KEY) {
+      // For direct Anthropic API, use ANTHROPIC_API_KEY (SDK will pick it up automatically)
+      env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_API_KEY;
+      defaultModel = 'claude-sonnet-4-20250514';
+    } else {
+      throw new Error(
+        'Either DATABRICKS_HOST with credentials or ANTHROPIC_API_KEY must be set'
+      );
     }
 
-    if (iterationCount >= maxIterations) {
-      yield {
-        type: 'error',
-        error: 'Maximum iteration limit reached',
-      };
+    // Determine which model to use
+    const selectedModel = model || env.ANTHROPIC_MODEL || defaultModel;
+
+    // Create query with Claude Agent SDK
+    const agentQuery = query({
+      prompt: message,
+      options: {
+        cwd: workspacePath,
+        model: selectedModel,
+        env,
+        tools: {
+          type: 'preset',
+          preset: 'claude_code',
+        },
+        maxTurns: 20,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false, // Don't persist sessions for web app
+        includePartialMessages: true, // Enable streaming
+      },
+    });
+
+    // Process streaming messages
+    for await (const sdkMessage of agentQuery) {
+      if (sdkMessage.type === 'assistant') {
+        // Assistant message with content blocks
+        const apiMessage = sdkMessage.message;
+
+        for (const block of apiMessage.content) {
+          if (block.type === 'text') {
+            yield {
+              type: 'response',
+              content: block.text,
+            };
+          } else if (block.type === 'tool_use') {
+            yield {
+              type: 'tool_use',
+              toolName: block.name,
+              toolInput: block.input,
+            };
+          }
+        }
+      } else if (sdkMessage.type === 'stream_event') {
+        // Streaming events for real-time updates
+        const event = sdkMessage.event;
+
+        if (event.type === 'content_block_delta') {
+          if (event.delta.type === 'text_delta') {
+            yield {
+              type: 'response',
+              content: event.delta.text,
+            };
+          }
+        }
+      } else if (sdkMessage.type === 'result') {
+        // Final result
+        if (sdkMessage.subtype === 'success') {
+          yield {
+            type: 'complete',
+          };
+        } else {
+          // Error result
+          const errors = 'errors' in sdkMessage ? sdkMessage.errors : [];
+          yield {
+            type: 'error',
+            error: errors.join(', ') || 'Unknown error occurred',
+          };
+        }
+        break;
+      }
     }
   } catch (error: any) {
     yield {

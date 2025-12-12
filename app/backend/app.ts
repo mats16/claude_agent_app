@@ -67,11 +67,13 @@ fastify.register(async (fastify) => {
 
         if (message.type === 'message') {
           const userMessage = message.content;
+          const model = message.model || 'databricks-claude-sonnet-4-5';
 
           // Process agent request and stream responses
           for await (const agentMessage of processAgentRequest(
             userMessage,
-            WORKSPACE_PATH
+            WORKSPACE_PATH,
+            model
           )) {
             socket.send(JSON.stringify(agentMessage));
           }

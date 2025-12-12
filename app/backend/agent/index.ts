@@ -1,4 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { AgentMessage } from '../types.js';
+
+export type { AgentMessage };
 
 // Token cache for service principal
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -65,16 +68,7 @@ async function getServicePrincipalToken(): Promise<string> {
   return data.access_token;
 }
 
-export interface AgentMessage {
-  type: 'response' | 'tool_use' | 'tool_result' | 'error' | 'complete';
-  content?: any;
-  toolName?: string;
-  toolInput?: any;
-  toolResult?: string;
-  error?: string;
-}
-
-// Process agent request with streaming using Claude Agent SDK
+// Process agent request using Claude Agent SDK
 export async function* processAgentRequest(
   message: string,
   workspacePath: string,
@@ -112,7 +106,7 @@ export async function* processAgentRequest(
     }
 
     // Determine which model to use
-    const selectedModel = model || env.ANTHROPIC_MODEL || defaultModel;
+    const selectedModel = model || defaultModel;
 
     // Create query with Claude Agent SDK
     const agentQuery = query({
@@ -121,65 +115,52 @@ export async function* processAgentRequest(
         cwd: workspacePath,
         model: selectedModel,
         env,
-        tools: {
-          type: 'preset',
-          preset: 'claude_code',
-        },
-        maxTurns: 20,
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        persistSession: false, // Don't persist sessions for web app
-        includePartialMessages: true, // Enable streaming
+        maxTurns: 100,
+        allowedTools: [
+          'Bash',
+          'Read',
+          'Write',
+          'Edit',
+          'Glob',
+          'Grep',
+          'WebSearch',
+          'WebFetch',
+        ],
       },
     });
 
-    // Process streaming messages
+    // Process messages from agent
     for await (const sdkMessage of agentQuery) {
       if (sdkMessage.type === 'assistant') {
-        // Assistant message with content blocks
-        const apiMessage = sdkMessage.message;
+        const content = sdkMessage.message.content;
 
-        for (const block of apiMessage.content) {
-          if (block.type === 'text') {
-            yield {
-              type: 'response',
-              content: block.text,
-            };
-          } else if (block.type === 'tool_use') {
-            yield {
-              type: 'tool_use',
-              toolName: block.name,
-              toolInput: block.input,
-            };
-          }
-        }
-      } else if (sdkMessage.type === 'stream_event') {
-        // Streaming events for real-time updates
-        const event = sdkMessage.event;
-
-        if (event.type === 'content_block_delta') {
-          if (event.delta.type === 'text_delta') {
-            yield {
-              type: 'response',
-              content: event.delta.text,
-            };
+        if (typeof content === 'string') {
+          yield {
+            type: 'assistant_message',
+            content,
+          };
+        } else if (Array.isArray(content)) {
+          for (const block of content) {
+            if (block.type === 'text') {
+              yield {
+                type: 'assistant_message',
+                content: block.text,
+              };
+            } else if (block.type === 'tool_use') {
+              yield {
+                type: 'tool_use',
+                toolName: block.name,
+                toolId: block.id,
+                toolInput: block.input,
+              };
+            }
           }
         }
       } else if (sdkMessage.type === 'result') {
-        // Final result
-        if (sdkMessage.subtype === 'success') {
-          yield {
-            type: 'complete',
-          };
-        } else {
-          // Error result
-          const errors = 'errors' in sdkMessage ? sdkMessage.errors : [];
-          yield {
-            type: 'error',
-            error: errors.join(', ') || 'Unknown error occurred',
-          };
-        }
-        break;
+        yield {
+          type: 'result',
+          success: sdkMessage.subtype === 'success',
+        };
       }
     }
   } catch (error: any) {

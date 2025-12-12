@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface AgentMessage {
-  type: 'init' | 'response' | 'tool_use' | 'tool_result' | 'error' | 'complete';
+  type: 'init' | 'assistant_message' | 'tool_use' | 'result' | 'error';
   content?: string;
   toolName?: string;
+  toolId?: string;
   toolInput?: any;
-  toolResult?: string;
+  success?: boolean;
   error?: string;
   status?: string;
   workspacePath?: string;
@@ -37,19 +38,17 @@ export function useAgent() {
     ws.onopen = () => {
       console.log('WebSocket connected');
       setIsConnected(true);
-      // Send init message
       ws.send(JSON.stringify({ type: 'init' }));
     };
 
     ws.onmessage = (event) => {
       const message: AgentMessage = JSON.parse(event.data);
 
-      // Handle init message
       if (message.type === 'init') {
         return;
       }
 
-      if (message.type === 'response' && message.content) {
+      if (message.type === 'assistant_message' && message.content) {
         // Accumulate response text
         currentResponseRef.current += message.content;
 
@@ -60,7 +59,6 @@ export function useAgent() {
           );
 
           if (existingIndex >= 0) {
-            // Update existing message
             const updated = [...prev];
             updated[existingIndex] = {
               ...updated[existingIndex],
@@ -68,7 +66,6 @@ export function useAgent() {
             };
             return updated;
           } else {
-            // Create new message
             const newMessage: ChatMessage = {
               id: currentMessageIdRef.current,
               role: 'agent',
@@ -95,9 +92,6 @@ export function useAgent() {
           }
           return prev;
         });
-      } else if (message.type === 'tool_result') {
-        // Show tool result (optionally, can be hidden for cleaner UI)
-        // currentResponseRef.current += `\n[Tool result: ${message.toolResult?.substring(0, 100)}...]\n`;
       } else if (message.type === 'error') {
         currentResponseRef.current += `\n\nError: ${message.error}`;
         setMessages((prev) => {
@@ -124,7 +118,7 @@ export function useAgent() {
           }
         });
         setIsProcessing(false);
-      } else if (message.type === 'complete') {
+      } else if (message.type === 'result') {
         // Mark processing as complete
         setIsProcessing(false);
         currentResponseRef.current = '';
@@ -147,36 +141,36 @@ export function useAgent() {
     };
   }, []);
 
-  const sendMessage = useCallback((content: string) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket is not connected');
-      return;
-    }
+  const sendMessage = useCallback(
+    (content: string) => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket is not connected');
+        return;
+      }
 
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setIsProcessing(true);
-
-    // Initialize response tracking
-    currentResponseRef.current = '';
-    currentMessageIdRef.current = `agent-${Date.now()}`;
-
-    // Send message to backend
-    wsRef.current.send(
-      JSON.stringify({
-        type: 'message',
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
         content,
-        model: selectedModel,
-      })
-    );
-  }, [selectedModel]);
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+      setIsProcessing(true);
+
+      currentResponseRef.current = '';
+      currentMessageIdRef.current = `agent-${Date.now()}`;
+
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'message',
+          content,
+          model: selectedModel,
+        })
+      );
+    },
+    [selectedModel]
+  );
 
   return {
     messages,

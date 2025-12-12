@@ -1,19 +1,97 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getTools, executeTool } from './tools.js';
 
-// Databricks Anthropic Proxy configuration
-const client = new Anthropic({
-  apiKey: process.env.DATABRICKS_TOKEN || process.env.ANTHROPIC_API_KEY || '',
-  baseURL: process.env.DATABRICKS_HOST
-    ? `https://${process.env.DATABRICKS_HOST}/serving-endpoints/anthropic`
-    : undefined,
-  // Databricks uses Bearer token authentication instead of x-api-key
-  defaultHeaders: process.env.DATABRICKS_HOST
-    ? {
-        Authorization: `Bearer ${process.env.DATABRICKS_TOKEN}`,
-      }
-    : undefined,
-});
+// Helper to ensure URL has protocol
+function ensureHttpsProtocol(host: string): string {
+  if (!host.startsWith('http://') && !host.startsWith('https://')) {
+    return `https://${host}`;
+  }
+  return host;
+}
+
+const anthropicBaseURL = process.env.DATABRICKS_HOST
+  ? `${ensureHttpsProtocol(process.env.DATABRICKS_HOST)}/serving-endpoints/anthropic`
+  : undefined;
+
+// Token cache for service principal
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+// Get service principal access token from Databricks OAuth2
+async function getServicePrincipalToken(): Promise<string> {
+  // Check if cached token is still valid
+  if (cachedToken && Date.now() < cachedToken.expiresAt) {
+    return cachedToken.token;
+  }
+
+  const clientId = process.env.DATABRICKS_CLIENT_ID;
+  const clientSecret = process.env.DATABRICKS_CLIENT_SECRET;
+  const databricksHost = process.env.DATABRICKS_HOST;
+
+  if (!clientId || !clientSecret || !databricksHost) {
+    throw new Error(
+      'DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, and DATABRICKS_HOST must be set'
+    );
+  }
+
+  // Request token from Databricks OAuth2 endpoint
+  const tokenUrl = `${ensureHttpsProtocol(databricksHost)}/oidc/v1/token`;
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: 'all-apis',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to get service principal token: ${response.status} ${errorText}`
+    );
+  }
+
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in?: number;
+  };
+  const expiresIn = data.expires_in || 3600; // Default to 1 hour
+
+  // Cache token with 5 minute buffer before expiration
+  cachedToken = {
+    token: data.access_token,
+    expiresAt: Date.now() + (expiresIn - 300) * 1000,
+  };
+
+  return data.access_token;
+}
+
+// Helper function to create Anthropic client with appropriate token
+async function createAnthropicClient(): Promise<Anthropic> {
+  let token: string;
+
+  // Use service principal token for Databricks, otherwise use local dev token
+  if (process.env.DATABRICKS_HOST) {
+    token = await getServicePrincipalToken();
+  } else {
+    token = process.env.ANTHROPIC_API_KEY || '';
+  }
+
+  return new Anthropic({
+    apiKey: token,
+    baseURL: anthropicBaseURL,
+    // Databricks uses Bearer token authentication instead of x-api-key
+    defaultHeaders: anthropicBaseURL
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : undefined,
+  });
+}
 
 export interface AgentMessage {
   type: 'response' | 'tool_use' | 'tool_result' | 'error' | 'complete';
@@ -29,6 +107,8 @@ export async function* processAgentRequest(
   message: string,
   workspacePath: string
 ): AsyncGenerator<AgentMessage> {
+  // Create client with service principal token
+  const client = await createAnthropicClient();
   const messages: Anthropic.MessageParam[] = [
     { role: 'user', content: message },
   ];

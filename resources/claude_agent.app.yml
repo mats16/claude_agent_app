@@ -4,3 +4,11 @@ resources:
       name: claude-agent
       description: A basic starter application.
       source_code_path: ../app
+      user_api_scopes:
+        - sql
+        - files.files
+        - catalog.catalogs:read
+        - catalog.schemas:read
+        - catalog.tables:read
+        - serving.serving-endpoints
+      

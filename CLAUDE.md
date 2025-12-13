@@ -104,11 +104,13 @@ It's unnecessary since it will be designed later.
 ### WebSocket (`ws://localhost:8000/ws`)
 
 **Client -> Server:**
-- `{ type: "subscribe", sessionId: string }` - Subscribe to a chat
-- `{ type: "chat", sessionId: string, content: string }` - Send message
+- `{ type: "init" }` - Connection request
+- `{ type: "resume", sessionId: string }` - Subscribe to a chat (TBD)
+- `{ type: "user_message", content: string, model: string }` - Send message
 
 **Server -> Client:**
-- `{ type: "connected" }` - Connection established
+- `{ type: "rady" }` - Connection established
+- `{ type: "session.created", sessionId: string }` - Session created
 - `{ type: "history", messages: [...] }` - Chat history
 - `{ type: "assistant_message", content: string }` - AI response
 - `{ type: "tool_use", toolName: string, toolInput: {...} }` - Tool being used

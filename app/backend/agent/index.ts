@@ -84,7 +84,7 @@ export async function* processAgentRequest(
       prompt: message,
       options: {
         resume: sessionId,
-        cwd: sessionId ? `/tmp/${sessionId}` : '/tmp',
+        //cwd: sessionId ? `/tmp/${sessionId}` : '/tmp',
         model,
         env: {
           PATH: process.env.PATH,

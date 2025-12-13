@@ -1,11 +1,11 @@
 // Re-export all types from shared package
 export type {
-  WSInitMessage,
+  WSConnectMessage,
   WSResumeMessage,
   WSUserMessage,
   IncomingWSMessage,
-  WSReadyResponse,
-  WSSessionCreatedResponse,
+  WSConnectedResponse,
+  WSInitResponse,
   WSHistoryResponse,
   WSAssistantMessage,
   WSToolUseMessage,

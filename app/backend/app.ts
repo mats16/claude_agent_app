@@ -59,10 +59,10 @@ fastify.register(async (fastify) => {
         const messageStr = messageBuffer.toString();
         const message = JSON.parse(messageStr);
 
-        if (message.type === 'init') {
+        if (message.type === 'connect') {
           socket.send(
             JSON.stringify({
-              type: 'ready',
+              type: 'connected',
             })
           );
           return;

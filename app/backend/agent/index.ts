@@ -1,7 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentMessage } from '../types.js';
 import { databricksMcpServer } from './mcp/databricks.js';
-
+import fs from 'fs';
 export type { AgentMessage };
 
 const databricksHost = process.env.DATABRICKS_HOST ?? 'xx.cloud.databricks.com';
@@ -84,7 +84,7 @@ export async function* processAgentRequest(
       prompt: message,
       options: {
         resume: sessionId,
-        //cwd: sessionId ? `/tmp/${sessionId}` : '/tmp',
+        //cwd: sessionId ? `./tmp/${sessionId}` : '/tmp',
         model,
         env: {
           PATH: process.env.PATH,
@@ -123,17 +123,12 @@ export async function* processAgentRequest(
 
     // Process messages from agent
     for await (const message of response) {
-      console.log('--------------------------------');
-      console.log(message.session_id);
-      console.log(message);
-
-      // 最初のメッセージは、セッションIDを含むシステム初期化メッセージです
       if (message.type === 'system' && message.subtype === 'init') {
         sessionId = message.session_id;
-        console.log(`セッションが開始されました。ID: ${sessionId}`);
         yield {
-          type: 'session.created',
+          type: 'init',
           sessionId: message.session_id,
+          claudeCodeVersion: message.claude_code_version,
         };
       }
 

@@ -3,8 +3,8 @@
 // ============================================
 
 // Client -> Server messages
-export interface WSInitMessage {
-  type: 'init';
+export interface WSConnectMessage {
+  type: 'connect';
 }
 
 export interface WSResumeMessage {
@@ -19,16 +19,20 @@ export interface WSUserMessage {
   sessionId?: string;
 }
 
-export type IncomingWSMessage = WSInitMessage | WSResumeMessage | WSUserMessage;
+export type IncomingWSMessage =
+  | WSConnectMessage
+  | WSResumeMessage
+  | WSUserMessage;
 
 // Server -> Client messages
-export interface WSReadyResponse {
-  type: 'ready';
+export interface WSConnectedResponse {
+  type: 'connected';
 }
 
-export interface WSSessionCreatedResponse {
-  type: 'session.created';
+export interface WSInitResponse {
+  type: 'init';
   sessionId: string;
+  claudeCodeVersion: string;
 }
 
 export interface WSHistoryResponse {
@@ -59,8 +63,8 @@ export interface WSErrorMessage {
 }
 
 export type OutgoingWSMessage =
-  | WSReadyResponse
-  | WSSessionCreatedResponse
+  | WSConnectedResponse
+  | WSInitResponse
   | WSHistoryResponse
   | WSAssistantMessage
   | WSToolUseMessage
@@ -69,7 +73,7 @@ export type OutgoingWSMessage =
 
 // Agent message type (used internally by backend)
 export type AgentMessage =
-  | WSSessionCreatedResponse
+  | WSInitResponse
   | WSAssistantMessage
   | WSToolUseMessage
   | WSResultMessage

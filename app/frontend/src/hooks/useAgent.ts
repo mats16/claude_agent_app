@@ -33,20 +33,20 @@ export function useAgent() {
     ws.onopen = () => {
       console.log('WebSocket connected');
       setIsConnected(true);
-      ws.send(JSON.stringify({ type: 'init' }));
+      ws.send(JSON.stringify({ type: 'connect' }));
     };
 
     ws.onmessage = (event) => {
       const message: ServerMessage = JSON.parse(event.data);
 
-      if (message.type === 'ready') {
-        console.log('Connection ready');
+      if (message.type === 'connected') {
+        console.log('Connection established');
         return;
       }
 
-      if (message.type === 'session.created' && message.sessionId) {
+      if (message.type === 'init' && message.sessionId) {
         sessionIdRef.current = message.sessionId;
-        console.log('Session created:', message.sessionId);
+        console.log('Session initialized:', message.sessionId);
         return;
       }
 

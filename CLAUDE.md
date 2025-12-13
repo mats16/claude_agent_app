@@ -105,13 +105,13 @@ It's unnecessary since it will be designed later.
 ### WebSocket (`ws://localhost:8000/ws`)
 
 **Client -> Server:**
-- `{ type: "init" }` - Connection request
+- `{ type: "connect" }` - Connection request
 - `{ type: "resume", sessionId: string }` - Subscribe to a chat (TBD)
 - `{ type: "user_message", content: string, model: string }` - Send user message
 
 **Server -> Client:**
-- `{ type: "ready" }` - Connection established
-- `{ type: "session.created", sessionId: string }` - Session created
+- `{ type: "connected" }` - Connection established
+- `{ type: "init", sessionId: string, claudeCodeVersion: string }` - Session created
 - `{ type: "history", messages: [...] }` - Chat history
 - `{ type: "assistant_message", content: string }` - AI response
 - `{ type: "tool_use", toolName: string, toolInput: {...} }` - Tool being used

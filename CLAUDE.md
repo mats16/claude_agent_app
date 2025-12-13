@@ -111,7 +111,7 @@ It's unnecessary since it will be designed later.
 
 **Server -> Client:**
 - `{ type: "connected" }` - Connection established
-- `{ type: "init", sessionId: string, claudeCodeVersion: string }` - Session created
+- `{ type: "init", sessionId: string, version: string, model: string }` - Session created
 - `{ type: "history", messages: [...] }` - Chat history
 - `{ type: "assistant_message", content: string }` - AI response
 - `{ type: "tool_use", toolName: string, toolInput: {...} }` - Tool being used

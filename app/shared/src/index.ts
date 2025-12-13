@@ -32,7 +32,8 @@ export interface WSConnectedResponse {
 export interface WSInitResponse {
   type: 'init';
   sessionId: string;
-  claudeCodeVersion: string;
+  version: string;
+  model: string;
 }
 
 export interface WSHistoryResponse {

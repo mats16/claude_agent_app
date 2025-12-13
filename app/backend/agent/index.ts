@@ -84,7 +84,7 @@ export async function* processAgentRequest(
       prompt: message,
       options: {
         resume: sessionId,
-        //cwd: sessionId ? `./tmp/${sessionId}` : '/tmp',
+        cwd: '/tmp',
         model,
         env: {
           PATH: process.env.PATH,
@@ -128,7 +128,8 @@ export async function* processAgentRequest(
         yield {
           type: 'init',
           sessionId: message.session_id,
-          claudeCodeVersion: message.claude_code_version,
+          version: message.claude_code_version,
+          model: message.model,
         };
       }
 

@@ -1,6 +1,6 @@
 # Claude Agent App
 
-Databricks Apps 上で動作する Claude Code ライクなコーディングエージェントのウェブアプリケーション。
+A web application that serves as a Claude Code-like coding agent running on Databricks Apps.
 
 ## Architecture
 
@@ -59,61 +59,6 @@ In production (Databricks Apps), the following authentication flow is used:
 2. **User Token**: Retrieved from request header `x-forwarded-access-token` (automatically provided by Databricks Apps)
 
 In development, `DATABRICKS_TOKEN` can be used as a fallback.
-
-
-## Claude Agent SDK v2
-
-Use V2 interface.
-
-Docs: https://platform.claude.com/docs/en/agent-sdk/typescript-v2-preview
-
-### Examples
-
-```ts
-import {
-  unstable_v2_createSession,
-  unstable_v2_resumeSession,
-  type SDKMessage
-} from '@anthropic-ai/claude-agent-sdk'
-
-// Helper to extract text from assistant messages
-function getAssistantText(msg: SDKMessage): string | null {
-  if (msg.type !== 'assistant') return null
-  return msg.message.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('')
-}
-
-// Create initial session and have a conversation
-const session = unstable_v2_createSession({
-  model: 'databricks-claude-sonnet-4-5'
-})
-
-await session.send('Remember this number: 42')
-
-// Get the session ID from any received message
-let sessionId: string | undefined
-for await (const msg of session.receive()) {
-  sessionId = msg.session_id
-  const text = getAssistantText(msg)
-  if (text) console.log('Initial response:', text)
-}
-
-console.log('Session ID:', sessionId)
-session.close()
-
-// Later: resume the session using the stored ID
-await using resumedSession = unstable_v2_resumeSession(sessionId!, {
-  model: 'databricks-claude-sonnet-4-5'
-})
-
-await resumedSession.send('What number did I ask you to remember?')
-for await (const msg of resumedSession.receive()) {
-  const text = getAssistantText(msg)
-  if (text) console.log('Resumed response:', text)
-}
-```
 
 
 ## Custom MCP Servers

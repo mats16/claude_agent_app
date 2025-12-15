@@ -108,6 +108,14 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
             rows={1}
           />
           <div className="sidebar-input-controls">
+            <input
+              type="text"
+              value={workspacePath}
+              onChange={(e) => setWorkspacePath(e.target.value)}
+              placeholder="/Workspace/Users/..."
+              className="sidebar-workspace-input"
+              disabled={isSubmitting}
+            />
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
@@ -126,17 +134,6 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
             </button>
           </div>
         </form>
-
-        <div className="sidebar-workspace-row">
-          <input
-            type="text"
-            value={workspacePath}
-            onChange={(e) => setWorkspacePath(e.target.value)}
-            placeholder="/Workspace/Users/..."
-            className="sidebar-workspace-input"
-            disabled={isSubmitting}
-          />
-        </div>
       </div>
 
       <div className="sidebar-section">

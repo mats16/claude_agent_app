@@ -134,7 +134,7 @@ export default function SessionPage() {
         </div>
         <div className="chat-header-right">
           <span className="chat-model">
-            {selectedModel.replace('databricks-claude-', '')}
+            {selectedModel}
           </span>
           <span
             className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}

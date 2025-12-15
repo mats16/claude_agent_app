@@ -148,8 +148,8 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
                 className="sidebar-model-select"
                 disabled={isSubmitting}
               >
-                <option value="databricks-claude-sonnet-4-5">Sonnet 4.5</option>
                 <option value="databricks-claude-opus-4-5">Opus 4.5</option>
+                <option value="databricks-claude-sonnet-4-5">Sonnet 4.5</option>
               </select>
               <button
                 type="submit"

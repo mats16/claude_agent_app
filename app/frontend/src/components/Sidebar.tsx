@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SessionList from './SessionList';
+import AccountMenu from './AccountMenu';
 
 interface SidebarProps {
   width?: number;
@@ -143,6 +144,10 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
           <span>Sessions</span>
         </div>
         <SessionList />
+      </div>
+
+      <div className="sidebar-footer">
+        <AccountMenu />
       </div>
     </aside>
   );

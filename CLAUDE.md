@@ -100,23 +100,87 @@ Both tools use the user's access token passed from the WebSocket request header 
 
 ### REST API
 
-It's unnecessary since it will be designed later.
+#### POST `/api/v1/sessions` - Create new session
 
-### WebSocket (`ws://localhost:8000/ws`)
+Creates a new chat session with an initial message.
+
+**Request:**
+```json
+{
+  "events": [
+    {
+      "uuid": "<uuid4>",
+      "session_id": "",
+      "type": "user",
+      "message": { "role": "user", "content": "Your message here" }
+    }
+  ],
+  "session_context": { "model": "sonnet" }
+}
+```
+
+**Response:**
+```json
+{
+  "session_id": "<sdk-generated-id>",
+  "events": [
+    { "uuid": "...", "session_id": "...", "type": "init", "data": { "version": "...", "model": "..." } },
+    { "uuid": "...", "session_id": "...", "type": "assistant", "data": { "content": "..." } },
+    { "uuid": "...", "session_id": "...", "type": "tool_use", "data": { "tool_name": "...", "tool_id": "...", "tool_input": {...} } },
+    { "uuid": "...", "session_id": "...", "type": "result", "data": { "success": true } }
+  ]
+}
+```
+
+#### GET `/api/v1/sessions/:sessionId/events` - Get event history (TBD)
+
+Returns event history for a session. Data store not yet implemented.
+
+**Response:**
+```json
+{
+  "events": []
+}
+```
+
+### WebSocket (`ws://localhost:8000/api/v1/ws`)
+
+Create a new session and stream responses in real-time.
 
 **Client -> Server:**
 - `{ type: "connect" }` - Connection request
-- `{ type: "resume", sessionId: string }` - Subscribe to a chat (TBD)
-- `{ type: "user_message", content: string, model: string }` - Send user message
+- `{ type: "user_message", content: string, model: string }` - Send user message (first message creates session)
 
 **Server -> Client:**
 - `{ type: "connected" }` - Connection established
-- `{ type: "init", sessionId: string, version: string, model: string }` - Session created
-- `{ type: "history", messages: [...] }` - Chat history
+- `{ type: "init", sessionId: string, version: string, model: string }` - Session created (contains the new session ID)
 - `{ type: "assistant_message", content: string }` - AI response
 - `{ type: "tool_use", toolName: string, toolInput: {...} }` - Tool being used
 - `{ type: "result", success: boolean }` - Query complete
 - `{ type: "error", error: string }` - Error occurred
+
+### WebSocket (`ws://localhost:8000/api/v1/sessions/:sessionId/ws`)
+
+Connect to an existing session for real-time streaming.
+
+**Client -> Server:**
+- `{ type: "connect" }` - Connection request
+- `{ type: "user_message", content: string, model: string }` - Send user message
+
+**Server -> Client:**
+- `{ type: "connected" }` - Connection established
+- `{ type: "init", sessionId: string, version: string, model: string }` - Session confirmed
+- `{ type: "assistant_message", content: string }` - AI response
+- `{ type: "tool_use", toolName: string, toolInput: {...} }` - Tool being used
+- `{ type: "result", success: boolean }` - Query complete
+- `{ type: "error", error: string }` - Error occurred
+
+## Frontend Routes
+
+| Path | Description |
+|------|-------------|
+| `/` | Home page - create new session |
+| `/sessions/:sessionId` | Chat page - interact with existing session |
 
 ## Notes
 

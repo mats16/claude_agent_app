@@ -4,7 +4,7 @@ import staticPlugin from '@fastify/static';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { processAgentRequest } from './agent/index.js';
+import { processAgentRequest, AgentMessage } from './agent/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +17,38 @@ const fastify = Fastify({
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8000;
+
+// Session event queue for streaming events to WebSocket
+interface SessionQueue {
+  events: AgentMessage[];
+  listeners: Set<(event: AgentMessage) => void>;
+  completed: boolean;
+}
+
+const sessionQueues = new Map<string, SessionQueue>();
+
+function getOrCreateQueue(sessionId: string): SessionQueue {
+  let queue = sessionQueues.get(sessionId);
+  if (!queue) {
+    queue = { events: [], listeners: new Set(), completed: false };
+    sessionQueues.set(sessionId, queue);
+  }
+  return queue;
+}
+
+function addEventToQueue(sessionId: string, event: AgentMessage) {
+  const queue = getOrCreateQueue(sessionId);
+  queue.events.push(event);
+  // Notify all listeners
+  queue.listeners.forEach((listener) => listener(event));
+}
+
+function markQueueCompleted(sessionId: string) {
+  const queue = sessionQueues.get(sessionId);
+  if (queue) {
+    queue.completed = true;
+  }
+}
 
 // Register WebSocket plugin
 await fastify.register(websocket);
@@ -43,66 +75,189 @@ fastify.get('/api/hello', async () => {
   };
 });
 
-// WebSocket endpoint for agent communication
-fastify.register(async (fastify) => {
-  fastify.get('/ws', { websocket: true }, (socket, req) => {
-    console.log('Client connected to WebSocket');
+// Create session endpoint - returns immediately after init message
+interface CreateSessionBody {
+  events: Array<{
+    uuid: string;
+    session_id: string;
+    type: string;
+    message: { role: string; content: string };
+  }>;
+  session_context: { model: string };
+}
+
+fastify.post<{ Body: CreateSessionBody }>(
+  '/api/v1/sessions',
+  async (request, reply) => {
+    const { events, session_context } = request.body;
 
     // Get user info from request headers
-    const userAccessToken = req.headers['x-forwarded-access-token'] as
+    const userAccessToken = request.headers['x-forwarded-access-token'] as
       | string
       | undefined;
-    const userEmail = req.headers['x-forwarded-email'] as string | undefined;
+    const userEmail = request.headers['x-forwarded-email'] as string | undefined;
 
-    socket.on('message', async (messageBuffer: Buffer) => {
+    // Extract first user message
+    const userEvent = events.find((e) => e.type === 'user');
+    if (!userEvent) {
+      return reply.status(400).send({ error: 'No user message found' });
+    }
+
+    const userMessage = userEvent.message.content;
+    const model =
+      session_context.model === 'sonnet'
+        ? 'databricks-claude-sonnet-4-5'
+        : session_context.model === 'opus'
+          ? 'databricks-claude-opus-4-5'
+          : `databricks-claude-${session_context.model}`;
+
+    // Promise to wait for init message
+    let sessionId = '';
+    let resolveInit: (() => void) | undefined;
+    const initReceived = new Promise<void>((resolve) => {
+      resolveInit = resolve;
+    });
+
+    // Start processing in background
+    const agentIterator = processAgentRequest(
+      userMessage,
+      model,
+      undefined,
+      userAccessToken,
+      userEmail
+    );
+
+    // Process events in background
+    (async () => {
       try {
-        const messageStr = messageBuffer.toString();
-        const message = JSON.parse(messageStr);
+        for await (const agentMessage of agentIterator) {
+          if (agentMessage.type === 'init') {
+            sessionId = agentMessage.sessionId;
+            getOrCreateQueue(sessionId);
+            resolveInit?.();
+          }
 
-        if (message.type === 'connect') {
-          socket.send(
-            JSON.stringify({
-              type: 'connected',
-            })
-          );
-          return;
-        }
-
-        if (message.type === 'user_message') {
-          const userMessage = message.content;
-          const model = message.model || 'databricks-claude-sonnet-4-5';
-          const sessionId = message.sessionId;
-
-          // Process agent request and stream responses
-          for await (const agentMessage of processAgentRequest(
-            userMessage,
-            model,
-            sessionId,
-            userAccessToken,
-            userEmail
-          )) {
-            socket.send(JSON.stringify(agentMessage));
+          if (sessionId) {
+            addEventToQueue(sessionId, agentMessage);
           }
         }
       } catch (error: any) {
-        console.error('WebSocket error:', error);
-        socket.send(
-          JSON.stringify({
+        if (sessionId) {
+          addEventToQueue(sessionId, {
             type: 'error',
             error: error.message || 'Unknown error occurred',
-          })
-        );
+          });
+        }
+      } finally {
+        if (sessionId) {
+          markQueueCompleted(sessionId);
+        }
       }
-    });
+    })();
 
-    socket.on('close', () => {
-      console.log('Client disconnected from WebSocket');
-    });
+    // Wait for init message only
+    await initReceived;
 
-    socket.on('error', (error: Error) => {
-      console.error('WebSocket connection error:', error);
-    });
-  });
+    return {
+      session_id: sessionId,
+    };
+  }
+);
+
+// Get session events (placeholder - data store not implemented)
+fastify.get<{ Params: { sessionId: string } }>(
+  '/api/v1/sessions/:sessionId/events',
+  async (_request, _reply) => {
+    // TODO: Implement when data store is ready
+    return { events: [] };
+  }
+);
+
+// WebSocket endpoint for existing session - receives queued events
+fastify.register(async (fastify) => {
+  fastify.get<{ Params: { sessionId: string } }>(
+    '/api/v1/sessions/:sessionId/ws',
+    { websocket: true },
+    (socket, req) => {
+      const sessionId = req.params.sessionId;
+      console.log(`Client connected to WebSocket for session: ${sessionId}`);
+
+      // Get user info from request headers
+      const userAccessToken = req.headers['x-forwarded-access-token'] as
+        | string
+        | undefined;
+      const userEmail = req.headers['x-forwarded-email'] as string | undefined;
+
+      const queue = sessionQueues.get(sessionId);
+
+      // Event listener for new events
+      const onEvent = (event: AgentMessage) => {
+        socket.send(JSON.stringify(event));
+      };
+
+      socket.on('message', async (messageBuffer: Buffer) => {
+        try {
+          const messageStr = messageBuffer.toString();
+          const message = JSON.parse(messageStr);
+
+          if (message.type === 'connect') {
+            socket.send(JSON.stringify({ type: 'connected' }));
+
+            // Send all queued events
+            if (queue) {
+              for (const event of queue.events) {
+                socket.send(JSON.stringify(event));
+              }
+
+              // If not completed, subscribe to new events
+              if (!queue.completed) {
+                queue.listeners.add(onEvent);
+              }
+            }
+            return;
+          }
+
+          if (message.type === 'user_message') {
+            const userMessage = message.content;
+            const model = message.model || 'databricks-claude-sonnet-4-5';
+
+            // Process agent request and stream responses (use URL sessionId for resume)
+            for await (const agentMessage of processAgentRequest(
+              userMessage,
+              model,
+              sessionId,
+              userAccessToken,
+              userEmail
+            )) {
+              socket.send(JSON.stringify(agentMessage));
+            }
+          }
+        } catch (error: any) {
+          console.error('WebSocket error:', error);
+          socket.send(
+            JSON.stringify({
+              type: 'error',
+              error: error.message || 'Unknown error occurred',
+            })
+          );
+        }
+      });
+
+      socket.on('close', () => {
+        console.log(
+          `Client disconnected from WebSocket for session: ${sessionId}`
+        );
+        // Remove listener
+        if (queue) {
+          queue.listeners.delete(onEvent);
+        }
+      });
+
+      socket.on('error', (error: Error) => {
+        console.error('WebSocket connection error:', error);
+      });
+    }
+  );
 });
 
 // SPA fallback - catch all routes and serve index.html

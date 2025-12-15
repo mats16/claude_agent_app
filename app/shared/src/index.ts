@@ -79,3 +79,54 @@ export type AgentMessage =
   | WSToolUseMessage
   | WSResultMessage
   | WSErrorMessage;
+
+// ============================================
+// REST API Types
+// ============================================
+
+// Session event types
+export type SessionEventType =
+  | 'user'
+  | 'init'
+  | 'assistant'
+  | 'tool_use'
+  | 'result'
+  | 'error';
+
+export interface SessionEvent {
+  uuid: string;
+  session_id: string;
+  type: SessionEventType;
+  data?: {
+    content?: string;
+    version?: string;
+    model?: string;
+    tool_name?: string;
+    tool_id?: string;
+    tool_input?: any;
+    success?: boolean;
+    error?: string;
+  };
+  message?: {
+    role: string;
+    content: string;
+  };
+}
+
+// POST /api/v1/sessions
+export interface CreateSessionRequest {
+  events: SessionEvent[];
+  session_context: {
+    model: string;
+  };
+}
+
+export interface CreateSessionResponse {
+  session_id: string;
+  events: SessionEvent[];
+}
+
+// GET /api/v1/sessions/:sessionId/events
+export interface GetSessionEventsResponse {
+  events: SessionEvent[];
+}

@@ -11,27 +11,44 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-export function useAgent() {
+interface UseAgentOptions {
+  sessionId?: string;
+  initialMessage?: string;
+  model?: string;
+}
+
+export function useAgent(options: UseAgentOptions = {}) {
+  const { sessionId, initialMessage, model } = options;
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedModel, setSelectedModel] = useState(
-    'databricks-claude-sonnet-4-5'
+    model || 'databricks-claude-sonnet-4-5'
   );
   const wsRef = useRef<WebSocket | null>(null);
   const currentResponseRef = useRef<string>('');
   const currentMessageIdRef = useRef<string>('');
-  const sessionIdRef = useRef<string | undefined>(undefined);
+  const initialMessageAddedRef = useRef(false);
+  const connectionInitiatedRef = useRef(false);
+  const initialMessageRef = useRef(initialMessage);
 
   useEffect(() => {
+    // Don't connect if no sessionId
+    if (!sessionId) return;
+
+    // Prevent double connection in StrictMode
+    if (connectionInitiatedRef.current) return;
+    connectionInitiatedRef.current = true;
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/api/v1/sessions/${sessionId}/ws`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket connected');
+      console.log(`WebSocket connected (session: ${sessionId})`);
       setIsConnected(true);
       ws.send(JSON.stringify({ type: 'connect' }));
     };
@@ -41,12 +58,34 @@ export function useAgent() {
 
       if (message.type === 'connected') {
         console.log('Connection established');
+
+        // Add initial message to UI (sent via POST, not WebSocket)
+        if (initialMessageRef.current && !initialMessageAddedRef.current) {
+          initialMessageAddedRef.current = true;
+
+          const userMsg: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: initialMessageRef.current,
+            timestamp: new Date(),
+          };
+          setMessages([userMsg]);
+          setIsProcessing(true);
+
+          currentResponseRef.current = '';
+          currentMessageIdRef.current = `agent-${Date.now()}`;
+        }
         return;
       }
 
-      if (message.type === 'init' && message.sessionId) {
-        sessionIdRef.current = message.sessionId;
+      if (message.type === 'init') {
         console.log('Session initialized:', message.sessionId);
+        // Start processing state if not already set
+        if (!initialMessageAddedRef.current) {
+          setIsProcessing(true);
+          currentResponseRef.current = '';
+          currentMessageIdRef.current = `agent-${Date.now()}`;
+        }
         return;
       }
 
@@ -139,9 +178,11 @@ export function useAgent() {
     };
 
     return () => {
+      connectionInitiatedRef.current = false;
       ws.close();
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
 
   const sendMessage = useCallback(
     (content: string) => {
@@ -168,7 +209,6 @@ export function useAgent() {
           type: 'user_message',
           content,
           model: selectedModel,
-          sessionId: sessionIdRef.current,
         })
       );
     },
@@ -182,5 +222,6 @@ export function useAgent() {
     sendMessage,
     selectedModel,
     setSelectedModel,
+    setMessages,
   };
 }

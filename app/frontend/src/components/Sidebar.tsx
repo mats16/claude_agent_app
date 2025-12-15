@@ -19,6 +19,8 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
   const [workspacePath, setWorkspacePath] = useState('');
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
+  const [autoSync, setAutoSync] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
 
@@ -126,17 +128,37 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
 
       <div className="sidebar-input-section">
         <form onSubmit={handleSubmit}>
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="What do you want to do?"
-            className="sidebar-textarea"
-            disabled={isSubmitting}
-            rows={1}
-          />
-          <div className="sidebar-input-controls">
+          <div className="sidebar-chat-container">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="What do you want to do?"
+              className="sidebar-textarea"
+              disabled={isSubmitting}
+              rows={3}
+            />
+            <div className="sidebar-chat-controls">
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="sidebar-model-select"
+                disabled={isSubmitting}
+              >
+                <option value="databricks-claude-sonnet-4-5">Sonnet 4.5</option>
+                <option value="databricks-claude-opus-4-5">Opus 4.5</option>
+              </select>
+              <button
+                type="submit"
+                disabled={!input.trim() || isSubmitting}
+                className="sidebar-send-button"
+              >
+                {isSubmitting ? '...' : '↑'}
+              </button>
+            </div>
+          </div>
+          <div className="sidebar-workspace-row">
             <button
               type="button"
               onClick={() => setIsWorkspaceModalOpen(true)}
@@ -146,22 +168,24 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
             >
               {workspacePath || 'Select workspace'}
             </button>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="sidebar-model-select"
-              disabled={isSubmitting}
-            >
-              <option value="databricks-claude-sonnet-4-5">Sonnet 4.5</option>
-              <option value="databricks-claude-opus-4-5">Opus 4.5</option>
-            </select>
-            <button
-              type="submit"
-              disabled={!input.trim() || isSubmitting}
-              className="sidebar-send-button"
-            >
-              {isSubmitting ? '...' : '↑'}
-            </button>
+            <label className="sidebar-flag">
+              <input
+                type="checkbox"
+                checked={overwrite}
+                onChange={(e) => setOverwrite(e.target.checked)}
+                disabled={isSubmitting}
+              />
+              <span>Overwrite</span>
+            </label>
+            <label className="sidebar-flag">
+              <input
+                type="checkbox"
+                checked={autoSync}
+                onChange={(e) => setAutoSync(e.target.checked)}
+                disabled={isSubmitting}
+              />
+              <span>Auto Sync</span>
+            </label>
           </div>
         </form>
       </div>

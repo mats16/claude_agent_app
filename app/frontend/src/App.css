@@ -72,37 +72,53 @@ body {
   border-bottom: 1px solid #f0f0f0;
 }
 
-.sidebar-textarea {
-  width: 100%;
-  min-height: 60px;
-  max-height: 200px;
-  padding: 0.75rem 1rem;
+.sidebar-chat-container {
+  position: relative;
   background: #ffffff;
   border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.sidebar-chat-container:focus-within {
+  border-color: #f5a623;
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
+}
+
+.sidebar-textarea {
+  width: 100%;
+  min-height: 80px;
+  max-height: 200px;
+  padding: 0.75rem 1rem;
+  padding-bottom: 2.5rem;
+  background: transparent;
+  border: none;
   border-radius: 12px;
   color: #333;
   font-size: 0.9rem;
   font-family: inherit;
   outline: none;
   resize: none;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-}
-
-.sidebar-textarea:focus {
-  border-color: #f5a623;
-  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
 }
 
 .sidebar-textarea::placeholder {
   color: #999;
 }
 
-.sidebar-input-controls {
+.sidebar-chat-controls {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.sidebar-workspace-row {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
@@ -175,6 +191,31 @@ body {
 .sidebar-workspace-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.sidebar-flag {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sidebar-flag input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  accent-color: #f5a623;
+  cursor: pointer;
+}
+
+.sidebar-flag input[type='checkbox']:disabled {
+  cursor: not-allowed;
+}
+
+.sidebar-flag span {
+  user-select: none;
 }
 
 /* Sidebar Section */

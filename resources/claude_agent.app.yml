@@ -11,4 +11,3 @@ resources:
         - catalog.schemas:read
         - catalog.tables:read
         - serving.serving-endpoints
-      

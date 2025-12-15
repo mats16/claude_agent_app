@@ -4,8 +4,8 @@ import { databricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
 export type { AgentMessage };
 
-const databricksHost = process.env.DATABRICKS_HOST ?? 'xx.cloud.databricks.com';
-const databricksToken = process.env.DATABRICKS_TOKEN;
+const databricksHost = process.env.DATABRICKS_HOST as string;
+const personalAccessToken = process.env.DATABRICKS_TOKEN;
 const clientId = process.env.DATABRICKS_CLIENT_ID;
 const clientSecret = process.env.DATABRICKS_CLIENT_SECRET;
 
@@ -14,7 +14,7 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 
 // Get service principal access token from Databricks OAuth2
 async function getOidcAccessToken(
-  host: string,
+  databricksHost: string,
   clientId?: string,
   clientSecret?: string
 ): Promise<string | undefined> {
@@ -23,12 +23,12 @@ async function getOidcAccessToken(
     return cachedToken.token;
   }
 
-  if (!clientId || !clientSecret || !host) {
+  if (!clientId || !clientSecret) {
     return undefined;
   }
 
   // Request token from Databricks OAuth2 endpoint
-  const tokenUrl = `https://${host}/oidc/v1/token`;
+  const tokenUrl = `https://${databricksHost}/oidc/v1/token`;
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
@@ -67,12 +67,19 @@ async function getOidcAccessToken(
 // Process agent request using Claude Agent SDK
 export async function* processAgentRequest(
   message: string,
-  workspacePath: string,
   model: string = 'databricks-claude-sonnet-4-5',
   sessionId?: string,
-  userAccessToken?: string
+  userAccessToken?: string,
+  userEmail?: string
 ): AsyncGenerator<AgentMessage> {
-  const accessToken = await getOidcAccessToken(
+  // Create user workspace directory
+  const userHome = userEmail ? `/home/app/${userEmail}` : '../../agent_home';
+  fs.mkdirSync(`${userHome}/.claude`, { recursive: true });
+  //if (!fs.existsSync(`${userHome}/.claude/skills`)) {
+  //  fs.symlinkSync('/app/python/source_code/agent_home/.claude/skills', `${userHome}/.claude/skills`);
+  //}
+
+  const spAccessToken = await getOidcAccessToken(
     databricksHost,
     clientId,
     clientSecret
@@ -84,13 +91,17 @@ export async function* processAgentRequest(
       prompt: message,
       options: {
         resume: sessionId,
-        cwd: '/tmp',
+        cwd: userHome,
+        settingSources: ['user', 'project', 'local'],
         model,
         env: {
           PATH: process.env.PATH,
+          HOME: userEmail ? userHome : undefined,
           ANTHROPIC_BASE_URL: `https://${databricksHost}/serving-endpoints/anthropic`,
-          ANTHROPIC_AUTH_TOKEN: accessToken ?? databricksToken,
-          DATABRICKS_TOKEN: userAccessToken ?? databricksToken,
+          ANTHROPIC_AUTH_TOKEN: spAccessToken ?? personalAccessToken,
+          DATABRICKS_HOST:  databricksHost,
+          DATABRICKS_TOKEN: userAccessToken ?? personalAccessToken,
+          DATABRICKS_SP_ACCESS_TOKEN: spAccessToken,
         },
         maxTurns: 100,
         tools: {
@@ -98,6 +109,7 @@ export async function* processAgentRequest(
           preset: 'claude_code',
         },
         allowedTools: [
+          //'Skill',
           'Bash',
           'Read',
           'Write',
@@ -108,6 +120,7 @@ export async function* processAgentRequest(
           'WebFetch',
           'list_workspace_objects',
           'get_workspace_object',
+          'update_workspace_object',
         ],
         mcpServers: {
           databricks: databricksMcpServer,
@@ -116,7 +129,7 @@ export async function* processAgentRequest(
         systemPrompt: {
           type: 'preset',
           preset: 'claude_code',
-          //append: 'string'
+          append: 'Claude Code is running on Databricks Apps. Artifacts must be saved to Volumes.'
         },
       },
     });

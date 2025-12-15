@@ -17,7 +17,6 @@ const fastify = Fastify({
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8000;
-const WORKSPACE_PATH = process.env.WORKSPACE_PATH || process.cwd();
 
 // Register WebSocket plugin
 await fastify.register(websocket);
@@ -49,10 +48,11 @@ fastify.register(async (fastify) => {
   fastify.get('/ws', { websocket: true }, (socket, req) => {
     console.log('Client connected to WebSocket');
 
-    // Get user access token from request header
+    // Get user info from request headers
     const userAccessToken = req.headers['x-forwarded-access-token'] as
       | string
       | undefined;
+    const userEmail = req.headers['x-forwarded-email'] as string | undefined;
 
     socket.on('message', async (messageBuffer: Buffer) => {
       try {
@@ -76,10 +76,10 @@ fastify.register(async (fastify) => {
           // Process agent request and stream responses
           for await (const agentMessage of processAgentRequest(
             userMessage,
-            WORKSPACE_PATH,
             model,
             sessionId,
-            userAccessToken
+            userAccessToken,
+            userEmail
           )) {
             socket.send(JSON.stringify(agentMessage));
           }

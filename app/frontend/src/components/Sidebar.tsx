@@ -82,6 +82,7 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
             model: selectedModel,
             workspacePath: workspacePath.trim() || undefined,
             overwrite,
+            autoSync,
           },
         }),
       });

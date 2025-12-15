@@ -52,16 +52,32 @@ export async function saveMessage(sdkMessage: SDKMessage): Promise<void> {
     }
   }
 
-  await db.insert(events).values({
-    uuid,
-    sessionId: sdkMessage.session_id,
-    seq,
-    type: sdkMessage.type,
-    subtype,
-    message: messageField,
-    data,
-    parentToolUseId,
-  });
+  try {
+    await db
+      .insert(events)
+      .values({
+        uuid,
+        sessionId: sdkMessage.session_id,
+        seq,
+        type: sdkMessage.type,
+        subtype,
+        message: messageField,
+        data,
+        parentToolUseId,
+      })
+      .onConflictDoNothing({ target: events.uuid });
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Failed to save event:', {
+      uuid,
+      sessionId: sdkMessage.session_id,
+      type: sdkMessage.type,
+      subtype,
+      error: err.message,
+      cause: (err as { cause?: unknown }).cause,
+    });
+    throw error;
+  }
 }
 
 // Get all events for a session

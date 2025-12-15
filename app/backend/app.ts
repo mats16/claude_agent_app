@@ -8,6 +8,7 @@ import { processAgentRequest, SDKMessage } from './agent/index.js';
 import { saveMessage, getMessagesBySessionId } from './db/events.js';
 import {
   createSession,
+  getSessionById,
   getSessions,
   getSessionsByUserEmail,
   updateSessionTitle,
@@ -107,6 +108,7 @@ interface CreateSessionBody {
     model: string;
     workspacePath?: string;
     overwrite?: boolean;
+    autoSync?: boolean;
   };
 }
 
@@ -133,6 +135,7 @@ fastify.post<{ Body: CreateSessionBody }>(
     const model = session_context.model;
     const workspacePath = session_context.workspacePath;
     const overwrite = session_context.overwrite ?? false;
+    const autoSync = session_context.autoSync ?? false;
 
     // Execute workspace export-dir if workspacePath is provided (fire and forget)
     if (workspacePath) {
@@ -212,6 +215,31 @@ fastify.post<{ Body: CreateSessionBody }>(
           if (sessionId) {
             await saveMessage(sdkMessage);
             addEventToQueue(sessionId, sdkMessage);
+          }
+
+          // Auto sync: import local changes back to workspace on result success
+          if (
+            autoSync &&
+            workspacePath &&
+            sdkMessage.type === 'result' &&
+            'subtype' in sdkMessage &&
+            sdkMessage.subtype === 'success'
+          ) {
+            const { exec } = await import('child_process');
+            const basePath = process.env.DATABRICKS_APP_NAME
+              ? '/home/app'
+              : './tmp';
+            const localPath = path.join(basePath, workspacePath);
+            const importCmd = `databricks workspace import-dir "${localPath}" "${workspacePath}" --overwrite`;
+
+            console.log(`Auto sync (background): ${importCmd}`);
+            exec(importCmd, (error, stdout, stderr) => {
+              if (error) {
+                console.error('import-dir error:', error.message);
+              }
+              if (stdout) console.log('import-dir stdout:', stdout);
+              if (stderr) console.log('import-dir stderr:', stderr);
+            });
           }
         }
       } catch (error: any) {
@@ -443,6 +471,10 @@ fastify.register(async (fastify) => {
             const userMessage = message.content;
             const model = message.model || 'databricks-claude-sonnet-4-5';
 
+            // Fetch session to get workspacePath for resume
+            const session = await getSessionById(sessionId);
+            const workspacePath = session?.workspacePath ?? undefined;
+
             // Save user message to database
             const userMsg = createUserMessage(sessionId, userMessage);
             await saveMessage(userMsg);
@@ -453,7 +485,8 @@ fastify.register(async (fastify) => {
               model,
               sessionId,
               userAccessToken,
-              userEmail
+              userEmail,
+              workspacePath
             )) {
               // Save message to database
               await saveMessage(sdkMessage);

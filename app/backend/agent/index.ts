@@ -116,6 +116,26 @@ export async function* processAgentRequest(
     clientSecret
   );
 
+  const additionalSystemPrompt = `
+Claude Code is running on Databricks Apps. Artifacts must be saved to Volumes.
+
+# Editing Rules
+
+## Allowed directories
+
+You are allowed to read and modify files ONLY under:
+
+- ${workDir}/**
+
+## Forbidden actions
+
+- Do NOT read or modify any files outside the allowed directories
+- Do NOT use relative paths (../) to escape the allowed directories
+- If a task requires changes outside these directories, ask the user first
+
+Violating these rules is considered a critical error.
+`;
+
   // Create query with Claude Agent SDK
   const response = query({
     prompt: message,
@@ -159,8 +179,7 @@ export async function* processAgentRequest(
       systemPrompt: {
         type: 'preset',
         preset: 'claude_code',
-        append:
-          'Claude Code is running on Databricks Apps. Artifacts must be saved to Volumes.',
+        append: additionalSystemPrompt,
       },
     },
   });

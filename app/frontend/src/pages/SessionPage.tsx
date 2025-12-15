@@ -13,6 +13,14 @@ export default function SessionPage() {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialMessageConsumedRef = useRef(false);
+  const prevSessionIdRef = useRef<string | undefined>(undefined);
+
+  // Synchronous reset - runs during render, before initialMessage is computed
+  // This must be outside useEffect to ensure the ref is reset before initialMessage is evaluated
+  if (prevSessionIdRef.current !== sessionId) {
+    initialMessageConsumedRef.current = false;
+    prevSessionIdRef.current = sessionId;
+  }
 
   const locationState = location.state as LocationState | null;
   const initialMessage = !initialMessageConsumedRef.current

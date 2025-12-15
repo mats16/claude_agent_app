@@ -159,6 +159,34 @@ export function useAgent(options: UseAgentOptions = {}) {
   const connectionInitiatedRef = useRef(false);
   const initialMessageRef = useRef(initialMessage);
   const loadedSessionIdRef = useRef<string | null>(null);
+  const prevSessionIdRef = useRef<string | undefined>(undefined);
+
+  // Reset state when sessionId changes
+  useEffect(() => {
+    if (prevSessionIdRef.current !== sessionId) {
+      // Close existing WebSocket
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+
+      // Reset all refs
+      connectionInitiatedRef.current = false;
+      initialMessageAddedRef.current = false;
+      currentResponseRef.current = '';
+      currentMessageIdRef.current = '';
+
+      // Reset state
+      setMessages([]);
+      setIsConnected(false);
+      setIsProcessing(false);
+
+      // Update initialMessageRef with new value
+      initialMessageRef.current = initialMessage;
+
+      prevSessionIdRef.current = sessionId;
+    }
+  }, [sessionId, initialMessage]);
 
   // Load history from REST API when sessionId is provided (not for new sessions with initialMessage)
   useEffect(() => {

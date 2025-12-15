@@ -76,10 +76,13 @@ export async function* processAgentRequest(
   userEmail?: string,
   workspacePath?: string
 ): AsyncGenerator<SDKMessage> {
-  // Determine base directory based on environment
-  // Local development: ./tmp, Production: /home/app/Workspace/Users/{email}
+  // Determine base directory and home directory based on environment
+  // Local development: ./tmp
+  // Production (Databricks Apps): /home/app with user workspace structure
   const baseDir = userEmail ? '/home/app' : './tmp';
-  const userHomeDir = `${baseDir}/Workspace/Users/${userEmail ?? 'local.user@example.com'}`;
+  const userHomeDir = userEmail
+    ? `${baseDir}/Workspace/Users/${userEmail}`
+    : baseDir;
 
   // Create working directory
   // Note: export-dir is handled in app.ts (fire and forget), so we just ensure the directory exists

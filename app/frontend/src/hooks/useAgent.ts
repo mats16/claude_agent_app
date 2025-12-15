@@ -24,7 +24,14 @@ interface SDKUserMessage extends SDKMessageBase {
   type: 'user';
   message: {
     role: 'user';
-    content: string | Array<{ type: string; text?: string }>;
+    content:
+      | string
+      | Array<{
+          type: string;
+          text?: string;
+          tool_use_id?: string;
+          content?: string | Array<{ type: string; text?: string }>;
+        }>;
   };
 }
 
@@ -63,13 +70,58 @@ type SDKMessage =
 
 // Extract text content from user message
 function extractUserContent(
-  content: string | Array<{ type: string; text?: string }>
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        tool_use_id?: string;
+        content?: string | Array<{ type: string; text?: string }>;
+      }>
 ): string {
   if (typeof content === 'string') return content;
   return content
     .filter((block) => block.type === 'text' && block.text)
     .map((block) => block.text)
     .join('');
+}
+
+// Extract tool results from user message
+function extractToolResults(
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        tool_use_id?: string;
+        content?: string | Array<{ type: string; text?: string }>;
+      }>
+): string {
+  if (typeof content === 'string') return '';
+
+  const results: string[] = [];
+  for (const block of content) {
+    if (block.type === 'tool_result' && block.content) {
+      let resultText = '';
+      if (typeof block.content === 'string') {
+        resultText = block.content;
+      } else if (Array.isArray(block.content)) {
+        resultText = block.content
+          .filter((b) => b.type === 'text' && b.text)
+          .map((b) => b.text)
+          .join('');
+      }
+      if (resultText) {
+        // Truncate long results
+        const truncated =
+          resultText.length > 500
+            ? resultText.slice(0, 500) + '\n... (truncated)'
+            : resultText;
+        results.push(`[ToolResult]\n${truncated}\n[/ToolResult]`);
+      }
+    }
+  }
+  return results.join('\n');
 }
 
 // Convert SDKMessage[] to ChatMessage[]
@@ -80,6 +132,16 @@ function convertSDKMessagesToChat(sdkMessages: SDKMessage[]): ChatMessage[] {
 
   for (const msg of sdkMessages) {
     if (msg.type === 'user') {
+      const userMsg = msg as SDKUserMessage;
+
+      // Check if this is a tool result message
+      const toolResults = extractToolResults(userMsg.message.content);
+      if (toolResults) {
+        // Append tool results to current agent content
+        currentAgentContent += '\n' + toolResults;
+        continue;
+      }
+
       // Flush any pending agent message
       if (currentAgentContent && currentAgentId) {
         messages.push({
@@ -92,13 +154,16 @@ function convertSDKMessagesToChat(sdkMessages: SDKMessage[]): ChatMessage[] {
         currentAgentId = '';
       }
 
-      const userMsg = msg as SDKUserMessage;
-      messages.push({
-        id: msg.uuid || `user-${Date.now()}`,
-        role: 'user',
-        content: extractUserContent(userMsg.message.content),
-        timestamp: new Date(),
-      });
+      // Regular user message
+      const textContent = extractUserContent(userMsg.message.content);
+      if (textContent) {
+        messages.push({
+          id: msg.uuid || `user-${Date.now()}`,
+          role: 'user',
+          content: textContent,
+          timestamp: new Date(),
+        });
+      }
     } else if (msg.type === 'assistant') {
       const assistantMsg = msg as SDKAssistantMessage;
       if (!currentAgentId) {
@@ -110,7 +175,10 @@ function convertSDKMessagesToChat(sdkMessages: SDKMessage[]): ChatMessage[] {
         if (block.type === 'text' && block.text) {
           currentAgentContent += block.text;
         } else if (block.type === 'tool_use' && block.name) {
-          currentAgentContent += `\n\n[Using tool: ${block.name}]\n`;
+          const toolInput = block.input
+            ? JSON.stringify(block.input)
+            : '';
+          currentAgentContent += `\n\n[Tool: ${block.name}] ${toolInput}\n`;
         }
       }
     } else if (msg.type === 'result') {
@@ -295,7 +363,10 @@ export function useAgent(options: UseAgentOptions = {}) {
           if (block.type === 'text' && block.text) {
             currentResponseRef.current += block.text;
           } else if (block.type === 'tool_use' && block.name) {
-            currentResponseRef.current += `\n\n[Using tool: ${block.name}]\n`;
+            const toolInput = block.input
+              ? JSON.stringify(block.input)
+              : '';
+            currentResponseRef.current += `\n\n[Tool: ${block.name}] ${toolInput}\n`;
           }
         }
 
@@ -322,6 +393,33 @@ export function useAgent(options: UseAgentOptions = {}) {
             return [...prev, newMessage];
           }
         });
+        return;
+      }
+
+      // Handle user message with tool results
+      if (message.type === 'user' && 'message' in message) {
+        const userMsg = message as SDKUserMessage;
+        const toolResults = extractToolResults(userMsg.message.content);
+        if (toolResults) {
+          currentResponseRef.current += '\n' + toolResults;
+
+          // Update the message in real-time
+          setMessages((prev) => {
+            const existingIndex = prev.findIndex(
+              (m) => m.id === currentMessageIdRef.current
+            );
+
+            if (existingIndex >= 0) {
+              const updated = [...prev];
+              updated[existingIndex] = {
+                ...updated[existingIndex],
+                content: currentResponseRef.current.trim(),
+              };
+              return updated;
+            }
+            return prev;
+          });
+        }
         return;
       }
 

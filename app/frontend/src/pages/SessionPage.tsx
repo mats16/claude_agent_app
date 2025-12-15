@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useAgent } from '../hooks/useAgent';
 import TitleEditModal from '../components/TitleEditModal';
+import MessageRenderer from '../components/MessageRenderer';
 
 interface LocationState {
   initialMessage?: string;
@@ -154,7 +155,10 @@ export default function SessionPage() {
                 {message.role === 'user' ? '>' : '◆'}
               </div>
               <div className="chat-message-content">
-                <pre>{message.content}</pre>
+                <MessageRenderer
+                  content={message.content}
+                  role={message.role as 'user' | 'agent'}
+                />
               </div>
             </div>
           ))}

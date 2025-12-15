@@ -106,6 +106,7 @@ interface CreateSessionBody {
   session_context: {
     model: string;
     workspacePath?: string;
+    overwrite?: boolean;
   };
 }
 
@@ -131,6 +132,30 @@ fastify.post<{ Body: CreateSessionBody }>(
     const userMessage = userEvent.message.content;
     const model = session_context.model;
     const workspacePath = session_context.workspacePath;
+    const overwrite = session_context.overwrite ?? false;
+
+    // Execute workspace export-dir if workspacePath is provided (fire and forget)
+    if (workspacePath) {
+      const { exec } = await import('child_process');
+
+      // Target path mirrors the workspace path structure under base directory
+      // e.g., /Workspace/Users/user@example.com/hoge -> /home/app/Workspace/Users/user@example.com/hoge
+      // Use /home/app in Databricks Apps (when DATABRICKS_APP_NAME is set), otherwise ./tmp for local dev
+      const basePath = process.env.DATABRICKS_APP_NAME ? '/home/app' : './tmp';
+      const targetPath = path.join(basePath, workspacePath);
+      const cmd = overwrite
+        ? `databricks workspace export-dir "${workspacePath}" "${targetPath}" --overwrite`
+        : `databricks workspace export-dir "${workspacePath}" "${targetPath}"`;
+
+      console.log(`Executing (background): ${cmd}`);
+      exec(cmd, (error, stdout, stderr) => {
+        if (error) {
+          console.error('export-dir error:', error.message);
+        }
+        if (stdout) console.log('export-dir stdout:', stdout);
+        if (stderr) console.log('export-dir stderr:', stderr);
+      });
+    }
 
     // Promise to wait for init message
     let sessionId = '';

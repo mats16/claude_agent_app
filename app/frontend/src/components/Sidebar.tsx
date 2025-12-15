@@ -81,6 +81,7 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
           session_context: {
             model: selectedModel,
             workspacePath: workspacePath.trim() || undefined,
+            overwrite,
           },
         }),
       });

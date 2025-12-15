@@ -3,7 +3,6 @@ import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { databricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 
 export type { SDKMessage };
 
@@ -67,23 +66,6 @@ async function getOidcAccessToken(
   return data.access_token;
 }
 
-// Clone workspace from Databricks to local directory
-function cloneWorkspace(sourcePath: string, destPath: string): void {
-  // Check if directory already exists (MVP: error if exists)
-  if (fs.existsSync(destPath)) {
-    throw new Error(`Directory already exists: ${destPath}`);
-  }
-
-  // Create parent directory
-  fs.mkdirSync(path.dirname(destPath), { recursive: true });
-
-  // Execute databricks workspace export-dir
-  execSync(`databricks workspace export-dir "${sourcePath}" "${destPath}"`, {
-    env: process.env,
-    stdio: 'inherit',
-  });
-}
-
 // Process agent request using Claude Agent SDK
 // Returns SDKMessage directly without transformation
 export async function* processAgentRequest(
@@ -100,15 +82,11 @@ export async function* processAgentRequest(
   const userHomeDir = `${baseDir}/Workspace/Users/${userEmail ?? 'local.user@example.com'}`;
 
   // Create working directory
+  // Note: export-dir is handled in app.ts (fire and forget), so we just ensure the directory exists
   const workDir: string = workspacePath
     ? path.join(baseDir, workspacePath)
     : userHomeDir;
   fs.mkdirSync(workDir, { recursive: true });
-
-  // Clone workspace from Databricks to local directory
-  if (workspacePath) {
-    cloneWorkspace(workspacePath, workDir);
-  }
 
   const spAccessToken = await getOidcAccessToken(
     databricksHost,

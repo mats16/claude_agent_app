@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 export default function HomePage() {
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('databricks-claude-sonnet-4-5');
+  const [selectedModel, setSelectedModel] = useState(
+    'databricks-claude-sonnet-4-5'
+  );
+  const [workspacePath, setWorkspacePath] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -30,7 +33,8 @@ export default function HomePage() {
             },
           ],
           session_context: {
-            model: selectedModel === 'databricks-claude-sonnet-4-5' ? 'sonnet' : 'opus',
+            model: selectedModel,
+            workspacePath: workspacePath.trim() || undefined,
           },
         }),
       });
@@ -59,6 +63,17 @@ export default function HomePage() {
       <header className="header">
         <h1>Claude Coding Agent</h1>
         <div className="header-controls">
+          <div className="workspace-selector">
+            <label htmlFor="workspace-path">Workspace:</label>
+            <input
+              id="workspace-path"
+              type="text"
+              value={workspacePath}
+              onChange={(e) => setWorkspacePath(e.target.value)}
+              placeholder="/Workspace/Users/..."
+              className="workspace-input"
+            />
+          </div>
           <div className="model-selector">
             <label htmlFor="model-select">Model:</label>
             <select
@@ -66,8 +81,12 @@ export default function HomePage() {
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
             >
-              <option value="databricks-claude-sonnet-4-5">Claude Sonnet 4.5</option>
-              <option value="databricks-claude-opus-4-5">Claude Opus 4.5</option>
+              <option value="databricks-claude-sonnet-4-5">
+                Claude Sonnet 4.5
+              </option>
+              <option value="databricks-claude-opus-4-5">
+                Claude Opus 4.5
+              </option>
             </select>
           </div>
         </div>

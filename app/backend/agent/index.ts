@@ -2,6 +2,8 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentMessage } from '../types.js';
 import { databricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 export type { AgentMessage };
 
 const databricksHost = process.env.DATABRICKS_HOST as string;
@@ -64,20 +66,47 @@ async function getOidcAccessToken(
   return data.access_token;
 }
 
+// Clone workspace from Databricks to local directory
+function cloneWorkspace(sourcePath: string, destPath: string): void {
+  // Check if directory already exists (MVP: error if exists)
+  if (fs.existsSync(destPath)) {
+    throw new Error(`Directory already exists: ${destPath}`);
+  }
+
+  // Create parent directory
+  fs.mkdirSync(path.dirname(destPath), { recursive: true });
+
+  // Execute databricks workspace export-dir
+  execSync(`databricks workspace export-dir "${sourcePath}" "${destPath}"`, {
+    env: process.env,
+    stdio: 'inherit',
+  });
+}
+
 // Process agent request using Claude Agent SDK
 export async function* processAgentRequest(
   message: string,
   model: string = 'databricks-claude-sonnet-4-5',
   sessionId?: string,
   userAccessToken?: string,
-  userEmail?: string
+  userEmail?: string,
+  workspacePath?: string
 ): AsyncGenerator<AgentMessage> {
-  // Create user workspace directory
-  const userHome = userEmail ? `/home/app/${userEmail}` : '../../agent_home';
-  fs.mkdirSync(`${userHome}/.claude`, { recursive: true });
-  //if (!fs.existsSync(`${userHome}/.claude/skills`)) {
-  //  fs.symlinkSync('/app/python/source_code/agent_home/.claude/skills', `${userHome}/.claude/skills`);
-  //}
+  // Determine base directory based on environment
+  // Local development: ./tmp, Production: /home/app/Workspace/Users/{email}
+  const baseDir = userEmail ? '/home/app' : './tmp';
+  const userHomeDir = `${baseDir}/Workspace/Users/${userEmail ?? 'local.user@example.com'}`;
+
+  // Create working directory
+  const workDir: string = workspacePath
+    ? path.join(baseDir, workspacePath)
+    : userHomeDir;
+  fs.mkdirSync(workDir, { recursive: true });
+
+  // Clone workspace from Databricks to local directory
+  if (workspacePath) {
+    cloneWorkspace(workspacePath, workDir);
+  }
 
   const spAccessToken = await getOidcAccessToken(
     databricksHost,
@@ -91,15 +120,15 @@ export async function* processAgentRequest(
       prompt: message,
       options: {
         resume: sessionId,
-        cwd: userHome,
+        cwd: workDir,
         settingSources: ['user', 'project', 'local'],
         model,
         env: {
           PATH: process.env.PATH,
-          HOME: userEmail ? userHome : undefined,
+          HOME: userHomeDir,
           ANTHROPIC_BASE_URL: `https://${databricksHost}/serving-endpoints/anthropic`,
           ANTHROPIC_AUTH_TOKEN: spAccessToken ?? personalAccessToken,
-          DATABRICKS_HOST:  databricksHost,
+          DATABRICKS_HOST: databricksHost,
           DATABRICKS_TOKEN: userAccessToken ?? personalAccessToken,
           DATABRICKS_SP_ACCESS_TOKEN: spAccessToken,
         },
@@ -118,9 +147,9 @@ export async function* processAgentRequest(
           'Grep',
           'WebSearch',
           'WebFetch',
-          'list_workspace_objects',
-          'get_workspace_object',
-          'update_workspace_object',
+          //'list_workspace_objects',
+          //'get_workspace_object',
+          //'update_workspace_object',
         ],
         mcpServers: {
           databricks: databricksMcpServer,
@@ -129,7 +158,8 @@ export async function* processAgentRequest(
         systemPrompt: {
           type: 'preset',
           preset: 'claude_code',
-          append: 'Claude Code is running on Databricks Apps. Artifacts must be saved to Volumes.'
+          append:
+            'Claude Code is running on Databricks Apps. Artifacts must be saved to Volumes.',
         },
       },
     });
@@ -178,6 +208,7 @@ export async function* processAgentRequest(
       }
     }
   } catch (error: any) {
+    console.error(error);
     yield {
       type: 'error',
       error: error.message || 'Unknown error occurred',

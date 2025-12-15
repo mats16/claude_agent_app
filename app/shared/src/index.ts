@@ -118,6 +118,7 @@ export interface CreateSessionRequest {
   events: SessionEvent[];
   session_context: {
     model: string;
+    workspacePath?: string;
   };
 }
 

@@ -21,3 +21,6 @@ static/
 
 # Logs
 *.log
+
+# Local development workspace
+tmp/

@@ -56,7 +56,7 @@ export const databricksMcpServer = createSdkMcpServer({
               'Content-Type': 'application/json',
             },
           });
-          const data = (await response.json());
+          const data = await response.json();
           return { content: [{ type: 'text', text: JSON.stringify(data) }] };
         } catch (error) {
           return { content: [{ type: 'text', text: `Error: ${error}` }] };
@@ -78,7 +78,15 @@ export const databricksMcpServer = createSdkMcpServer({
             'The content of the file to be imported. This has a limit of 10 MB.'
           ),
         format: z
-          .enum(['SOURCE', 'HTML', 'JUPYTER', 'DBC', 'R_MARKDOWN', 'AUTO', 'RAW'])
+          .enum([
+            'SOURCE',
+            'HTML',
+            'JUPYTER',
+            'DBC',
+            'R_MARKDOWN',
+            'AUTO',
+            'RAW',
+          ])
           .optional()
           .describe(
             'This specifies the format of the file to be imported. It is SOURCE by default.'
@@ -89,7 +97,7 @@ export const databricksMcpServer = createSdkMcpServer({
           .describe(
             'The language of the object. This value is set only if the object type is NOTEBOOK.'
           ),
-          overwrite: z
+        overwrite: z
           .boolean()
           .optional()
           .describe(
@@ -114,7 +122,7 @@ export const databricksMcpServer = createSdkMcpServer({
               'Content-Type': 'application/json',
             },
           });
-          const data = (await response.json());
+          const data = await response.json();
           return { content: [{ type: 'text', text: JSON.stringify(data) }] };
         } catch (error) {
           return { content: [{ type: 'text', text: `Error: ${error}` }] };

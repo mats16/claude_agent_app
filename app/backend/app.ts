@@ -83,7 +83,10 @@ interface CreateSessionBody {
     type: string;
     message: { role: string; content: string };
   }>;
-  session_context: { model: string };
+  session_context: {
+    model: string;
+    workspacePath?: string;
+  };
 }
 
 fastify.post<{ Body: CreateSessionBody }>(
@@ -95,7 +98,9 @@ fastify.post<{ Body: CreateSessionBody }>(
     const userAccessToken = request.headers['x-forwarded-access-token'] as
       | string
       | undefined;
-    const userEmail = request.headers['x-forwarded-email'] as string | undefined;
+    const userEmail = request.headers['x-forwarded-email'] as
+      | string
+      | undefined;
 
     // Extract first user message
     const userEvent = events.find((e) => e.type === 'user');
@@ -104,12 +109,8 @@ fastify.post<{ Body: CreateSessionBody }>(
     }
 
     const userMessage = userEvent.message.content;
-    const model =
-      session_context.model === 'sonnet'
-        ? 'databricks-claude-sonnet-4-5'
-        : session_context.model === 'opus'
-          ? 'databricks-claude-opus-4-5'
-          : `databricks-claude-${session_context.model}`;
+    const model = session_context.model;
+    const workspacePath = session_context.workspacePath;
 
     // Promise to wait for init message
     let sessionId = '';
@@ -124,7 +125,8 @@ fastify.post<{ Body: CreateSessionBody }>(
       model,
       undefined,
       userAccessToken,
-      userEmail
+      userEmail,
+      workspacePath
     );
 
     // Process events in background

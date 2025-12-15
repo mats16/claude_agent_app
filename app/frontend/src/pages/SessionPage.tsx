@@ -71,7 +71,9 @@ export default function SessionPage() {
               <option value="databricks-claude-sonnet-4-5">
                 Claude Sonnet 4.5
               </option>
-              <option value="databricks-claude-opus-4-5">Claude Opus 4.5</option>
+              <option value="databricks-claude-opus-4-5">
+                Claude Opus 4.5
+              </option>
             </select>
           </div>
           <div className="status">

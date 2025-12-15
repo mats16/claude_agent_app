@@ -181,7 +181,7 @@ export function useAgent(options: UseAgentOptions = {}) {
       connectionInitiatedRef.current = false;
       ws.close();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   const sendMessage = useCallback(

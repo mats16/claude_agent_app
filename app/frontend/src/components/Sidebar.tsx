@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SessionList from './SessionList';
 
@@ -12,7 +12,16 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
   const [selectedModel, setSelectedModel] = useState('databricks-claude-sonnet-4-5');
   const [workspacePath, setWorkspacePath] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [input]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,44 +73,52 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
   return (
     <aside className="sidebar" style={width ? { width: `${width}px`, minWidth: `${width}px` } : undefined}>
       <div className="sidebar-header">
-        <h1 className="sidebar-title">Claude Code on Databricks<span className="sidebar-subtitle"></span></h1>
+        <h1 className="sidebar-title">Claude Code on Databricks</h1>
       </div>
 
-      <form className="sidebar-form" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Start a new chat..."
-          className="sidebar-input"
-          disabled={isSubmitting}
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || isSubmitting}
-          className="sidebar-submit"
-        >
-          {isSubmitting ? '...' : '+'}
-        </button>
-      </form>
-
-      <div className="sidebar-controls">
-        <div className="sidebar-control-group">
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="sidebar-select"
+      <div className="sidebar-input-section">
+        <form onSubmit={handleSubmit}>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="What do you want to do?"
+            className="sidebar-textarea"
             disabled={isSubmitting}
-          >
-            <option value="databricks-claude-sonnet-4-5">Sonnet 4.5</option>
-            <option value="databricks-claude-opus-4-5">Opus 4.5</option>
-          </select>
-        </div>
+            rows={1}
+          />
+          <div className="sidebar-input-controls">
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="sidebar-model-select"
+              disabled={isSubmitting}
+            >
+              <option value="databricks-claude-sonnet-4-5">Sonnet 4.5</option>
+              <option value="databricks-claude-opus-4-5">Opus 4.5</option>
+            </select>
+            <button
+              type="submit"
+              disabled={!input.trim() || isSubmitting}
+              className="sidebar-send-button"
+            >
+              {isSubmitting ? '...' : '↑'}
+            </button>
+          </div>
+        </form>
 
-        <div className="sidebar-control-group">
+        <div className="sidebar-workspace-row">
           <input
             type="text"
             value={workspacePath}

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { UserOutlined } from '@ant-design/icons';
 import PATModal from './PATModal';
 
 interface AccountMenuProps {
@@ -60,7 +61,9 @@ export default function AccountMenu({ userEmail }: AccountMenuProps) {
         onClick={() => setIsOpen(!isOpen)}
         title={t('accountMenu.accountSettings')}
       >
-        <span className="account-avatar">{initials}</span>
+        <span className="account-avatar">
+          <UserOutlined />
+        </span>
       </button>
 
       {isOpen && (

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { SendOutlined, SyncOutlined } from '@ant-design/icons';
 import SessionList from './SessionList';
 import AccountMenu from './AccountMenu';
 import WorkspaceSelectModal from './WorkspaceSelectModal';
@@ -154,7 +155,9 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
       }
     >
       <div className="sidebar-header">
-        <h1 className="sidebar-title">{t('sidebar.title')}</h1>
+        <Link to="/" className="sidebar-title-link">
+          <h1 className="sidebar-title">{t('sidebar.title')}</h1>
+        </Link>
       </div>
 
       <div className="sidebar-input-section">
@@ -189,7 +192,7 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
                   disabled={!input.trim() || isSubmitting || !hasPat}
                   className="sidebar-send-button"
                 >
-                  {isSubmitting ? '...' : '↑'}
+                  {isSubmitting ? '...' : <SendOutlined />}
                 </button>
               </div>
             </div>
@@ -226,7 +229,9 @@ export default function Sidebar({ width, onSessionCreated }: SidebarProps) {
                 onChange={(e) => setAutoSync(e.target.checked)}
                 disabled={isSubmitting}
               />
-              <span>{t('sidebar.autoSync')}</span>
+              <span>
+                <SyncOutlined /> {t('sidebar.autoSync')}
+              </span>
             </label>
           </div>
         </form>

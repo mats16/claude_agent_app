@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FolderOutlined } from '@ant-design/icons';
 
 const PAT_STORAGE_KEY = 'databricks_pat';
 
@@ -170,7 +171,9 @@ export default function WorkspaceSelectModal({
                 onClick={handleParentClick}
                 disabled={isLoading}
               >
-                <span className="workspace-icon">📁</span>
+                <span className="workspace-icon">
+                  <FolderOutlined />
+                </span>
                 <span>..</span>
               </button>
             )}
@@ -188,7 +191,9 @@ export default function WorkspaceSelectModal({
                   className="workspace-directory-item"
                   onClick={() => handleDirectoryClick(dir)}
                 >
-                  <span className="workspace-icon">📁</span>
+                  <span className="workspace-icon">
+                    <FolderOutlined />
+                  </span>
                   <span>{dir.split('/').pop()}</span>
                 </button>
               ))

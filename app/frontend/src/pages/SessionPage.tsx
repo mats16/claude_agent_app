@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { SendOutlined } from '@ant-design/icons';
 import { useAgent } from '../hooks/useAgent';
 import TitleEditModal from '../components/TitleEditModal';
 import MessageRenderer from '../components/MessageRenderer';
@@ -305,7 +306,7 @@ export default function SessionPage() {
               }
               className="chat-submit"
             >
-              ↑
+              <SendOutlined />
             </button>
           </div>
         </form>

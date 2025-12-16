@@ -67,6 +67,16 @@ body {
   justify-content: space-between;
 }
 
+.sidebar-title-link {
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.15s;
+}
+
+.sidebar-title-link:hover {
+  opacity: 0.7;
+}
+
 .sidebar-title {
   font-size: 1.1rem;
   font-weight: 700;
@@ -846,6 +856,57 @@ body {
   background: transparent;
   cursor: not-allowed;
   color: #999;
+}
+
+.chat-submit-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chat-submit-wrapper[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  padding: 0.75rem;
+  background: #333;
+  color: #fff;
+  font-size: 0.75rem;
+  border-radius: 8px;
+  white-space: normal;
+  width: max-content;
+  max-width: 250px;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.15s,
+    visibility 0.15s;
+  pointer-events: none;
+  z-index: 1000;
+  line-height: 1.5;
+}
+
+.chat-submit-wrapper[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  right: 12px;
+  border: 6px solid transparent;
+  border-top-color: #333;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.15s,
+    visibility 0.15s;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.chat-submit-wrapper[data-tooltip]:hover::after,
+.chat-submit-wrapper[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
 }
 
 .chat-submit {

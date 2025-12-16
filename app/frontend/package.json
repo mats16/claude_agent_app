@@ -11,6 +11,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
     "@app/shared": "*",
     "@fontsource/noto-sans-jp": "^5.2.8",
     "i18next": "^25.7.3",

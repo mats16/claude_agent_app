@@ -112,15 +112,15 @@ export async function syncToWorkspace(
   }
 
   // Directory sync
+  // Always create the target directory first (even if empty)
+  await mkdirs(workspacePath, token);
+
   const files = getAllFiles(localPath);
 
   if (files.length === 0) {
-    console.log(`No files to sync in ${localPath}`);
+    console.log(`Created directory ${workspacePath} (no files to sync)`);
     return;
   }
-
-  // Create the target directory first
-  await mkdirs(workspacePath, token);
 
   // Get unique directories to create
   const directories = new Set<string>();

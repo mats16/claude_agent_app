@@ -70,7 +70,8 @@
     "disconnected": "切断",
     "waitingForResponse": "セッションを開始しました。応答を待っています...",
     "typeMessage": "メッセージを入力...",
-    "openInDatabricks": "Databricks で開く"
+    "openInDatabricks": "Databricks で開く",
+    "autoSyncDisabled": "自動同期は無効"
   },
   "welcome": {
     "exploreTitle": "ワークスペースファイルを探索",

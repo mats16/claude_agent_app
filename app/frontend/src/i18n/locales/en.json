@@ -70,7 +70,8 @@
     "disconnected": "Disconnected",
     "waitingForResponse": "Session started. Waiting for response...",
     "typeMessage": "Type your message...",
-    "openInDatabricks": "Open in Databricks"
+    "openInDatabricks": "Open in Databricks",
+    "autoSyncDisabled": "Auto sync disabled"
   },
   "welcome": {
     "exploreTitle": "Explore workspace files",

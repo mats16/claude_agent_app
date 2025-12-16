@@ -6,7 +6,9 @@ import {
   SendOutlined,
   EditOutlined,
   LinkOutlined,
-  SyncOutlined,
+  CloudSyncOutlined,
+  CloudServerOutlined,
+  FolderOutlined,
 } from '@ant-design/icons';
 import { useAgent } from '../hooks/useAgent';
 import TitleEditModal from '../components/TitleEditModal';
@@ -213,7 +215,22 @@ export default function SessionPage() {
           background: '#fff',
         }}
       >
-        <Flex align="center" gap={12} style={{ minWidth: 0, flex: 1 }}>
+        <Flex align="center" gap={8} style={{ minWidth: 0, flex: 1 }}>
+          <Tooltip
+            title={
+              sessionAutoSync
+                ? t('sidebar.autoSync')
+                : t('sessionPage.autoSyncDisabled')
+            }
+          >
+            {sessionAutoSync ? (
+              <CloudSyncOutlined style={{ fontSize: 22, color: '#4caf50' }} />
+            ) : (
+              <CloudServerOutlined
+                style={{ fontSize: 22, color: '#999', opacity: 0.6 }}
+              />
+            )}
+          </Tooltip>
           <Button
             type="text"
             onClick={() => setIsModalOpen(true)}
@@ -222,7 +239,7 @@ export default function SessionPage() {
               height: 'auto',
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 6,
             }}
           >
             <Text
@@ -236,30 +253,12 @@ export default function SessionPage() {
             >
               {sessionTitle || `Session ${sessionId?.slice(0, 8)}...`}
             </Text>
-            {sessionAutoSync && (
-              <Tag
-                icon={<SyncOutlined />}
-                color="success"
-                style={{ margin: 0 }}
-              >
-                {t('sidebar.autoSync')}
-              </Tag>
-            )}
             <EditOutlined style={{ color: '#999', fontSize: 12 }} />
           </Button>
           {sessionWorkspacePath && (
-            <Flex align="center" gap={4}>
-              <Text
-                type="secondary"
-                style={{
-                  fontSize: 12,
-                  maxWidth: 200,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-                title={sessionWorkspacePath}
-              >
+            <Flex align="center" gap={4} style={{ marginLeft: 8 }}>
+              <FolderOutlined style={{ fontSize: 12, color: '#666' }} />
+              <Text style={{ fontSize: 12, color: '#666' }}>
                 {sessionWorkspacePath}
               </Text>
               <Button

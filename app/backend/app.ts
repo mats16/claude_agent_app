@@ -338,8 +338,26 @@ fastify.get<{ Params: { sessionId: string } }>(
   }
 );
 
-// Get user settings
-fastify.get('/api/v1/settings', async (request, _reply) => {
+// Create user (register)
+fastify.post<{
+  Body: { accessToken?: string; claudeConfigSync?: boolean };
+}>('/api/v1/users', async (request, _reply) => {
+  const userId =
+    (request.headers['x-forwarded-user'] as string | undefined) ||
+    DEFAULT_USER_ID;
+
+  const { accessToken, claudeConfigSync } = request.body;
+
+  await upsertSettings(userId, {
+    accessToken: accessToken ?? undefined,
+    claudeConfigSync: claudeConfigSync ?? false,
+  });
+
+  return { success: true };
+});
+
+// Get current user settings
+fastify.get('/api/v1/users/me', async (request, _reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
@@ -361,10 +379,10 @@ fastify.get('/api/v1/settings', async (request, _reply) => {
   };
 });
 
-// Update user settings
-fastify.put<{
+// Update current user settings
+fastify.patch<{
   Body: { accessToken?: string; claudeConfigSync?: boolean };
-}>('/api/v1/settings', async (request, reply) => {
+}>('/api/v1/users/me', async (request, reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;

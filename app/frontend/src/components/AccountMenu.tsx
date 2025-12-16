@@ -29,7 +29,7 @@ export default function AccountMenu({ userEmail }: AccountMenuProps) {
   useEffect(() => {
     const checkSettings = async () => {
       try {
-        const response = await fetch('/api/v1/settings');
+        const response = await fetch('/api/v1/users/me');
         if (response.ok) {
           const data: UserSettings = await response.json();
           // Show initial setup modal if no token configured

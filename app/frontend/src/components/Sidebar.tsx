@@ -69,7 +69,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
     };
   }, []);
 
-  // Fetch home directory as default
+  // Fetch home directory as default (with /sandbox suffix)
   useEffect(() => {
     const fetchHomeDirectory = async () => {
       const token = localStorage.getItem(PAT_STORAGE_KEY);
@@ -82,8 +82,10 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
         const data = await res.json();
         if (data.objects && data.objects.length > 0) {
           const firstPath = data.objects[0].path;
+          // Get home path (e.g., /Workspace/Users/user@example.com)
+          // and add /sandbox suffix to avoid syncing unnecessary files
           const homePath = firstPath.split('/').slice(0, 4).join('/');
-          setWorkspacePath(homePath);
+          setWorkspacePath(`${homePath}/sandbox`);
         }
       } catch (e) {
         console.error('Failed to fetch home directory:', e);

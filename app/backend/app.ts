@@ -156,6 +156,39 @@ fastify.post<{ Body: CreateSessionBody }>(
     // Execute workspace export-dir if workspacePath is provided (fire and forget)
     if (workspacePath) {
       const { exec } = await import('child_process');
+      const databricksHost = process.env.DATABRICKS_HOST;
+      const token = storedAccessToken ?? userAccessToken;
+
+      // Create workspace directory if it doesn't exist
+      if (token && databricksHost) {
+        try {
+          const mkdirsResponse = await fetch(
+            `https://${databricksHost}/api/2.0/workspace/mkdirs`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ path: workspacePath }),
+            }
+          );
+          if (mkdirsResponse.ok) {
+            console.log(`Created workspace directory: ${workspacePath}`);
+          } else {
+            const errorData = (await mkdirsResponse.json()) as {
+              error_code?: string;
+              message?: string;
+            };
+            // RESOURCE_ALREADY_EXISTS is not an error - directory exists
+            if (errorData.error_code !== 'RESOURCE_ALREADY_EXISTS') {
+              console.error('mkdirs error:', errorData.message);
+            }
+          }
+        } catch (mkdirsError: any) {
+          console.error('mkdirs request failed:', mkdirsError.message);
+        }
+      }
 
       // Target path mirrors the workspace path structure under base directory
       // e.g., /Workspace/Users/user@example.com/hoge -> /home/app/Workspace/Users/user@example.com/hoge

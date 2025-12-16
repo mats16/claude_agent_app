@@ -162,7 +162,7 @@ export default function WorkspaceSelectModal({
       >
         <FolderOpenOutlined style={{ color: '#f5a623' }} />
         <Text strong>{t('workspaceModal.current')}</Text>
-        <Text code style={{ flex: 1, wordBreak: 'break-all' }}>
+        <Text style={{ flex: 1, wordBreak: 'break-all' }}>
           {currentPath || '/'}
         </Text>
       </Flex>

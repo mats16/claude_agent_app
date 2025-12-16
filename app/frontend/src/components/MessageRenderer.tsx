@@ -52,11 +52,11 @@ function formatToolInput(toolName: string, inputJson: string): string {
 function parseAgentMessage(content: string): ParsedBlock[] {
   const blocks: ParsedBlock[] = [];
 
-  // Pattern to match tool calls with optional results
-  // [Tool: ToolName] {json}
-  // [ToolResult]...[/ToolResult]
+  // Pattern to match tool calls with optional ID and results
+  // [Tool: ToolName] {json} or [Tool: ToolName id=xxx] {json}
+  // followed by optional [ToolResult]...[/ToolResult]
   const combinedPattern =
-    /\[Tool:\s*(\w+)\]\s*(\{[^]*?\})?(?:\s*\[ToolResult\]\n?([\s\S]*?)\[\/ToolResult\])?/g;
+    /\[Tool:\s*(\w+)(?:\s+id=[^\]]+)?\]\s*(\{[^]*?\})?(?:\s*\[ToolResult\]\n?([\s\S]*?)\[\/ToolResult\])?/g;
 
   let lastIndex = 0;
   let match;

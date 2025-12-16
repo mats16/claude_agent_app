@@ -86,60 +86,77 @@ function extractUserContent(
     .join('');
 }
 
-// Extract tool results from user message
-function extractToolResults(
-  content:
-    | string
-    | Array<{
-        type: string;
-        text?: string;
-        tool_use_id?: string;
-        content?: string | Array<{ type: string; text?: string }>;
-      }>
-): string {
-  if (typeof content === 'string') return '';
-
-  const results: string[] = [];
-  for (const block of content) {
-    if (block.type === 'tool_result' && block.content) {
-      let resultText = '';
-      if (typeof block.content === 'string') {
-        resultText = block.content;
-      } else if (Array.isArray(block.content)) {
-        resultText = block.content
-          .filter((b) => b.type === 'text' && b.text)
-          .map((b) => b.text)
-          .join('');
-      }
-      if (resultText) {
-        // Truncate long results
-        const truncated =
-          resultText.length > 500
-            ? resultText.slice(0, 500) + '\n... (truncated)'
-            : resultText;
-        results.push(`[ToolResult]\n${truncated}\n[/ToolResult]`);
-      }
-    }
-  }
-  return results.join('\n');
-}
-
 // Convert SDKMessage[] to ChatMessage[]
 function convertSDKMessagesToChat(sdkMessages: SDKMessage[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
   let currentAgentContent = '';
   let currentAgentId = '';
 
+  // Helper function to insert tool result after corresponding tool use
+  const insertToolResult = (
+    content: string,
+    toolUseId: string,
+    resultText: string
+  ): string => {
+    const truncated =
+      resultText.length > 500
+        ? resultText.slice(0, 500) + '\n... (truncated)'
+        : resultText;
+    const resultBlock = `[ToolResult]\n${truncated}\n[/ToolResult]`;
+
+    // Find the tool use marker with this ID and insert result after it
+    const toolIdPattern = new RegExp(
+      `(\\[Tool: \\w+ id=${toolUseId}\\][^\\n]*\\n)`,
+      'g'
+    );
+    const match = toolIdPattern.exec(content);
+    if (match) {
+      const insertPos = match.index + match[0].length;
+      return (
+        content.slice(0, insertPos) +
+        resultBlock +
+        '\n' +
+        content.slice(insertPos)
+      );
+    }
+    // Fallback: append at the end
+    return content + '\n' + resultBlock;
+  };
+
   for (const msg of sdkMessages) {
     if (msg.type === 'user') {
       const userMsg = msg as SDKUserMessage;
+      const content = userMsg.message.content;
 
       // Check if this is a tool result message
-      const toolResults = extractToolResults(userMsg.message.content);
-      if (toolResults) {
-        // Append tool results to current agent content
-        currentAgentContent += '\n' + toolResults;
-        continue;
+      if (typeof content !== 'string' && Array.isArray(content)) {
+        let hasToolResult = false;
+        for (const block of content) {
+          if (
+            block.type === 'tool_result' &&
+            block.tool_use_id &&
+            block.content
+          ) {
+            hasToolResult = true;
+            let resultText = '';
+            if (typeof block.content === 'string') {
+              resultText = block.content;
+            } else if (Array.isArray(block.content)) {
+              resultText = block.content
+                .filter((b) => b.type === 'text' && b.text)
+                .map((b) => b.text)
+                .join('');
+            }
+            if (resultText) {
+              currentAgentContent = insertToolResult(
+                currentAgentContent,
+                block.tool_use_id,
+                resultText
+              );
+            }
+          }
+        }
+        if (hasToolResult) continue;
       }
 
       // Flush any pending agent message
@@ -176,7 +193,8 @@ function convertSDKMessagesToChat(sdkMessages: SDKMessage[]): ChatMessage[] {
           currentAgentContent += block.text;
         } else if (block.type === 'tool_use' && block.name) {
           const toolInput = block.input ? JSON.stringify(block.input) : '';
-          currentAgentContent += `\n\n[Tool: ${block.name}] ${toolInput}\n`;
+          const toolId = block.id || `tool-${Date.now()}`;
+          currentAgentContent += `\n\n[Tool: ${block.name} id=${toolId}] ${toolInput}\n`;
         }
       }
     } else if (msg.type === 'result') {
@@ -227,6 +245,10 @@ export function useAgent(options: UseAgentOptions = {}) {
   const wsRef = useRef<WebSocket | null>(null);
   const currentResponseRef = useRef<string>('');
   const currentMessageIdRef = useRef<string>('');
+  // Track pending tool uses for matching with tool results
+  const pendingToolUsesRef = useRef<
+    Array<{ id: string; name: string; position: number }>
+  >([]);
   const initialMessageAddedRef = useRef(false);
   const connectionInitiatedRef = useRef(false);
   const initialMessageRef = useRef(initialMessage);
@@ -377,7 +399,16 @@ export function useAgent(options: UseAgentOptions = {}) {
               currentResponseRef.current += block.text;
             } else if (block.type === 'tool_use' && block.name) {
               const toolInput = block.input ? JSON.stringify(block.input) : '';
-              currentResponseRef.current += `\n\n[Tool: ${block.name}] ${toolInput}\n`;
+              const toolId = block.id || `tool-${Date.now()}`;
+              // Add tool use with ID marker for later result insertion
+              const marker = `[Tool: ${block.name} id=${toolId}] ${toolInput}`;
+              currentResponseRef.current += `\n\n${marker}\n`;
+              // Track pending tool use
+              pendingToolUsesRef.current.push({
+                id: toolId,
+                name: block.name,
+                position: currentResponseRef.current.length,
+              });
             }
           }
 
@@ -410,9 +441,59 @@ export function useAgent(options: UseAgentOptions = {}) {
         // Handle user message with tool results
         if (message.type === 'user' && 'message' in message) {
           const userMsg = message as SDKUserMessage;
-          const toolResults = extractToolResults(userMsg.message.content);
-          if (toolResults) {
-            currentResponseRef.current += '\n' + toolResults;
+          const content = userMsg.message.content;
+
+          if (typeof content !== 'string' && Array.isArray(content)) {
+            // Process each tool result and insert after corresponding tool use
+            for (const block of content) {
+              if (block.type === 'tool_result' && block.tool_use_id) {
+                let resultText = '';
+                if (typeof block.content === 'string') {
+                  resultText = block.content;
+                } else if (Array.isArray(block.content)) {
+                  resultText = block.content
+                    .filter(
+                      (b: { type: string; text?: string }) =>
+                        b.type === 'text' && b.text
+                    )
+                    .map((b: { text?: string }) => b.text)
+                    .join('');
+                }
+
+                if (resultText) {
+                  // Truncate long results
+                  const truncated =
+                    resultText.length > 500
+                      ? resultText.slice(0, 500) + '\n... (truncated)'
+                      : resultText;
+                  const resultBlock = `[ToolResult]\n${truncated}\n[/ToolResult]`;
+
+                  // Find the tool use marker with this ID and insert result after it
+                  const toolIdPattern = new RegExp(
+                    `(\\[Tool: \\w+ id=${block.tool_use_id}\\][^\\n]*\\n)`,
+                    'g'
+                  );
+                  const match = toolIdPattern.exec(currentResponseRef.current);
+                  if (match) {
+                    const insertPos = match.index + match[0].length;
+                    currentResponseRef.current =
+                      currentResponseRef.current.slice(0, insertPos) +
+                      resultBlock +
+                      '\n' +
+                      currentResponseRef.current.slice(insertPos);
+                  } else {
+                    // Fallback: append at the end if marker not found
+                    currentResponseRef.current += '\n' + resultBlock;
+                  }
+
+                  // Remove from pending
+                  pendingToolUsesRef.current =
+                    pendingToolUsesRef.current.filter(
+                      (t) => t.id !== block.tool_use_id
+                    );
+                }
+              }
+            }
 
             // Update the message in real-time
             setMessages((prev) => {

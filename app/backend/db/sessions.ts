@@ -1,14 +1,46 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { db } from './index.js';
 import { sessions, type NewSession, type Session } from './schema.js';
 
-// Create a new session
-export async function createSession(session: NewSession): Promise<void> {
-  await db.insert(sessions).values(session);
+// Helper to execute queries with RLS user context
+async function withUserContext<T>(
+  userId: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  await db.execute(
+    sql`SELECT set_config('app.current_user_id', ${userId}, true)`
+  );
+  return fn();
 }
 
-// Get session by ID
-export async function getSessionById(id: string): Promise<Session | null> {
+// Create a new session (with RLS)
+export async function createSession(
+  session: NewSession,
+  userId: string
+): Promise<void> {
+  return withUserContext(userId, async () => {
+    await db.insert(sessions).values(session);
+  });
+}
+
+// Get session by ID (with RLS)
+export async function getSessionById(
+  id: string,
+  userId: string
+): Promise<Session | null> {
+  return withUserContext(userId, async () => {
+    const result = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, id))
+      .limit(1);
+
+    return result[0] ?? null;
+  });
+}
+
+// Get session by ID without RLS (for internal use when user context is already verified)
+export async function getSessionByIdDirect(id: string): Promise<Session | null> {
   const result = await db
     .select()
     .from(sessions)
@@ -18,40 +50,41 @@ export async function getSessionById(id: string): Promise<Session | null> {
   return result[0] ?? null;
 }
 
-// Get all sessions (ordered by created_at desc)
-export async function getSessions(): Promise<Session[]> {
-  return db.select().from(sessions).orderBy(desc(sessions.createdAt));
+// Get all sessions for a user (with RLS)
+export async function getSessionsByUserId(userId: string): Promise<Session[]> {
+  return withUserContext(userId, async () => {
+    return db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.userId, userId))
+      .orderBy(desc(sessions.createdAt));
+  });
 }
 
-// Get sessions by user email
-export async function getSessionsByUserEmail(
-  userEmail: string
-): Promise<Session[]> {
-  return db
-    .select()
-    .from(sessions)
-    .where(eq(sessions.userEmail, userEmail))
-    .orderBy(desc(sessions.createdAt));
-}
-
-// Update session title
+// Update session title (with RLS)
 export async function updateSessionTitle(
   id: string,
-  title: string
+  title: string,
+  userId: string
 ): Promise<void> {
-  await db
-    .update(sessions)
-    .set({ title, updatedAt: new Date() })
-    .where(eq(sessions.id, id));
+  return withUserContext(userId, async () => {
+    await db
+      .update(sessions)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(sessions.id, id));
+  });
 }
 
-// Update session settings (title and autoSync)
+// Update session settings (title and autoSync) with RLS
 export async function updateSession(
   id: string,
-  updates: { title?: string; autoSync?: boolean }
+  updates: { title?: string; autoSync?: boolean },
+  userId: string
 ): Promise<void> {
-  await db
-    .update(sessions)
-    .set({ ...updates, updatedAt: new Date() })
-    .where(eq(sessions.id, id));
+  return withUserContext(userId, async () => {
+    await db
+      .update(sessions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(sessions.id, id));
+  });
 }

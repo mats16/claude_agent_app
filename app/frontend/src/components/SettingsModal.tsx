@@ -60,7 +60,7 @@ export default function SettingsModal({
   const fetchSettings = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/v1/users/me');
+      const response = await fetch('/api/v1/users/me/settings');
       if (response.ok) {
         const data: UserSettings = await response.json();
         setHasExistingToken(data.hasAccessToken);
@@ -88,7 +88,7 @@ export default function SettingsModal({
       }
       updates.claudeConfigSync = claudeConfigSync;
 
-      const response = await fetch('/api/v1/users/me', {
+      const response = await fetch('/api/v1/users/me/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
@@ -121,7 +121,7 @@ export default function SettingsModal({
   const handleDeleteToken = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch('/api/v1/users/me', {
+      const response = await fetch('/api/v1/users/me/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken: '' }),

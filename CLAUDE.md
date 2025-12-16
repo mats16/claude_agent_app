@@ -51,6 +51,22 @@ Development servers:
 - `PORT` - Backend port (default: 8000)
 - `DB_URL` - PostgreSQL connection string
 
+## Database Schema
+
+Tables defined in `app/backend/db/schema.ts`:
+- `users` - User records (id, email)
+- `sessions` - Chat sessions with foreign key to users
+- `events` - Session messages/events
+- `settings` - User settings (access token, config sync)
+
+### Row Level Security (RLS)
+Sessions table has RLS enabled. Queries use `withUserContext()` helper to set `app.current_user_id`:
+```typescript
+await db.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`);
+```
+
+Migrations are in `app/backend/db/migrations/`. Run with `npm run db:migrate`.
+
 ## Key Concepts
 
 ### Authentication Flow
@@ -84,10 +100,13 @@ Configured in `app/backend/agent/index.ts`:
 
 ### REST
 - `POST /api/v1/sessions` - Create session with initial message
-- `GET /api/v1/sessions` - List sessions
+- `GET /api/v1/sessions` - List sessions (filtered by userId via RLS)
 - `GET /api/v1/sessions/:id/events` - Get session history
 - `PATCH /api/v1/sessions/:id` - Update session (title, autoSync)
-- `GET/PATCH /api/v1/users/me` - User settings
+- `POST /api/v1/users` - Create/upsert user
+- `GET /api/v1/users/me` - Get user info (userId, email, workspaceHome)
+- `GET /api/v1/users/me/settings` - Get user settings (hasAccessToken, claudeConfigSync)
+- `PATCH /api/v1/users/me/settings` - Update user settings
 
 ### WebSocket
 - `/api/v1/sessions/:sessionId/ws` - Connect to existing session for streaming
@@ -101,6 +120,10 @@ Configured in `app/backend/agent/index.ts`:
 
 - `app/backend/app.ts` - Fastify server, REST/WebSocket endpoints
 - `app/backend/agent/index.ts` - Claude Agent SDK configuration
+- `app/backend/db/schema.ts` - Drizzle ORM table definitions
+- `app/backend/db/sessions.ts` - Session queries with RLS support
+- `app/backend/db/users.ts` - User CRUD operations
+- `app/backend/db/settings.ts` - User settings operations
 - `app/frontend/src/hooks/useAgent.ts` - WebSocket handling, SDK message parsing
 - `app/frontend/src/components/MessageRenderer.tsx` - Tool output rendering
 - `app/frontend/src/pages/SessionPage.tsx` - Chat UI

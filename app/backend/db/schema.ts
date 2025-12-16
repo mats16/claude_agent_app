@@ -8,13 +8,24 @@ import {
   boolean,
 } from 'drizzle-orm/pg-core';
 
+// Users table
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
 // Sessions table
 export const sessions = pgTable('sessions', {
   id: text('id').primaryKey(),
   title: text('title'),
   model: text('model').notNull(),
   workspacePath: text('workspace_path'),
-  userEmail: text('user_email'),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
   autoSync: boolean('auto_sync').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -50,7 +61,9 @@ export type NewEvent = typeof events.$inferInsert;
 
 // Settings table (with RLS by user_id)
 export const settings = pgTable('settings', {
-  userId: text('user_id').primaryKey(),
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
   accessToken: text('access_token'),
   claudeConfigSync: boolean('claude_config_sync').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

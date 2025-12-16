@@ -9,8 +9,8 @@ import { saveMessage, getMessagesBySessionId } from './db/events.js';
 import {
   createSession,
   getSessionById,
-  getSessions,
-  getSessionsByUserEmail,
+  getSessionByIdDirect,
+  getSessionsByUserId,
   updateSession,
 } from './db/sessions.js';
 import {
@@ -18,6 +18,7 @@ import {
   getSettingsDirect,
   upsertSettings,
 } from './db/settings.js';
+import { upsertUser } from './db/users.js';
 import { syncToWorkspace } from './utils/workspace-sync.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -248,15 +249,21 @@ fastify.post<{ Body: CreateSessionBody }>(
               sessionId = sdkMessage.session_id;
               getOrCreateQueue(sessionId);
 
+              // Ensure user exists before creating session
+              await upsertUser(userId, userEmail);
+
               // Save session to database
-              await createSession({
-                id: sessionId,
-                title: userMessage.slice(0, 100), // Use first 100 chars of message as title
-                model,
-                workspacePath,
-                userEmail,
-                autoSync,
-              });
+              await createSession(
+                {
+                  id: sessionId,
+                  title: userMessage.slice(0, 100), // Use first 100 chars of message as title
+                  model,
+                  workspacePath,
+                  userId,
+                  autoSync,
+                },
+                userId
+              );
 
               resolveInit?.();
 
@@ -328,14 +335,13 @@ fastify.post<{ Body: CreateSessionBody }>(
   }
 );
 
-// Get all sessions
+// Get all sessions for the current user
 fastify.get('/api/v1/sessions', async (request, _reply) => {
-  const userEmail = request.headers['x-forwarded-email'] as string | undefined;
+  const userId =
+    (request.headers['x-forwarded-user'] as string | undefined) ||
+    DEFAULT_USER_ID;
 
-  // If user email is provided, filter by user
-  const sessionList = userEmail
-    ? await getSessionsByUserEmail(userEmail)
-    : await getSessions();
+  const sessionList = await getSessionsByUserId(userId);
 
   return { sessions: sessionList };
 });
@@ -347,6 +353,9 @@ fastify.patch<{
 }>('/api/v1/sessions/:sessionId', async (request, reply) => {
   const { sessionId } = request.params;
   const { title, autoSync } = request.body;
+  const userId =
+    (request.headers['x-forwarded-user'] as string | undefined) ||
+    DEFAULT_USER_ID;
 
   // At least one field must be provided
   if (title === undefined && autoSync === undefined) {
@@ -357,7 +366,7 @@ fastify.patch<{
   if (title !== undefined) updates.title = title;
   if (autoSync !== undefined) updates.autoSync = autoSync;
 
-  await updateSession(sessionId, updates);
+  await updateSession(sessionId, updates, userId);
   return { success: true };
 });
 
@@ -372,25 +381,38 @@ fastify.get<{ Params: { sessionId: string } }>(
 );
 
 // Create user (register)
-fastify.post<{
-  Body: { accessToken?: string; claudeConfigSync?: boolean };
-}>('/api/v1/users', async (request, _reply) => {
+fastify.post('/api/v1/users', async (request, _reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
+  const userEmail = request.headers['x-forwarded-email'] as string | undefined;
 
-  const { accessToken, claudeConfigSync } = request.body;
+  await upsertUser(userId, userEmail);
 
-  await upsertSettings(userId, {
-    accessToken: accessToken ?? undefined,
-    claudeConfigSync: claudeConfigSync ?? false,
-  });
+  return { success: true, userId };
+});
 
-  return { success: true };
+// Get current user info
+fastify.get('/api/v1/users/me', async (request, _reply) => {
+  const userId =
+    (request.headers['x-forwarded-user'] as string | undefined) ||
+    DEFAULT_USER_ID;
+  const userEmail = request.headers['x-forwarded-email'] as string | undefined;
+
+  // Workspace home is derived from user email
+  const workspaceHome = userEmail
+    ? `/Workspace/Users/${userEmail}`
+    : null;
+
+  return {
+    userId,
+    email: userEmail ?? null,
+    workspaceHome,
+  };
 });
 
 // Get current user settings
-fastify.get('/api/v1/users/me', async (request, _reply) => {
+fastify.get('/api/v1/users/me/settings', async (request, _reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
@@ -415,7 +437,7 @@ fastify.get('/api/v1/users/me', async (request, _reply) => {
 // Update current user settings
 fastify.patch<{
   Body: { accessToken?: string; claudeConfigSync?: boolean };
-}>('/api/v1/users/me', async (request, reply) => {
+}>('/api/v1/users/me/settings', async (request, reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
@@ -428,6 +450,10 @@ fastify.patch<{
       .status(400)
       .send({ error: 'accessToken or claudeConfigSync is required' });
   }
+
+  // Ensure user exists before creating settings
+  const userEmail = request.headers['x-forwarded-email'] as string | undefined;
+  await upsertUser(userId, userEmail);
 
   const updates: { accessToken?: string; claudeConfigSync?: boolean } = {};
   if (accessToken !== undefined) updates.accessToken = accessToken;
@@ -672,7 +698,7 @@ fastify.register(async (fastify) => {
             const model = message.model || 'databricks-claude-sonnet-4-5';
 
             // Fetch session to get workspacePath and autoSync for resume
-            const session = await getSessionById(sessionId);
+            const session = await getSessionById(sessionId, userId);
             const workspacePath = session?.workspacePath ?? undefined;
             const autoSync = session?.autoSync ?? false;
 

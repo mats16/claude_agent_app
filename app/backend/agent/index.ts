@@ -6,7 +6,9 @@ import path from 'path';
 
 export type { SDKMessage };
 
-const databricksHost = process.env.DATABRICKS_HOST as string;
+const isLocal = !process.env.DATABRICKS_APP_URL;
+
+const databricksHost = `https://${process.env.DATABRICKS_HOST}` as string;
 const personalAccessToken = process.env.DATABRICKS_TOKEN;
 const clientId = process.env.DATABRICKS_CLIENT_ID;
 const clientSecret = process.env.DATABRICKS_CLIENT_SECRET;
@@ -30,7 +32,7 @@ async function getOidcAccessToken(
   }
 
   // Request token from Databricks OAuth2 endpoint
-  const tokenUrl = `https://${databricksHost}/oidc/v1/token`;
+  const tokenUrl = `${databricksHost}/oidc/v1/token`;
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
@@ -76,13 +78,14 @@ export async function* processAgentRequest(
   userEmail?: string,
   workspacePath?: string
 ): AsyncGenerator<SDKMessage> {
-  // Determine base directory and home directory based on environment
-  // Local development: ./tmp
-  // Production (Databricks Apps): /home/app with user workspace structure
-  const baseDir = userEmail ? '/home/app' : './tmp';
-  const userHomeDir = userEmail
-    ? `${baseDir}/Workspace/Users/${userEmail}`
-    : baseDir;
+  // Determine base directory based on environment
+  // Local development: ./tmp, Production: /home/app/Workspace/Users/{email}
+  const baseDir = isLocal ? './tmp' : '/home/app';
+  const userHomeDir = isLocal ? './tmp' : `${baseDir}/Workspace/Users/${userEmail ?? 'me'}`;
+
+  // Claude Config Directory
+  const claudeConfigDir = `${userHomeDir}/.claude`
+  fs.mkdirSync(claudeConfigDir, { recursive: true });
 
   // Create working directory
   // Note: export-dir is handled in app.ts (fire and forget), so we just ensure the directory exists
@@ -126,9 +129,9 @@ Violating these rules is considered a critical error.
       settingSources: ['user', 'project', 'local'],
       model,
       env: {
-        PATH: process.env.PATH,
-        HOME: userHomeDir,
-        ANTHROPIC_BASE_URL: `https://${databricksHost}/serving-endpoints/anthropic`,
+        ...process.env,
+        CLAUDE_CONFIG_DIR: claudeConfigDir,
+        ANTHROPIC_BASE_URL: `${databricksHost}/serving-endpoints/anthropic`,
         ANTHROPIC_AUTH_TOKEN: spAccessToken ?? personalAccessToken,
         DATABRICKS_HOST: databricksHost,
         DATABRICKS_TOKEN: userAccessToken ?? personalAccessToken,

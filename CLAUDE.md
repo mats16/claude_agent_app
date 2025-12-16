@@ -60,12 +60,12 @@ Tables defined in `app/backend/db/schema.ts`:
 - `settings` - User settings (access token, config sync)
 
 ### Row Level Security (RLS)
-Sessions table has RLS enabled. Queries use `withUserContext()` helper to set `app.current_user_id`:
+`sessions` and `settings` tables have RLS enabled. Queries use `withUserContext()` helper to set `app.current_user_id`:
 ```typescript
 await db.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`);
 ```
 
-Migrations are in `app/backend/db/migrations/`. Run with `npm run db:migrate`.
+Migration: `app/backend/db/migrations/0001_init.sql` (run with `npm run db:migrate`)
 
 ## Key Concepts
 

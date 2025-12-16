@@ -39,9 +39,18 @@ export default function AccountMenu({ userEmail }: AccountMenuProps) {
   const languageItems: MenuProps['items'] = LANGUAGES.map((lang) => ({
     key: lang.code,
     label: (
-      <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 100 }}>
+      <span
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          minWidth: 100,
+        }}
+      >
         {lang.label}
-        {lang.code === i18n.language && <CheckOutlined style={{ color: '#f5a623' }} />}
+        {lang.code === i18n.language && (
+          <CheckOutlined style={{ color: '#f5a623' }} />
+        )}
       </span>
     ),
     onClick: () => handleLanguageChange(lang.code),
@@ -51,9 +60,7 @@ export default function AccountMenu({ userEmail }: AccountMenuProps) {
     {
       key: 'header',
       label: (
-        <div style={{ padding: '4px 0', fontWeight: 500 }}>
-          {displayName}
-        </div>
+        <div style={{ padding: '4px 0', fontWeight: 500 }}>{displayName}</div>
       ),
       disabled: true,
       style: { cursor: 'default' },
@@ -69,9 +76,18 @@ export default function AccountMenu({ userEmail }: AccountMenuProps) {
       key: 'language',
       icon: <GlobalOutlined />,
       label: (
-        <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <span
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+          }}
+        >
           {t('accountMenu.language')}
-          <span style={{ color: '#888', fontSize: 12, marginLeft: 8 }}>{currentLang.label}</span>
+          <span style={{ color: '#888', fontSize: 12, marginLeft: 8 }}>
+            {currentLang.label}
+          </span>
         </span>
       ),
       children: languageItems,
@@ -88,11 +104,7 @@ export default function AccountMenu({ userEmail }: AccountMenuProps) {
 
   return (
     <>
-      <Dropdown
-        menu={{ items }}
-        trigger={['click']}
-        placement="topLeft"
-      >
+      <Dropdown menu={{ items }} trigger={['click']} placement="topLeft">
         <Avatar
           icon={<UserOutlined />}
           style={{

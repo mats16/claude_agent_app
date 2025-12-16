@@ -83,7 +83,9 @@ export default function SessionList({ onSessionSelect }: SessionListProps) {
               cursor: 'pointer',
               borderBottom: '1px solid #f5f5f5',
               background: isActive ? '#fff8e6' : 'transparent',
-              borderLeft: isActive ? '3px solid #f5a623' : '3px solid transparent',
+              borderLeft: isActive
+                ? '3px solid #f5a623'
+                : '3px solid transparent',
               transition: 'background 0.15s',
             }}
             onMouseEnter={(e) => {
@@ -124,10 +126,7 @@ export default function SessionList({ onSessionSelect }: SessionListProps) {
                   {session.workspacePath}
                 </Text>
               )}
-              <Text
-                type="secondary"
-                style={{ fontSize: 11 }}
-              >
+              <Text type="secondary" style={{ fontSize: 11 }}>
                 {formatDate(session.createdAt)}
               </Text>
             </div>

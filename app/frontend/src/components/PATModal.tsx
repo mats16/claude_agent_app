@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Input, Button, Alert, Typography, Flex, Tooltip } from 'antd';
-import { EyeOutlined, EyeInvisibleOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons';
+import {
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  DeleteOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 
 const { Text } = Typography;
 
@@ -120,7 +125,11 @@ export default function PATModal({ isOpen, onClose }: PATModalProps) {
             >
               {showToken ? savedToken : maskedToken}
             </Text>
-            <Tooltip title={showToken ? t('patModal.hideToken') : t('patModal.showToken')}>
+            <Tooltip
+              title={
+                showToken ? t('patModal.hideToken') : t('patModal.showToken')
+              }
+            >
               <Button
                 type="text"
                 size="small"
@@ -155,13 +164,7 @@ export default function PATModal({ isOpen, onClose }: PATModalProps) {
         />
       </div>
 
-      {message && (
-        <Alert
-          type={message.type}
-          message={message.text}
-          showIcon
-        />
-      )}
+      {message && <Alert type={message.type} message={message.text} showIcon />}
     </Modal>
   );
 }

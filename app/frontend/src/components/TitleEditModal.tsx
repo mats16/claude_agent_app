@@ -84,7 +84,12 @@ export default function TitleEditModal({
         </Checkbox>
         <Text
           type="secondary"
-          style={{ display: 'block', marginTop: 4, marginLeft: 24, fontSize: 12 }}
+          style={{
+            display: 'block',
+            marginTop: 4,
+            marginLeft: 24,
+            fontSize: 12,
+          }}
         >
           {t('titleEditModal.autoSyncHint')}
         </Text>

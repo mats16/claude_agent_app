@@ -215,12 +215,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
           </Flex>
         </div>
 
-        <Flex
-          align="center"
-          gap={8}
-          wrap="wrap"
-          style={{ marginTop: 8 }}
-        >
+        <Flex align="center" gap={8} wrap="wrap" style={{ marginTop: 8 }}>
           <Button
             size="small"
             icon={<FolderOutlined />}
@@ -273,7 +268,14 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
       </div>
 
       {/* Sessions Section */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <div
           style={{
             padding: '12px 20px 8px',

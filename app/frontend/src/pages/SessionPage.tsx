@@ -1,15 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  Input,
-  Tag,
-  Typography,
-  Flex,
-  Tooltip,
-  Spin,
-} from 'antd';
+import { Button, Input, Tag, Typography, Flex, Tooltip, Spin } from 'antd';
 import {
   SendOutlined,
   EditOutlined,
@@ -289,7 +281,9 @@ export default function SessionPage() {
                 height: 8,
                 borderRadius: '50%',
                 background: getStatusColor(),
-                animation: isReconnecting ? 'pulse 1s ease-in-out infinite' : undefined,
+                animation: isReconnecting
+                  ? 'pulse 1s ease-in-out infinite'
+                  : undefined,
               }}
             />
           </Tooltip>
@@ -329,7 +323,9 @@ export default function SessionPage() {
               align="center"
               style={{ padding: 32, color: '#999' }}
             >
-              <Text type="secondary">{t('sessionPage.waitingForResponse')}</Text>
+              <Text type="secondary">
+                {t('sessionPage.waitingForResponse')}
+              </Text>
             </Flex>
           )}
 
@@ -431,7 +427,9 @@ export default function SessionPage() {
                 type="primary"
                 shape="circle"
                 icon={<SendOutlined />}
-                disabled={!isConnected || isProcessing || !input.trim() || !hasPat}
+                disabled={
+                  !isConnected || isProcessing || !input.trim() || !hasPat
+                }
                 onClick={handleSubmit}
               />
             </Tooltip>

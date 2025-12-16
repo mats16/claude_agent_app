@@ -1,7 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, Typography, Flex } from 'antd';
-import { FolderOutlined, BookOutlined, RocketOutlined } from '@ant-design/icons';
+import {
+  FolderOutlined,
+  BookOutlined,
+  RocketOutlined,
+} from '@ant-design/icons';
 import Layout from './components/Layout';
 import SessionPage from './pages/SessionPage';
 import './App.css';
@@ -40,11 +44,7 @@ function WelcomePage() {
         background: '#fafafa',
       }}
     >
-      <Flex
-        vertical
-        align="center"
-        style={{ maxWidth: 600, width: '100%' }}
-      >
+      <Flex vertical align="center" style={{ maxWidth: 600, width: '100%' }}>
         {/* Logo */}
         <div style={{ marginBottom: 40 }}>
           <svg

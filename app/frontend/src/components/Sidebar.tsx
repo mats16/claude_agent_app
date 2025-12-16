@@ -15,6 +15,7 @@ import {
   SendOutlined,
   SyncOutlined,
   FolderOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import SessionList from './SessionList';
 import AccountMenu from './AccountMenu';
@@ -250,7 +251,10 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
               onChange={(e) => setOverwrite(e.target.checked)}
               disabled={isSubmitting}
             >
-              <Text style={{ fontSize: 12 }}>{t('sidebar.overwrite')}</Text>
+              <Text style={{ fontSize: 12 }}>
+                <EditOutlined style={{ marginRight: 4 }} />
+                {t('sidebar.overwrite')}
+              </Text>
             </Checkbox>
           </Tooltip>
           <Tooltip title={t('sidebar.autoSyncTooltip')}>

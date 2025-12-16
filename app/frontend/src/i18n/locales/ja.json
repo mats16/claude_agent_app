@@ -14,7 +14,7 @@
     "sessions": "セッション",
     "selectWorkspace": "ワークスペースを選択",
     "overwrite": "上書き",
-    "overwriteTooltip": "Workspaceからダウンロード時に既存ファイルを上書き",
+    "overwriteTooltip": "セッション開始時にWorkspaceからファイルをダウンロードする際に既存のローカルファイルを上書きする",
     "autoSync": "自動同期",
     "autoSyncTooltip": "タスク完了時にWorkspaceへ自動的に変更を同期",
     "patRequired": "PATが未設定です。チャットを開始するには、アカウント設定からPersonal Access Tokenを登録してください。"
@@ -75,9 +75,9 @@
   "welcome": {
     "exploreTitle": "ワークスペースファイルを探索",
     "exploreDescription": "Databricks Workspace内のファイルを一覧・閲覧",
-    "performanceTitle": "パフォーマンス問題を発見",
-    "performanceDescription": "遅いコードパスを特定",
-    "bugTitle": "バグを修正",
-    "bugDescription": "コードの問題をデバッグして解決"
+    "edaTitle": "notebookによるEDA",
+    "edaDescription": "Databricksノートブックで探索的データ分析",
+    "appsTitle": "Databricks Appsの開発",
+    "appsDescription": "Databricks上でアプリケーションを構築・デプロイ"
   }
 }

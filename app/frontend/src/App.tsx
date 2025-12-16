@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, Typography, Flex } from 'antd';
-import { FolderOutlined, ThunderboltOutlined, ToolOutlined } from '@ant-design/icons';
+import { FolderOutlined, BookOutlined, RocketOutlined } from '@ant-design/icons';
 import Layout from './components/Layout';
 import SessionPage from './pages/SessionPage';
 import './App.css';
@@ -18,14 +18,14 @@ function WelcomePage() {
       description: t('welcome.exploreDescription'),
     },
     {
-      icon: <ThunderboltOutlined style={{ fontSize: 24, color: '#f5a623' }} />,
-      title: t('welcome.performanceTitle'),
-      description: t('welcome.performanceDescription'),
+      icon: <BookOutlined style={{ fontSize: 24, color: '#f5a623' }} />,
+      title: t('welcome.edaTitle'),
+      description: t('welcome.edaDescription'),
     },
     {
-      icon: <ToolOutlined style={{ fontSize: 24, color: '#f5a623' }} />,
-      title: t('welcome.bugTitle'),
-      description: t('welcome.bugDescription'),
+      icon: <RocketOutlined style={{ fontSize: 24, color: '#f5a623' }} />,
+      title: t('welcome.appsTitle'),
+      description: t('welcome.appsDescription'),
     },
   ];
 

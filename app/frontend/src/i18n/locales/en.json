@@ -14,7 +14,7 @@
     "sessions": "Sessions",
     "selectWorkspace": "Select workspace",
     "overwrite": "Overwrite",
-    "overwriteTooltip": "Overwrite existing files when downloading from Workspace",
+    "overwriteTooltip": "Whether to overwrite existing local files when downloading from Workspace at session start",
     "autoSync": "Auto sync",
     "autoSyncTooltip": "Automatically sync changes back to Workspace on task completion",
     "patRequired": "PAT not configured. Please register your Personal Access Token in Account Settings to start chatting."
@@ -75,9 +75,9 @@
   "welcome": {
     "exploreTitle": "Explore workspace files",
     "exploreDescription": "List and read files in Databricks Workspace",
-    "performanceTitle": "Find performance issues",
-    "performanceDescription": "Identify slow code paths",
-    "bugTitle": "Fix a bug",
-    "bugDescription": "Debug and resolve issues in your code"
+    "edaTitle": "EDA with notebooks",
+    "edaDescription": "Exploratory Data Analysis with Databricks notebooks",
+    "appsTitle": "Develop Databricks Apps",
+    "appsDescription": "Build and deploy applications on Databricks"
   }
 }

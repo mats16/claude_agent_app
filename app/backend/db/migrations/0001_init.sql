@@ -24,7 +24,7 @@ CREATE TABLE sessions (
   model TEXT NOT NULL,
   workspace_path TEXT,
   user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-  auto_sync BOOLEAN DEFAULT FALSE NOT NULL,
+  auto_workspace_push BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
@@ -52,7 +52,7 @@ CREATE INDEX idx_events_session_seq ON events(session_id, seq);
 CREATE TABLE settings (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   access_token TEXT,
-  claude_config_sync BOOLEAN DEFAULT FALSE NOT NULL,
+  claude_config_sync BOOLEAN DEFAULT TRUE NOT NULL,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );

@@ -39,8 +39,8 @@ const fastify = Fastify({
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8000;
 
 // Default user ID and email for local development (when headers are not present)
-const DEFAULT_USER_ID = '3635764964872574@5099015744649857';
-const DEFAULT_USER_EMAIL = 'kazuki.matsuda@databricks.com';
+const DEFAULT_USER_ID = process.env.DEFAULT_USER_ID;
+const DEFAULT_USER_EMAIL = process.env.DEFAULT_USER_EMAIL;
 
 // Session event queue for streaming events to WebSocket
 interface SessionQueue {
@@ -194,6 +194,14 @@ fastify.post<{ Body: CreateSessionBody }>(
       (request.headers['x-forwarded-user'] as string | undefined) ||
       DEFAULT_USER_ID;
 
+    // Validate user info
+    if (!userEmail || !userId) {
+      return reply.status(400).send({
+        error:
+          'User authentication required. Please set DEFAULT_USER_EMAIL and DEFAULT_USER_ID environment variables for local development.',
+      });
+    }
+
     // Extract first user message
     const userEvent = events.find((e) => e.type === 'user');
     if (!userEvent) {
@@ -210,7 +218,7 @@ fastify.post<{ Body: CreateSessionBody }>(
     const userSettings = await getSettingsDirect(userId);
     const claudeConfigSync = userSettings?.claudeConfigSync ?? true;
 
-    // Pull workspace files BEFORE starting agent
+    // Pull workspace files in background (non-blocking)
     // Compute paths (same logic as in agent/index.ts)
     const localBasePath = path.join(process.env.HOME ?? '/tmp', 'c');
     const workspaceHomePath = path.join('/Workspace/Users', userEmail);
@@ -228,29 +236,34 @@ fastify.post<{ Body: CreateSessionBody }>(
     fs.mkdirSync(localClaudeConfigPath, { recursive: true });
     fs.mkdirSync(localWorkPath, { recursive: true });
 
+    // Start workspace pull in background (fire-and-forget)
     // Pull .claude config if enabled
     if (claudeConfigSync) {
       console.log(
-        `[New Session] Pulling claude config from ${workspaceClaudeConfigPath}...`
+        `[New Session] Starting background pull of claude config from ${workspaceClaudeConfigPath}...`
       );
-      await workspacePull(
-        workspaceClaudeConfigPath,
-        localClaudeConfigPath,
-        overwrite
-      );
+      workspacePull(workspaceClaudeConfigPath, localClaudeConfigPath, overwrite)
+        .then(() => {
+          console.log('[New Session] Claude config pull completed');
+        })
+        .catch((err) => {
+          console.error('[New Session] Claude config pull failed:', err);
+        });
     }
 
-    // Pull workspace directory
+    // Pull workspace directory in background
     console.log(
-      `[New Session] Pulling workspace directory from ${workspacePath || '/Workspace/Users/me'}...`
+      `[New Session] Starting background pull of workspace directory from ${workspacePath || '/Workspace/Users/me'}...`
     );
-    await workspacePull(
-      workspacePath || '/Workspace/Users/me',
-      localWorkPath,
-      overwrite
-    );
+    workspacePull(workspacePath || '/Workspace/Users/me', localWorkPath, overwrite)
+      .then(() => {
+        console.log('[New Session] Workspace directory pull completed');
+      })
+      .catch((err) => {
+        console.error('[New Session] Workspace directory pull failed:', err);
+      });
 
-    // Note: workspace pull is handled above before starting the agent
+    // Note: workspace pull runs in background while agent starts
 
     // Promise to wait for init message with timeout and error handling
     let sessionId = '';
@@ -397,10 +410,17 @@ fastify.post<{ Body: CreateSessionBody }>(
 );
 
 // Get all sessions for the current user
-fastify.get('/api/v1/sessions', async (request, _reply) => {
+fastify.get('/api/v1/sessions', async (request, reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
+
+  if (!userId) {
+    return reply.status(400).send({
+      error:
+        'User authentication required. Please set DEFAULT_USER_ID environment variable for local development.',
+    });
+  }
 
   const sessionList = await getSessionsByUserId(userId);
 
@@ -417,6 +437,13 @@ fastify.patch<{
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
+
+  if (!userId) {
+    return reply.status(400).send({
+      error:
+        'User authentication required. Please set DEFAULT_USER_ID environment variable for local development.',
+    });
+  }
 
   // At least one field must be provided
   if (title === undefined && autoWorkspacePush === undefined) {
@@ -446,13 +473,20 @@ fastify.get<{ Params: { sessionId: string } }>(
 
 // Get current user info (includes workspace permission check)
 // Creates user if not exists
-fastify.get('/api/v1/users/me', async (request, _reply) => {
+fastify.get('/api/v1/users/me', async (request, reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
   const userEmail =
     (request.headers['x-forwarded-email'] as string | undefined) ||
     DEFAULT_USER_EMAIL;
+
+  if (!userId || !userEmail) {
+    return reply.status(400).send({
+      error:
+        'User authentication required. Please set DEFAULT_USER_EMAIL and DEFAULT_USER_ID environment variables for local development.',
+    });
+  }
 
   // Ensure user exists (create if not)
   await upsertUser(userId, userEmail);
@@ -507,10 +541,17 @@ fastify.get('/api/v1/users/me', async (request, _reply) => {
 });
 
 // Get current user settings
-fastify.get('/api/v1/users/me/settings', async (request, _reply) => {
+fastify.get('/api/v1/users/me/settings', async (request, reply) => {
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
+
+  if (!userId) {
+    return reply.status(400).send({
+      error:
+        'User authentication required. Please set DEFAULT_USER_ID environment variable for local development.',
+    });
+  }
 
   const userSettings = await getSettings(userId);
 
@@ -536,6 +577,16 @@ fastify.patch<{
   const userId =
     (request.headers['x-forwarded-user'] as string | undefined) ||
     DEFAULT_USER_ID;
+  const userEmail =
+    (request.headers['x-forwarded-email'] as string | undefined) ||
+    DEFAULT_USER_EMAIL;
+
+  if (!userId || !userEmail) {
+    return reply.status(400).send({
+      error:
+        'User authentication required. Please set DEFAULT_USER_EMAIL and DEFAULT_USER_ID environment variables for local development.',
+    });
+  }
 
   const { accessToken, claudeConfigSync } = request.body;
 
@@ -547,9 +598,6 @@ fastify.patch<{
   }
 
   // Ensure user exists before creating settings
-  const userEmail =
-    (request.headers['x-forwarded-email'] as string | undefined) ||
-    DEFAULT_USER_EMAIL;
   await upsertUser(userId, userEmail);
 
   const updates: { accessToken?: string; claudeConfigSync?: boolean } = {};
@@ -759,6 +807,17 @@ fastify.register(async (fastify) => {
       (req.headers['x-forwarded-user'] as string | undefined) ||
       DEFAULT_USER_ID;
 
+    if (!userId) {
+      socket.send(
+        JSON.stringify({
+          error:
+            'User authentication required. Please set DEFAULT_USER_ID environment variable for local development.',
+        })
+      );
+      socket.close();
+      return;
+    }
+
     console.log(
       `Client connected to session list WebSocket for user: ${userId}`
     );
@@ -819,6 +878,17 @@ fastify.register(async (fastify) => {
       const userId =
         (req.headers['x-forwarded-user'] as string | undefined) ||
         DEFAULT_USER_ID;
+
+      if (!userId || !userEmail) {
+        socket.send(
+          JSON.stringify({
+            error:
+              'User authentication required. Please set DEFAULT_USER_EMAIL and DEFAULT_USER_ID environment variables for local development.',
+          })
+        );
+        socket.close();
+        return;
+      }
 
       const queue = sessionQueues.get(sessionId);
 

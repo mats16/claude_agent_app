@@ -13,6 +13,7 @@
     "placeholder": "何をしますか？",
     "sessions": "セッション",
     "selectWorkspace": "ワークスペースを選択",
+    "clearWorkspace": "ワークスペースパスをクリア",
     "autoSync": "自動同期",
     "autoSyncTooltip": "タスク完了時に Workspace へ自動的に変更を同期",
     "permissionRequired": "ワークスペースへのアクセス権限がありません。設定から権限を付与してください。"

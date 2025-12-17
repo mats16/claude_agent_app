@@ -16,6 +16,7 @@ import {
   SyncOutlined,
   FolderOutlined,
   RocketOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import SessionList from './SessionList';
 import AccountMenu from './AccountMenu';
@@ -343,30 +344,53 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
         </div>
 
         <Flex align="center" gap={8} wrap="wrap" style={{ marginTop: 8 }}>
-          <Button
-            size="small"
-            icon={<FolderOutlined />}
-            onClick={() => setIsWorkspaceModalOpen(true)}
-            disabled={isSubmitting}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              textAlign: 'left',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            title={workspacePath || t('sidebar.selectWorkspace')}
-          >
-            <span
+          <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+            <Button
+              size="small"
+              icon={<FolderOutlined />}
+              onClick={() => setIsWorkspaceModalOpen(true)}
+              disabled={isSubmitting}
               style={{
+                width: '100%',
+                textAlign: 'left',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                paddingRight: workspacePath ? 32 : undefined,
               }}
+              title={workspacePath || t('sidebar.selectWorkspace')}
             >
-              {workspacePath || t('sidebar.selectWorkspace')}
-            </span>
-          </Button>
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  display: 'block',
+                }}
+              >
+                {workspacePath || t('sidebar.selectWorkspace')}
+              </span>
+            </Button>
+            {workspacePath && (
+              <CloseOutlined
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#ff4d4f',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  zIndex: 1,
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!isSubmitting) {
+                    setWorkspacePath('');
+                  }
+                }}
+              />
+            )}
+          </div>
           <Tooltip title={t('sidebar.autoSyncTooltip')}>
             <Checkbox
               checked={autoWorkspacePush}

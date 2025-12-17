@@ -13,6 +13,7 @@
     "placeholder": "What do you want to do?",
     "sessions": "Sessions",
     "selectWorkspace": "Select workspace",
+    "clearWorkspace": "Clear workspace path",
     "autoSync": "Auto sync",
     "autoSyncTooltip": "Automatically sync changes back to Workspace on task completion",
     "permissionRequired": "No access to workspace. Please grant permissions in Settings."

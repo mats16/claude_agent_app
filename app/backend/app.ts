@@ -47,6 +47,37 @@ interface SessionQueue {
 
 const sessionQueues = new Map<string, SessionQueue>();
 
+// User session list WebSocket connections (for real-time session list updates)
+import type { WebSocket as WsWebSocket } from 'ws';
+const userSessionListeners = new Map<string, Set<WsWebSocket>>();
+
+// Notify user's session list listeners about session creation
+function notifySessionCreated(
+  userId: string,
+  session: {
+    id: string;
+    title: string;
+    workspacePath: string | null;
+    updatedAt: string;
+  }
+) {
+  const listeners = userSessionListeners.get(userId);
+  if (!listeners) return;
+
+  const message = JSON.stringify({
+    type: 'session_created',
+    session,
+  });
+
+  for (const ws of listeners) {
+    try {
+      ws.send(message);
+    } catch (error) {
+      console.error('Failed to send session_created notification:', error);
+    }
+  }
+}
+
 function getOrCreateQueue(sessionId: string): SessionQueue {
   let queue = sessionQueues.get(sessionId);
   if (!queue) {
@@ -191,10 +222,11 @@ fastify.post<{ Body: CreateSessionBody }>(
               await upsertUser(userId, userEmail);
 
               // Save session to database
+              const sessionTitle = userMessage.slice(0, 100); // Use first 100 chars of message as title
               await createSession(
                 {
                   id: sessionId,
-                  title: userMessage.slice(0, 100), // Use first 100 chars of message as title
+                  title: sessionTitle,
                   model,
                   workspacePath,
                   userId,
@@ -202,6 +234,14 @@ fastify.post<{ Body: CreateSessionBody }>(
                 },
                 userId
               );
+
+              // Notify session list WebSocket listeners
+              notifySessionCreated(userId, {
+                id: sessionId,
+                title: sessionTitle,
+                workspacePath: workspacePath ?? null,
+                updatedAt: new Date().toISOString(),
+              });
 
               resolveInit?.();
 
@@ -617,6 +657,57 @@ fastify.get<{ Params: { '*': string } }>(
     }
   }
 );
+
+// WebSocket endpoint for session list updates
+fastify.register(async (fastify) => {
+  fastify.get('/api/v1/sessions/ws', { websocket: true }, (socket, req) => {
+    const userId =
+      (req.headers['x-forwarded-user'] as string | undefined) ||
+      DEFAULT_USER_ID;
+
+    console.log(
+      `Client connected to session list WebSocket for user: ${userId}`
+    );
+
+    // Add to user's session listeners
+    let listeners = userSessionListeners.get(userId);
+    if (!listeners) {
+      listeners = new Set();
+      userSessionListeners.set(userId, listeners);
+    }
+    listeners.add(socket);
+
+    socket.on('message', (messageBuffer: Buffer) => {
+      try {
+        const messageStr = messageBuffer.toString();
+        const message = JSON.parse(messageStr);
+
+        if (message.type === 'subscribe') {
+          socket.send(JSON.stringify({ type: 'subscribed' }));
+        }
+      } catch (error) {
+        console.error('Session list WebSocket message error:', error);
+      }
+    });
+
+    socket.on('close', () => {
+      console.log(
+        `Client disconnected from session list WebSocket for user: ${userId}`
+      );
+      const listeners = userSessionListeners.get(userId);
+      if (listeners) {
+        listeners.delete(socket);
+        if (listeners.size === 0) {
+          userSessionListeners.delete(userId);
+        }
+      }
+    });
+
+    socket.on('error', (error: Error) => {
+      console.error('Session list WebSocket error:', error);
+    });
+  });
+});
 
 // WebSocket endpoint for existing session - receives queued events
 fastify.register(async (fastify) => {

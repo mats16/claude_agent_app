@@ -36,12 +36,18 @@ export async function workspacePush(
     'sync',
     localPath,
     workspacePath,
-    '--output', 'json',
-    '--exclude-from', '.gitignore',
-    '--exclude', '"*.pyc"',
-    '--exclude', '"__pycache__"',
-    '--exclude', '"node_modules/*"',
-    '--exclude', '".turbo/*"'
+    '--output',
+    'json',
+    '--exclude-from',
+    '.gitignore',
+    '--exclude',
+    '"*.pyc"',
+    '--exclude',
+    '"__pycache__"',
+    '--exclude',
+    '"node_modules/*"',
+    '--exclude',
+    '".turbo/*"',
   ].join(' ');
   console.log(`[workspacePush] ${localPath} -> ${workspacePath}`);
   try {

@@ -49,7 +49,11 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
 
   // Set default workspace path from userInfo
   useEffect(() => {
-    if (userInfo?.hasWorkspacePermission && userInfo.workspaceHome && !workspacePath) {
+    if (
+      userInfo?.hasWorkspacePermission &&
+      userInfo.workspaceHome &&
+      !workspacePath
+    ) {
       setWorkspacePath(userInfo.workspaceHome);
     }
   }, [userInfo, workspacePath]);

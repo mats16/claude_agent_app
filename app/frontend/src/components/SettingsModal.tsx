@@ -213,10 +213,7 @@ export default function SettingsModal({
 
       {/* Open Databricks Console link */}
       <Flex justify="center" style={{ marginTop: 16 }}>
-        <Link
-          href={`https://${spInfo?.databricksHost}/browse`}
-          target="_blank"
-        >
+        <Link href={`https://${spInfo?.databricksHost}/browse`} target="_blank">
           {t('settingsModal.openDatabricksConsole')}
         </Link>
       </Flex>

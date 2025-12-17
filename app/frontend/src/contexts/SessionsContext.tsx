@@ -24,10 +24,7 @@ interface SessionsContextType {
   error: string | null;
   refetch: () => Promise<void>;
   getSession: (sessionId: string) => Session | undefined;
-  updateSessionLocally: (
-    sessionId: string,
-    updates: Partial<Session>
-  ) => void;
+  updateSessionLocally: (sessionId: string, updates: Partial<Session>) => void;
 }
 
 const SessionsContext = createContext<SessionsContextType | undefined>(
@@ -63,6 +60,48 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
   useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
+
+  // WebSocket connection for real-time session list updates
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(
+      `${protocol}//${window.location.host}/api/v1/sessions/ws`
+    );
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'subscribe' }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'session_created' && data.session) {
+          // Add new session to the top of the list
+          const newSession: Session = {
+            id: data.session.id,
+            title: data.session.title,
+            workspacePath: data.session.workspacePath,
+            updatedAt: data.session.updatedAt,
+            createdAt: data.session.updatedAt, // New sessions have same createdAt/updatedAt
+            model: '',
+            userEmail: null,
+            autoSync: false,
+          };
+          setSessions((prev) => [newSession, ...prev]);
+        }
+      } catch (err) {
+        console.error('Failed to parse session list WebSocket message:', err);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('Session list WebSocket error:', error);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
 
   const getSession = useCallback(
     (sessionId: string) => {

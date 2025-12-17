@@ -279,7 +279,7 @@ export default function SessionPage() {
       vertical
       style={{
         height: '100%',
-        background: '#fff',
+        background: '#FFFFFF',
       }}
     >
       {/* Header */}
@@ -289,7 +289,7 @@ export default function SessionPage() {
         style={{
           padding: '12px 20px',
           borderBottom: '1px solid #f0f0f0',
-          background: '#fff',
+          background: '#FFFFFF',
         }}
       >
         <Flex align="center" gap={8} style={{ minWidth: 0, flex: 1 }}>
@@ -382,7 +382,7 @@ export default function SessionPage() {
         style={{
           flex: 1,
           overflow: 'auto',
-          background: isDragging ? 'rgba(245, 166, 35, 0.05)' : '#fafafa',
+          background: isDragging ? 'rgba(245, 166, 35, 0.05)' : '#FFFFFF',
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',

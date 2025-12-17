@@ -247,7 +247,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
       vertical
       style={{
         height: '100%',
-        background: '#fff',
+        background: '#F7F7F7',
       }}
     >
       {/* Header */}

@@ -316,7 +316,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
             onKeyDown={handleKeyDown}
             placeholder={t('sidebar.placeholder')}
             disabled={isSubmitting || isConverting}
-            autoSize={{ minRows: 3, maxRows: 6 }}
+            autoSize={{ minRows: 3, maxRows: 19 }}
             variant="borderless"
             style={{ padding: 0, marginBottom: 8 }}
           />

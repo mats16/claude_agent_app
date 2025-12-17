@@ -34,6 +34,7 @@ import {
 import type { ImageContent } from '@app/shared';
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
 interface LocationState {
   initialMessage?: string;
@@ -524,12 +525,16 @@ export default function SessionPage() {
               disabled={!isConnected || isProcessing || isConverting}
               showButtonOnly={false}
             />
-            <Flex gap={8} align="center">
-              <Input
+            <Flex gap={8} align="flex-end">
+              <TextArea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onPressEnter={(e) => {
-                  if (!e.shiftKey && !e.nativeEvent.isComposing) {
+                onKeyDown={(e) => {
+                  if (
+                    e.key === 'Enter' &&
+                    !e.shiftKey &&
+                    !e.nativeEvent.isComposing
+                  ) {
                     e.preventDefault();
                     handleSubmit();
                   }
@@ -537,7 +542,8 @@ export default function SessionPage() {
                 placeholder={t('sessionPage.typeMessage')}
                 disabled={!isConnected || isProcessing || isConverting}
                 variant="borderless"
-                style={{ flex: 1 }}
+                autoSize={{ minRows: 1, maxRows: 9 }}
+                style={{ flex: 1, padding: 0, alignSelf: 'stretch' }}
               />
               <ImageUpload
                 images={attachedImages}

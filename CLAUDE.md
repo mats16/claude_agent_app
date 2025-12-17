@@ -62,7 +62,7 @@ Development servers:
 
 Tables defined in `app/backend/db/schema.ts`:
 - `users` - User records (id, email)
-- `sessions` - Chat sessions with foreign key to users
+- `sessions` - Chat sessions with foreign key to users (includes `cwd` for working directory)
 - `events` - Session messages/events
 - `settings` - User settings (access token, config sync)
 
@@ -111,17 +111,21 @@ Sync behavior is controlled by these flags passed to `processAgentRequest()`:
 
 | Flag | Pull (new session) | Push (session end) |
 |------|-------------------|---------------------|
-| `overwrite` | Adds `--overwrite` to workspace pull | - |
 | `autoWorkspacePush` | - | Enables workspace directory push |
 | `claudeConfigSync` | Enables claude config pull | Enables claude config push |
 
-- `overwrite` / `autoWorkspacePush`: Session-level settings (stored in `sessions.auto_workspace_push`)
+- `autoWorkspacePush`: Session-level setting (stored in `sessions.auto_workspace_push`)
 - `claudeConfigSync`: User-level setting (stored in `settings.claude_config_sync`)
+- Workspace pull always uses `overwrite=true` since each session has isolated directory
 
 #### Path Structure
-- Local base: `$HOME/c` (e.g., `/Users/me/c` or `/home/app/c`)
-- Workspace path: `/Workspace/Users/{email}/sandbox` → Local: `$HOME/c/Workspace/Users/{email}/sandbox`
-- Claude config: `/Workspace/Users/{email}/.claude` → Local: `$HOME/c/Workspace/Users/{email}/.claude`
+- Local base: `$HOME/u` (e.g., `/Users/me/u` or `/home/app/u`)
+- Claude config: `/Workspace/Users/{email}/.claude` → Local: `$HOME/u/{email}/.claude`
+- Working directory: Each session gets unique isolated directory at `$HOME/u/{email}/w/{uuid}`
+  - UUID is generated independently (not sessionId) before agent starts
+  - Path stored in `sessions.cwd` column
+  - Created API-side before processAgentRequest() call
+- Optional workspace path: User can specify workspace directory to sync (can be set empty or added later via TitleEditModal)
 
 #### Architecture Notes
 - Workspace pull moved from SDK hooks to API layer to avoid JSON stream contamination
@@ -170,14 +174,14 @@ Apply the path to `app/frontend/public/favicon.svg`:
 ## API Endpoints
 
 ### REST
-- `POST /api/v1/sessions` - Create session with initial message
+- `POST /api/v1/sessions` - Create session with initial message (workspacePath is optional)
 - `GET /api/v1/sessions` - List sessions (filtered by userId via RLS)
 - `GET /api/v1/sessions/:id/events` - Get session history
-- `PATCH /api/v1/sessions/:id` - Update session (title, autoWorkspacePush)
+- `PATCH /api/v1/sessions/:id` - Update session (title, autoWorkspacePush, workspacePath)
 - `POST /api/v1/users` - Create/upsert user
-- `GET /api/v1/users/me` - Get user info (userId, email, workspaceHome)
+- `GET /api/v1/users/me` - Get user info (userId, email, workspaceHome, hasWorkspacePermission)
 - `GET /api/v1/users/me/settings` - Get user settings (hasAccessToken, claudeConfigSync)
-- `PATCH /api/v1/users/me/settings` - Update user settings
+- `PATCH /api/v1/users/me/settings` - Update user settings (accessToken, claudeConfigSync)
 
 ### WebSocket
 - `/api/v1/sessions/ws` - Real-time session list updates (notifies on session creation)

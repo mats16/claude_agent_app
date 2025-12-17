@@ -973,11 +973,9 @@ fastify.register(async (fastify) => {
               existingStream.addMessage(userMessageContent);
 
               // Save user message to database
+              // Note: Don't send back to client - frontend already added it optimistically
               const userMsg = createUserMessage(sessionId, userMessageContent);
               await saveMessage(userMsg);
-
-              // Send user message to client immediately
-              socket.send(JSON.stringify(userMsg));
             } else {
               // Start new agent session or resume existing one
               console.log(

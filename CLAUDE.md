@@ -99,6 +99,20 @@ Path structure:
 
 Note: `SessionStart` hook does not fire in SDK mode, so `UserPromptSubmit` is used instead.
 
+## Frontend State Management
+
+To minimize redundant API requests, shared data should be managed via React Context rather than fetching in each component.
+
+### Contexts (`app/frontend/src/contexts/`)
+- **UserContext**: User info (`/api/v1/users/me`) and settings (`/api/v1/users/me/settings`)
+- **SessionsContext**: Session list (`/api/v1/sessions`)
+
+### Guidelines
+- Do NOT call the same API endpoint from multiple components. Use existing Context instead.
+- When adding a new shared API call, create a Context or add to an existing one.
+- Use `getSession(sessionId)` from `SessionsContext` to get session data instead of fetching `/api/v1/sessions`.
+- Use `updateSessionLocally()` to update local state after PATCH requests for immediate UI updates.
+
 ## UI/Design
 
 - **Brand Color**: `#f5a623` (Orange/Gold)

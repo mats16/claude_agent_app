@@ -170,7 +170,7 @@ interface CreateSessionBody {
     uuid: string;
     session_id: string;
     type: string;
-    message: { role: string; content: string };
+    message: { role: string; content: MessageContent[] | string };
   }>;
   session_context: {
     model: string;
@@ -224,12 +224,14 @@ fastify.post<{ Body: CreateSessionBody }>(
     const maxRetries = 3;
     let retryCount = 0;
 
+    // Convert string message to MessageContent[] for processAgentRequest
+    const messageContent: MessageContent[] =
+      typeof userMessage === 'string'
+        ? [{ type: 'text', text: userMessage }]
+        : userMessage;
+
     const startAgentProcessing = () => {
       // Start processing in background
-      // Convert string message to MessageContent[] for processAgentRequest
-      const messageContent: MessageContent[] = [
-        { type: 'text', text: userMessage },
-      ];
       const agentIterator = processAgentRequest(
         messageContent,
         model,
@@ -257,7 +259,11 @@ fastify.post<{ Body: CreateSessionBody }>(
               await upsertUser(userId, userEmail);
 
               // Save session to database
-              const sessionTitle = userMessage.slice(0, 100); // Use first 100 chars of message as title
+              // Extract title from message content
+              const sessionTitle = (
+                messageContent.find((c) => c.type === 'text')?.text ??
+                'New Session'
+              ).slice(0, 100);
               await createSession(
                 {
                   id: sessionId,
@@ -282,10 +288,6 @@ fastify.post<{ Body: CreateSessionBody }>(
 
               // Save user message after getting sessionId
               if (!userMessageSaved) {
-                // Convert string to MessageContent[] for createUserMessage
-                const messageContent: MessageContent[] = [
-                  { type: 'text', text: userMessage },
-                ];
                 const userMsg = createUserMessage(sessionId, messageContent);
                 await saveMessage(userMsg);
                 addEventToQueue(sessionId, userMsg);

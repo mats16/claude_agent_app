@@ -15,14 +15,8 @@ export async function workspacePull(
 ): Promise<void> {
   const overwriteFlag = overwrite ? ' --overwrite' : '';
   const cmd = `databricks workspace export-dir "${workspacePath}" "${localPath}"${overwriteFlag}`;
-  console.log(
-    `[workspacePull] ${workspacePath} -> ${localPath} (overwrite: ${overwrite})`
-  );
   try {
-    const { stdout, stderr } = await execAsync(cmd);
-    if (stdout) console.log(`[workspacePull] stdout: ${stdout}`);
-    if (stderr) console.log(`[workspacePull] stderr: ${stderr}`);
-    console.log(`[workspacePull] Completed`);
+    await execAsync(cmd);
   } catch (error: any) {
     console.error(`[workspacePull] Error: ${error.message}`);
   }
@@ -65,12 +59,8 @@ export async function workspacePush(
     '--exclude',
     '".turbo/*"',
   ].join(' ');
-  console.log(`[workspacePush] ${localPath} -> ${workspacePath}`);
   try {
-    const { stdout, stderr } = await execAsync(cmd);
-    if (stdout) console.log(`[workspacePush] stdout: ${stdout}`);
-    if (stderr) console.log(`[workspacePush] stderr: ${stderr}`);
-    console.log(`[workspacePush] Completed`);
+    await execAsync(cmd);
   } catch (error: any) {
     console.error(`[workspacePush] Error: ${error.message}`);
   }

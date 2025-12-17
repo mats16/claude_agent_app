@@ -147,9 +147,6 @@ export async function* processAgentRequest(
   const workspaceHomePath = path.join('/Workspace/Users', userEmail ?? 'me');
   const workspaceClaudeConfigPath = path.join(workspaceHomePath, '.claude');
 
-  // Local workspace home directory
-  const localHomePath = path.join(localBasePath, workspaceHomePath);
-
   // Local Claude config directory
   const localClaudeConfigPath = path.join(
     localBasePath,
@@ -238,23 +235,18 @@ Violating these rules is considered a critical error.
             hooks: [
               async (_input, _toolUseID, _options) => {
                 if (!sessionId && claudeConfigSync) {
-                  console.log(
-                    '[Hook:UserPromptSubmit] pull claudeConfig (claudeConfigSync enabled)'
-                  );
-                  workspacePull(
-                    workspaceClaudeConfigPath,
-                    localClaudeConfigPath,
-                    overwrite
-                  ).catch((err) =>
+                  try {
+                    await workspacePull(
+                      workspaceClaudeConfigPath,
+                      localClaudeConfigPath,
+                      overwrite
+                    );
+                  } catch (err) {
                     console.error(
-                      '[Hook:UserPromptSubmit] workspacePull claudeConfig error',
+                      '[Hook:UserPromptSubmit] workspacePull claudeConfig error (continuing anyway):',
                       err
-                    )
-                  );
-                } else if (!sessionId) {
-                  console.log(
-                    '[Hook:UserPromptSubmit] skip claudeConfig pull (claudeConfigSync disabled)'
-                  );
+                    );
+                  }
                 }
                 return { async: true };
               },
@@ -265,16 +257,18 @@ Violating these rules is considered a critical error.
             hooks: [
               async (_input, _toolUseID, _options) => {
                 if (!sessionId) {
-                  console.log(
-                    `[Hook:UserPromptSubmit] pull workDir (overwrite: ${overwrite})`
-                  );
-                  workspacePull(workspacePath, localWorkPath, overwrite).catch(
-                    (err) =>
-                      console.error(
-                        '[Hook:UserPromptSubmit] workspacePull workDir error',
-                        err
-                      )
-                  );
+                  try {
+                    await workspacePull(
+                      workspacePath,
+                      localWorkPath,
+                      overwrite
+                    );
+                  } catch (err) {
+                    console.error(
+                      '[Hook:UserPromptSubmit] workspacePull workDir error (continuing anyway):',
+                      err
+                    );
+                  }
                 }
                 return { async: true };
               },
@@ -287,9 +281,6 @@ Violating these rules is considered a critical error.
             hooks: [
               async (_input, _toolUseID, _options) => {
                 if (claudeConfigSync) {
-                  console.log(
-                    '[Hook:Stop] push claudeConfig (claudeConfigSync enabled)'
-                  );
                   workspacePush(
                     localClaudeConfigPath,
                     workspaceClaudeConfigPath
@@ -298,10 +289,6 @@ Violating these rules is considered a critical error.
                       '[Hook:Stop] workspacePush claudeConfig error',
                       err
                     )
-                  );
-                } else {
-                  console.log(
-                    '[Hook:Stop] skip claudeConfig push (claudeConfigSync disabled)'
                   );
                 }
                 return { async: true };
@@ -313,18 +300,11 @@ Violating these rules is considered a critical error.
             hooks: [
               async (_input, _toolUseID, _options) => {
                 if (autoWorkspacePush) {
-                  console.log(
-                    '[Hook:Stop] push workDir (autoWorkspacePush enabled)'
-                  );
                   workspacePush(localWorkPath, workspacePath).catch((err) =>
                     console.error(
                       '[Hook:Stop] workspacePush workDir error',
                       err
                     )
-                  );
-                } else {
-                  console.log(
-                    '[Hook:Stop] skip workDir push (autoWorkspacePush disabled)'
                   );
                 }
                 return { async: true };

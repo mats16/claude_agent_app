@@ -105,7 +105,7 @@ To minimize redundant API requests, shared data should be managed via React Cont
 
 ### Contexts (`app/frontend/src/contexts/`)
 - **UserContext**: User info (`/api/v1/users/me`) and settings (`/api/v1/users/me/settings`)
-- **SessionsContext**: Session list (`/api/v1/sessions`)
+- **SessionsContext**: Session list (`/api/v1/sessions`) with real-time updates via WebSocket (`/api/v1/sessions/ws`)
 
 ### Guidelines
 - Do NOT call the same API endpoint from multiple components. Use existing Context instead.
@@ -134,6 +134,7 @@ To minimize redundant API requests, shared data should be managed via React Cont
 - `PATCH /api/v1/users/me/settings` - Update user settings
 
 ### WebSocket
+- `/api/v1/sessions/ws` - Real-time session list updates (notifies on session creation)
 - `/api/v1/sessions/:sessionId/ws` - Connect to existing session for streaming
 
 ## Frontend Routes

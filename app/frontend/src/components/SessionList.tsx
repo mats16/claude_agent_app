@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Typography, Spin, Empty, Flex } from 'antd';
 import { useSessions, Session } from '../contexts/SessionsContext';
@@ -13,7 +13,10 @@ export default function SessionList({ onSessionSelect }: SessionListProps) {
   const { t, i18n } = useTranslation();
   const { sessions, isLoading, error } = useSessions();
   const navigate = useNavigate();
-  const { sessionId: currentSessionId } = useParams<{ sessionId: string }>();
+  const location = useLocation();
+
+  // Extract sessionId from current URL path
+  const currentSessionId = location.pathname.match(/\/sessions\/([^/]+)/)?.[1];
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);

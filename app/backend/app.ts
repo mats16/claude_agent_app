@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import staticPlugin from '@fastify/static';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import {
@@ -14,7 +15,6 @@ import { saveMessage, getMessagesBySessionId } from './db/events.js';
 import {
   createSession,
   getSessionById,
-  getSessionByIdDirect,
   getSessionsByUserId,
   updateSession,
 } from './db/sessions.js';
@@ -24,7 +24,7 @@ import {
   upsertSettings,
 } from './db/settings.js';
 import { upsertUser } from './db/users.js';
-import { syncToWorkspace } from './utils/workspace-sync.js';
+import { workspacePull } from './utils/databricks.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -210,7 +210,47 @@ fastify.post<{ Body: CreateSessionBody }>(
     const userSettings = await getSettingsDirect(userId);
     const claudeConfigSync = userSettings?.claudeConfigSync ?? true;
 
-    // Note: workspace export-dir is now handled by SessionStart hook in agent/hooks.ts
+    // Pull workspace files BEFORE starting agent
+    // Compute paths (same logic as in agent/index.ts)
+    const localBasePath = path.join(process.env.HOME ?? '/tmp', 'c');
+    const workspaceHomePath = path.join('/Workspace/Users', userEmail);
+    const workspaceClaudeConfigPath = path.join(workspaceHomePath, '.claude');
+    const localClaudeConfigPath = path.join(
+      localBasePath,
+      workspaceClaudeConfigPath
+    );
+    const localWorkPath = path.join(
+      localBasePath,
+      workspacePath || '/Workspace/Users/me'
+    );
+
+    // Ensure local directories exist
+    fs.mkdirSync(localClaudeConfigPath, { recursive: true });
+    fs.mkdirSync(localWorkPath, { recursive: true });
+
+    // Pull .claude config if enabled
+    if (claudeConfigSync) {
+      console.log(
+        `[New Session] Pulling claude config from ${workspaceClaudeConfigPath}...`
+      );
+      await workspacePull(
+        workspaceClaudeConfigPath,
+        localClaudeConfigPath,
+        overwrite
+      );
+    }
+
+    // Pull workspace directory
+    console.log(
+      `[New Session] Pulling workspace directory from ${workspacePath || '/Workspace/Users/me'}...`
+    );
+    await workspacePull(
+      workspacePath || '/Workspace/Users/me',
+      localWorkPath,
+      overwrite
+    );
+
+    // Note: workspace pull is handled above before starting the agent
 
     // Promise to wait for init message with timeout and error handling
     let sessionId = '';

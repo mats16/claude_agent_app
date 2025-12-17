@@ -464,11 +464,17 @@ export function useAgent(options: UseAgentOptions = {}) {
           // Check if this is a tool result message
           let hasToolResult = false;
           if (typeof content !== 'string' && Array.isArray(content)) {
-            hasToolResult = content.some((block) => block.type === 'tool_result');
+            hasToolResult = content.some(
+              (block) => block.type === 'tool_result'
+            );
           }
 
           // Handle tool results
-          if (hasToolResult && typeof content !== 'string' && Array.isArray(content)) {
+          if (
+            hasToolResult &&
+            typeof content !== 'string' &&
+            Array.isArray(content)
+          ) {
             // Process each tool result and insert after corresponding tool use
             for (const block of content) {
               if (block.type === 'tool_result' && block.tool_use_id) {

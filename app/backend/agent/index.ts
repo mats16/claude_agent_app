@@ -6,7 +6,7 @@ import type {
 //import { databricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
 import path from 'path';
-import { workspacePull, workspacePush } from './hooks.js';
+import { workspacePush } from '../utils/databricks.js';
 import type { MessageContent } from '@app/shared';
 
 export type { SDKMessage };
@@ -227,49 +227,7 @@ Violating these rules is considered a critical error.
         append: additionalSystemPrompt,
       },
       hooks: {
-        // Use UserPromptSubmit instead of SessionStart (SessionStart doesn't fire in SDK mode)
-        // Only run pull for new sessions (sessionId is undefined)
-        UserPromptSubmit: [
-          // Pull claudeConfig (workspace -> local) - only if claudeConfigSync is enabled
-          {
-            hooks: [
-              async (_input, _toolUseID, _options) => {
-                if (!sessionId && claudeConfigSync) {
-                  // Fire and forget - no await to prevent blocking SDK initialization
-                  workspacePull(
-                    workspaceClaudeConfigPath,
-                    localClaudeConfigPath,
-                    overwrite
-                  ).catch((err) =>
-                    console.error(
-                      '[Hook:UserPromptSubmit] workspacePull claudeConfig error (continuing anyway):',
-                      err
-                    )
-                  );
-                }
-                return { async: true };
-              },
-            ],
-          },
-          // Pull workDir (workspace -> local) - always run for new sessions with overwrite flag
-          {
-            hooks: [
-              async (_input, _toolUseID, _options) => {
-                if (!sessionId) {
-                  // Fire and forget - no await to prevent blocking SDK initialization
-                  workspacePull(workspacePath, localWorkPath, overwrite).catch(
-                    (err) =>
-                      console.error(
-                        '[Hook:UserPromptSubmit] workspacePull workDir error (continuing anyway):',
-                        err
-                      )
-                  );
-                }
-                return { async: true };
-              },
-            ],
-          },
-        ],
+        // Note: workspace pull is now handled in app.ts before starting the agent
         Stop: [
           // Push claudeConfig (local -> workspace) - only if claudeConfigSync is enabled
           {

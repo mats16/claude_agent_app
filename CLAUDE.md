@@ -92,6 +92,18 @@ Sync between local storage and Databricks Workspace is handled via Claude Agent 
 - **UserPromptSubmit hook** (new session only): `workspacePull()` - workspace -> local (`databricks workspace export-dir`)
 - **Stop hook**: `workspacePush()` - local -> workspace (`databricks sync`)
 
+#### Sync Flags
+Sync behavior is controlled by these flags passed to `processAgentRequest()`:
+
+| Flag | Pull (new session) | Push (all sessions) |
+|------|-------------------|---------------------|
+| `overwrite` | Adds `--overwrite` to workspace pull | - |
+| `autoWorkspacePush` | - | Enables workspace push |
+| `claudeConfigSync` | Enables claude config pull | Enables claude config push |
+
+- `overwrite` / `autoWorkspacePush`: Session-level settings (stored in `sessions.auto_workspace_push`)
+- `claudeConfigSync`: User-level setting (stored in `settings.claude_config_sync`)
+
 Path structure:
 - Local base: `$HOME/c` (e.g., `/Users/me/c` or `/home/app/c`)
 - Workspace path: `/Workspace/Users/{email}/sandbox` -> Local: `$HOME/c/Workspace/Users/{email}/sandbox`
@@ -127,7 +139,7 @@ To minimize redundant API requests, shared data should be managed via React Cont
 - `POST /api/v1/sessions` - Create session with initial message
 - `GET /api/v1/sessions` - List sessions (filtered by userId via RLS)
 - `GET /api/v1/sessions/:id/events` - Get session history
-- `PATCH /api/v1/sessions/:id` - Update session (title, autoSync)
+- `PATCH /api/v1/sessions/:id` - Update session (title, autoWorkspacePush)
 - `POST /api/v1/users` - Create/upsert user
 - `GET /api/v1/users/me` - Get user info (userId, email, workspaceHome)
 - `GET /api/v1/users/me/settings` - Get user settings (hasAccessToken, claudeConfigSync)

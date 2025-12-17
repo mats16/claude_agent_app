@@ -79,19 +79,18 @@ export default function SessionList({ onSessionSelect }: SessionListProps) {
             key={session.id}
             onClick={() => handleSessionClick(session)}
             style={{
-              padding: '12px 20px',
+              padding: '8px 16px',
+              margin: '4px 12px',
               cursor: 'pointer',
-              borderBottom: '1px solid #f5f5f5',
-              background: isActive ? '#fff8e6' : 'transparent',
+              background: isActive ? '#E8EEF2' : 'transparent',
               borderLeft: isActive
                 ? '3px solid #f5a623'
                 : '3px solid transparent',
+              borderRadius: 8,
               transition: 'background 0.15s',
             }}
             onMouseEnter={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.background = '#f9f9f9';
-              }
+              e.currentTarget.style.background = '#E8EEF2';
             }}
             onMouseLeave={(e) => {
               if (!isActive) {

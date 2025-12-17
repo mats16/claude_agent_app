@@ -251,7 +251,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
       }}
     >
       {/* Header */}
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
+      <div style={{ padding: '16px 20px' }}>
         <Link to="/" style={{ textDecoration: 'none' }}>
           <Typography.Title
             level={5}

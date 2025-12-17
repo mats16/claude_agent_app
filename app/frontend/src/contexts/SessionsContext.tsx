@@ -85,7 +85,7 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
             createdAt: data.session.updatedAt, // New sessions have same createdAt/updatedAt
             model: '',
             userEmail: null,
-            autoWorkspacePush: false,
+            autoWorkspacePush: data.session.autoWorkspacePush ?? false,
           };
           setSessions((prev) => [newSession, ...prev]);
         }

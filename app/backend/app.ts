@@ -62,6 +62,7 @@ function notifySessionCreated(
     id: string;
     title: string;
     workspacePath: string | null;
+    autoWorkspacePush: boolean;
     updatedAt: string;
   }
 ) {
@@ -281,6 +282,7 @@ fastify.post<{ Body: CreateSessionBody }>(
                 id: sessionId,
                 title: sessionTitle,
                 workspacePath: workspacePath ?? null,
+                autoWorkspacePush,
                 updatedAt: new Date().toISOString(),
               });
 

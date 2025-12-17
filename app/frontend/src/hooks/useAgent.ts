@@ -381,19 +381,10 @@ export function useAgent(options: UseAgentOptions = {}) {
         if (message.type === 'connected') {
           console.log('Connection established');
 
-          // For new sessions with initial message
+          // For new sessions with initial message, wait for the actual user message from queue
+          // Don't create a local message here - the server will send the complete message with images
           if (initialMessageRef.current && !initialMessageAddedRef.current) {
-            initialMessageAddedRef.current = true;
-
-            const userMsg: ChatMessage = {
-              id: Date.now().toString(),
-              role: 'user',
-              content: initialMessageRef.current,
-              timestamp: new Date(),
-            };
-            setMessages([userMsg]);
             setIsProcessing(true);
-
             currentResponseRef.current = '';
             currentMessageIdRef.current = `agent-${Date.now()}`;
           }
@@ -465,12 +456,19 @@ export function useAgent(options: UseAgentOptions = {}) {
           return;
         }
 
-        // Handle user message with tool results
+        // Handle user message (both regular and with tool results)
         if (message.type === 'user' && 'message' in message) {
           const userMsg = message as SDKUserMessage;
           const content = userMsg.message.content;
 
+          // Check if this is a tool result message
+          let hasToolResult = false;
           if (typeof content !== 'string' && Array.isArray(content)) {
+            hasToolResult = content.some((block) => block.type === 'tool_result');
+          }
+
+          // Handle tool results
+          if (hasToolResult && typeof content !== 'string' && Array.isArray(content)) {
             // Process each tool result and insert after corresponding tool use
             for (const block of content) {
               if (block.type === 'tool_result' && block.tool_use_id) {
@@ -538,6 +536,33 @@ export function useAgent(options: UseAgentOptions = {}) {
               }
               return prev;
             });
+          } else {
+            // Handle regular user message (not tool result)
+            const { text: textContent, images } = extractUserContent(content);
+
+            // For new sessions, this is the first user message from the queue
+            if (initialMessageRef.current && !initialMessageAddedRef.current) {
+              initialMessageAddedRef.current = true;
+            }
+
+            // Add user message to display
+            if (textContent || images.length > 0) {
+              const newUserMsg: ChatMessage = {
+                id: userMsg.uuid || `user-${Date.now()}`,
+                role: 'user',
+                content: textContent,
+                images: images.length > 0 ? images : undefined,
+                timestamp: new Date(),
+              };
+
+              setMessages((prev) => {
+                // Avoid duplicates - check if message with same ID already exists
+                if (prev.some((m) => m.id === newUserMsg.id)) {
+                  return prev;
+                }
+                return [...prev, newUserMsg];
+              });
+            }
           }
           return;
         }

@@ -87,5 +87,12 @@
     "edaDescription": "Databricks ノートブックで探索的データ分析",
     "appsTitle": "Databricks Apps の開発",
     "appsDescription": "Databricks 上でアプリケーションを構築・デプロイ"
+  },
+  "imageUpload": {
+    "attachImage": "画像を添付",
+    "dropHere": "ここに画像をドロップ",
+    "maxImagesReached": "最大{{max}}枚まで添付できます",
+    "unsupportedType": "サポートされていないファイル形式: {{name}}",
+    "fileTooLarge": "ファイルサイズが大きすぎます (最大5MB): {{name}}"
   }
 }

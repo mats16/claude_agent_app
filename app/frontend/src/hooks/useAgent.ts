@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import type { ImageContent, MessageContent } from '@app/shared';
 
 export interface ChatMessage {
   id: string;
   role: 'user' | 'agent';
   content: string;
+  images?: ImageContent[]; // For user messages with images
   timestamp: Date;
 }
 
@@ -20,18 +22,24 @@ interface SDKMessageBase {
   uuid?: string;
 }
 
+interface SDKContentBlock {
+  type: string;
+  text?: string;
+  tool_use_id?: string;
+  content?: string | Array<{ type: string; text?: string }>;
+  // Image content
+  source?: {
+    type: 'base64';
+    media_type: string;
+    data: string;
+  };
+}
+
 interface SDKUserMessage extends SDKMessageBase {
   type: 'user';
   message: {
     role: 'user';
-    content:
-      | string
-      | Array<{
-          type: string;
-          text?: string;
-          tool_use_id?: string;
-          content?: string | Array<{ type: string; text?: string }>;
-        }>;
+    content: string | SDKContentBlock[];
   };
 }
 
@@ -68,22 +76,38 @@ type SDKMessage =
   | SDKSystemMessage
   | SDKMessageBase;
 
-// Extract text content from user message
-function extractUserContent(
-  content:
-    | string
-    | Array<{
-        type: string;
-        text?: string;
-        tool_use_id?: string;
-        content?: string | Array<{ type: string; text?: string }>;
-      }>
-): string {
-  if (typeof content === 'string') return content;
-  return content
-    .filter((block) => block.type === 'text' && block.text)
-    .map((block) => block.text)
-    .join('');
+// Extract text and images from user message
+function extractUserContent(content: string | SDKContentBlock[]): {
+  text: string;
+  images: ImageContent[];
+} {
+  if (typeof content === 'string') {
+    return { text: content, images: [] };
+  }
+
+  const images: ImageContent[] = [];
+  const textParts: string[] = [];
+
+  for (const block of content) {
+    if (block.type === 'text' && block.text) {
+      textParts.push(block.text);
+    } else if (block.type === 'image' && block.source) {
+      images.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: block.source.media_type as
+            | 'image/webp'
+            | 'image/jpeg'
+            | 'image/png'
+            | 'image/gif',
+          data: block.source.data,
+        },
+      });
+    }
+  }
+
+  return { text: textParts.join(''), images };
 }
 
 // Convert SDKMessage[] to ChatMessage[]
@@ -172,12 +196,15 @@ function convertSDKMessagesToChat(sdkMessages: SDKMessage[]): ChatMessage[] {
       }
 
       // Regular user message
-      const textContent = extractUserContent(userMsg.message.content);
-      if (textContent) {
+      const { text: textContent, images } = extractUserContent(
+        userMsg.message.content
+      );
+      if (textContent || images.length > 0) {
         messages.push({
           id: msg.uuid || `user-${Date.now()}`,
           role: 'user',
           content: textContent,
+          images: images.length > 0 ? images : undefined,
           timestamp: new Date(),
         });
       }
@@ -603,7 +630,7 @@ export function useAgent(options: UseAgentOptions = {}) {
   }, [sessionId]);
 
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, images?: ImageContent[]) => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         console.error('WebSocket is not connected');
         return;
@@ -613,6 +640,7 @@ export function useAgent(options: UseAgentOptions = {}) {
         id: Date.now().toString(),
         role: 'user',
         content,
+        images,
         timestamp: new Date(),
       };
 
@@ -622,10 +650,23 @@ export function useAgent(options: UseAgentOptions = {}) {
       currentResponseRef.current = '';
       currentMessageIdRef.current = `agent-${Date.now()}`;
 
+      // Build MessageContent array (always array format)
+      const messageContent: MessageContent[] = [];
+
+      // Add images first (Claude API recommends images before text)
+      if (images && images.length > 0) {
+        messageContent.push(...images);
+      }
+
+      // Add text content
+      if (content) {
+        messageContent.push({ type: 'text', text: content });
+      }
+
       wsRef.current.send(
         JSON.stringify({
           type: 'user_message',
-          content,
+          content: messageContent,
           model: selectedModel,
         })
       );

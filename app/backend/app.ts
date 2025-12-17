@@ -105,15 +105,36 @@ function markQueueCompleted(sessionId: string) {
   }
 }
 
-// Create SDKMessage for user message
-function createUserMessage(sessionId: string, content: string): SDKMessage {
+// Create SDKMessage for user message (supports text and image content)
+import type { MessageContent } from '@app/shared';
+
+function createUserMessage(
+  sessionId: string,
+  content: MessageContent[]
+): SDKMessage {
+  // Convert MessageContent[] to API format
+  const apiContent = content.map((c) => {
+    if (c.type === 'text') {
+      return { type: 'text' as const, text: c.text };
+    } else {
+      return {
+        type: 'image' as const,
+        source: {
+          type: 'base64' as const,
+          media_type: c.source.media_type,
+          data: c.source.data,
+        },
+      };
+    }
+  });
+
   return {
     type: 'user',
     session_id: sessionId,
     uuid: crypto.randomUUID(),
     message: {
       role: 'user',
-      content: content,
+      content: apiContent,
     },
   } as SDKMessage;
 }
@@ -205,8 +226,12 @@ fastify.post<{ Body: CreateSessionBody }>(
 
     const startAgentProcessing = () => {
       // Start processing in background
+      // Convert string message to MessageContent[] for processAgentRequest
+      const messageContent: MessageContent[] = [
+        { type: 'text', text: userMessage },
+      ];
       const agentIterator = processAgentRequest(
-        userMessage,
+        messageContent,
         model,
         undefined,
         userEmail,
@@ -257,7 +282,11 @@ fastify.post<{ Body: CreateSessionBody }>(
 
               // Save user message after getting sessionId
               if (!userMessageSaved) {
-                const userMsg = createUserMessage(sessionId, userMessage);
+                // Convert string to MessageContent[] for createUserMessage
+                const messageContent: MessageContent[] = [
+                  { type: 'text', text: userMessage },
+                ];
+                const userMsg = createUserMessage(sessionId, messageContent);
                 await saveMessage(userMsg);
                 addEventToQueue(sessionId, userMsg);
                 userMessageSaved = true;
@@ -774,7 +803,8 @@ fastify.register(async (fastify) => {
           }
 
           if (message.type === 'user_message') {
-            const userMessage = message.content;
+            // message.content is now MessageContent[] from frontend
+            const userMessageContent = message.content as MessageContent[];
             const model = message.model || 'databricks-claude-sonnet-4-5';
 
             // Fetch session to get workspacePath and autoWorkspacePush for resume
@@ -787,12 +817,12 @@ fastify.register(async (fastify) => {
             const claudeConfigSync = userSettings?.claudeConfigSync ?? true;
 
             // Save user message to database
-            const userMsg = createUserMessage(sessionId, userMessage);
+            const userMsg = createUserMessage(sessionId, userMessageContent);
             await saveMessage(userMsg);
 
             // Process agent request and stream responses (use URL sessionId for resume)
             for await (const sdkMessage of processAgentRequest(
-              userMessage,
+              userMessageContent,
               model,
               sessionId,
               userEmail,

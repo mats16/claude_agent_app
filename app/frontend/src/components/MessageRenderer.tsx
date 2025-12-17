@@ -1,9 +1,11 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { ImageContent } from '@app/shared';
 
 interface MessageRendererProps {
   content: string;
   role: 'user' | 'agent';
+  images?: ImageContent[];
 }
 
 interface ParsedBlock {
@@ -157,9 +159,37 @@ function MarkdownContent({ content }: { content: string }) {
 export default function MessageRenderer({
   content,
   role,
+  images,
 }: MessageRendererProps) {
   if (role === 'user') {
-    return <pre className="message-text">{content}</pre>;
+    return (
+      <div className="user-message">
+        {images && images.length > 0 && (
+          <div
+            className="user-images"
+            style={{ marginBottom: content ? 12 : 0 }}
+          >
+            {images.map((img, idx) => (
+              <img
+                key={idx}
+                src={`data:${img.source.media_type};base64,${img.source.data}`}
+                alt="uploaded_image"
+                className="uploaded-image"
+                style={{
+                  maxWidth: 300,
+                  maxHeight: 300,
+                  borderRadius: 8,
+                  marginRight: 8,
+                  marginBottom: 8,
+                  objectFit: 'contain',
+                }}
+              />
+            ))}
+          </div>
+        )}
+        {content && <pre className="message-text">{content}</pre>}
+      </div>
+    );
   }
 
   const blocks = parseAgentMessage(content);

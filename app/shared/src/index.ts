@@ -1,4 +1,24 @@
 // ============================================
+// Content Block Types (for multimodal messages)
+// ============================================
+
+export interface ImageContent {
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: 'image/webp' | 'image/jpeg' | 'image/png' | 'image/gif';
+    data: string; // base64 encoded
+  };
+}
+
+export interface TextContent {
+  type: 'text';
+  text: string;
+}
+
+export type MessageContent = TextContent | ImageContent;
+
+// ============================================
 // WebSocket Message Types (Client -> Server)
 // ============================================
 
@@ -13,7 +33,7 @@ export interface WSResumeMessage {
 
 export interface WSUserMessage {
   type: 'user_message';
-  content: string;
+  content: MessageContent[]; // Always array of content blocks
   model?: string;
   sessionId?: string;
 }

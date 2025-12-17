@@ -1,9 +1,13 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import type {
+  SDKMessage,
+  SDKUserMessage,
+} from '@anthropic-ai/claude-agent-sdk';
 //import { databricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
 import path from 'path';
 import { workspacePull, workspacePush } from './hooks.js';
+import type { MessageContent } from '@app/shared';
 
 export type { SDKMessage };
 
@@ -83,10 +87,47 @@ export interface ProcessAgentRequestOptions {
   claudeConfigSync?: boolean; // claude config pull/push
 }
 
+// Build prompt from MessageContent[] for Claude Agent SDK
+// Returns AsyncIterable<SDKUserMessage> for query function
+function buildPrompt(
+  contents: MessageContent[]
+): AsyncIterable<SDKUserMessage> {
+  // Convert MessageContent[] to API content format
+  const apiContent = contents.map((c) => {
+    if (c.type === 'text') {
+      return { type: 'text' as const, text: c.text };
+    } else {
+      return {
+        type: 'image' as const,
+        source: {
+          type: 'base64' as const,
+          media_type: c.source.media_type,
+          data: c.source.data,
+        },
+      };
+    }
+  });
+
+  // Create async generator that yields SDKUserMessage
+  async function* stream(): AsyncGenerator<SDKUserMessage> {
+    yield {
+      type: 'user',
+      session_id: '', // SDK will set this
+      message: {
+        role: 'user',
+        content: apiContent,
+      },
+      parent_tool_use_id: null,
+    } as SDKUserMessage;
+  }
+
+  return stream();
+}
+
 // Process agent request using Claude Agent SDK
 // Returns SDKMessage directly without transformation
 export async function* processAgentRequest(
-  message: string,
+  message: MessageContent[],
   model: string = 'databricks-claude-sonnet-4-5',
   sessionId?: string,
   userEmail?: string,
@@ -143,8 +184,9 @@ Violating these rules is considered a critical error.
 `;
 
   // Create query with Claude Agent SDK
+  // Use buildPrompt to convert MessageContent[] to AsyncIterable<SDKUserMessage>
   const response = query({
-    prompt: message,
+    prompt: buildPrompt(message),
     options: {
       resume: sessionId,
       cwd: localWorkPath,

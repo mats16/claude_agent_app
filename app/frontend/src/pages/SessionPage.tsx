@@ -1,7 +1,16 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, DragEvent } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Tag, Typography, Flex, Tooltip, Spin } from 'antd';
+import {
+  Button,
+  Input,
+  Tag,
+  Typography,
+  Flex,
+  Tooltip,
+  Spin,
+  message,
+} from 'antd';
 import {
   SendOutlined,
   EditOutlined,
@@ -14,6 +23,15 @@ import { useAgent } from '../hooks/useAgent';
 import { useSessions } from '../contexts/SessionsContext';
 import TitleEditModal from '../components/TitleEditModal';
 import MessageRenderer from '../components/MessageRenderer';
+import ImageUpload, { AttachedImage } from '../components/ImageUpload';
+import {
+  convertToWebP,
+  revokePreviewUrl,
+  isSupportedImageType,
+  isWithinSizeLimit,
+  createPreviewUrl,
+} from '../utils/imageUtils';
+import type { ImageContent } from '@app/shared';
 
 const { Text } = Typography;
 
@@ -35,7 +53,12 @@ export default function SessionPage() {
     string | null
   >(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
+  const [isConverting, setIsConverting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const maxImages = 5;
   const initialMessageConsumedRef = useRef(false);
   const prevSessionIdRef = useRef<string | undefined>(undefined);
 
@@ -134,12 +157,45 @@ export default function SessionPage() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = () => {
-    if (input.trim() && !isProcessing) {
-      sendMessage(input.trim());
-      setInput('');
+  const handleSubmit = useCallback(async () => {
+    if (
+      (!input.trim() && attachedImages.length === 0) ||
+      isProcessing ||
+      isConverting
+    ) {
+      return;
     }
-  };
+
+    setIsConverting(true);
+    try {
+      // Convert attached images to WebP format
+      const imageContents: ImageContent[] = [];
+      for (const img of attachedImages) {
+        const converted = await convertToWebP(img.file);
+        imageContents.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: converted.media_type,
+            data: converted.data,
+          },
+        });
+      }
+
+      // Send message with images
+      sendMessage(input.trim(), imageContents);
+
+      // Clear input and images
+      setInput('');
+      // Revoke preview URLs to free memory
+      attachedImages.forEach((img) => revokePreviewUrl(img.previewUrl));
+      setAttachedImages([]);
+    } catch (error) {
+      console.error('Failed to convert images:', error);
+    } finally {
+      setIsConverting(false);
+    }
+  }, [input, attachedImages, isProcessing, isConverting, sendMessage]);
 
   const getStatusColor = () => {
     if (isConnected) return '#4caf50';
@@ -152,6 +208,70 @@ export default function SessionPage() {
     if (isReconnecting) return t('sessionPage.reconnecting');
     return t('sessionPage.disconnected');
   };
+
+  // Drag & drop handlers for the entire content area
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragging to false if leaving the drop zone entirely
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      if (!isConnected || isProcessing || isConverting) return;
+
+      const files = e.dataTransfer.files;
+      if (!files || files.length === 0) return;
+
+      const validFiles: AttachedImage[] = [];
+
+      for (const file of Array.from(files)) {
+        if (attachedImages.length + validFiles.length >= maxImages) {
+          message.warning(
+            t('imageUpload.maxImagesReached', { max: maxImages })
+          );
+          break;
+        }
+
+        if (!isSupportedImageType(file)) {
+          message.error(t('imageUpload.unsupportedType', { name: file.name }));
+          continue;
+        }
+
+        if (!isWithinSizeLimit(file)) {
+          message.error(t('imageUpload.fileTooLarge', { name: file.name }));
+          continue;
+        }
+
+        validFiles.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          file,
+          previewUrl: createPreviewUrl(file),
+        });
+      }
+
+      if (validFiles.length > 0) {
+        setAttachedImages((prev) => [...prev, ...validFiles]);
+      }
+    },
+    [attachedImages, isConnected, isProcessing, isConverting, t, maxImages]
+  );
 
   return (
     <Flex
@@ -253,16 +373,40 @@ export default function SessionPage() {
         onClose={() => setIsModalOpen(false)}
       />
 
-      {/* Messages */}
+      {/* Messages - Drop Zone */}
       <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{
           flex: 1,
           overflow: 'auto',
-          background: '#fafafa',
+          background: isDragging ? 'rgba(245, 166, 35, 0.05)' : '#fafafa',
           display: 'flex',
           flexDirection: 'column',
+          position: 'relative',
+          border: isDragging ? '2px dashed #f5a623' : '2px solid transparent',
+          transition: 'all 0.2s ease',
         }}
       >
+        {isDragging && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(245, 166, 35, 0.1)',
+              zIndex: 10,
+              pointerEvents: 'none',
+            }}
+          >
+            <span style={{ color: '#f5a623', fontWeight: 500, fontSize: 16 }}>
+              {t('imageUpload.dropHere')}
+            </span>
+          </div>
+        )}
         <div
           style={{
             flex: 1,
@@ -316,6 +460,7 @@ export default function SessionPage() {
                   <MessageRenderer
                     content={message.content}
                     role={message.role as 'user' | 'agent'}
+                    images={message.images}
                   />
                   {showSpinnerInMessage && (
                     <Spin size="small" style={{ marginTop: 8 }} />
@@ -371,28 +516,49 @@ export default function SessionPage() {
             padding: '12px 16px',
           }}
         >
-          <Flex gap={8} align="center">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onPressEnter={(e) => {
-                if (!e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  handleSubmit();
+          <Flex vertical gap={8}>
+            {/* Image previews above input */}
+            <ImageUpload
+              images={attachedImages}
+              onImagesChange={setAttachedImages}
+              disabled={!isConnected || isProcessing || isConverting}
+              showButtonOnly={false}
+            />
+            <Flex gap={8} align="center">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onPressEnter={(e) => {
+                  if (!e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                placeholder={t('sessionPage.typeMessage')}
+                disabled={!isConnected || isProcessing || isConverting}
+                variant="borderless"
+                style={{ flex: 1 }}
+              />
+              <ImageUpload
+                images={attachedImages}
+                onImagesChange={setAttachedImages}
+                disabled={!isConnected || isProcessing || isConverting}
+                showButtonOnly={true}
+              />
+              <Button
+                type="primary"
+                shape="circle"
+                icon={<SendOutlined />}
+                disabled={
+                  !isConnected ||
+                  isProcessing ||
+                  isConverting ||
+                  (!input.trim() && attachedImages.length === 0)
                 }
-              }}
-              placeholder={t('sessionPage.typeMessage')}
-              disabled={!isConnected || isProcessing}
-              variant="borderless"
-              style={{ flex: 1 }}
-            />
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<SendOutlined />}
-              disabled={!isConnected || isProcessing || !input.trim()}
-              onClick={handleSubmit}
-            />
+                loading={isConverting}
+                onClick={handleSubmit}
+              />
+            </Flex>
           </Flex>
         </div>
       </div>

@@ -87,5 +87,12 @@
     "edaDescription": "Exploratory Data Analysis with Databricks notebooks",
     "appsTitle": "Develop Databricks Apps",
     "appsDescription": "Build and deploy applications on Databricks"
+  },
+  "imageUpload": {
+    "attachImage": "Attach image",
+    "dropHere": "Drop image here",
+    "maxImagesReached": "Maximum {{max}} images allowed",
+    "unsupportedType": "Unsupported file type: {{name}}",
+    "fileTooLarge": "File too large (max 5MB): {{name}}"
   }
 }

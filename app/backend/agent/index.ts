@@ -13,7 +13,6 @@ export type { SDKMessage };
 
 export const databricksHost =
   `https://${process.env.DATABRICKS_HOST}` as string;
-const personalAccessToken = process.env.DATABRICKS_TOKEN;
 const clientId = process.env.DATABRICKS_CLIENT_ID;
 const clientSecret = process.env.DATABRICKS_CLIENT_SECRET;
 
@@ -68,16 +67,15 @@ export async function getOidcAccessToken(): Promise<string | undefined> {
   return data.access_token;
 }
 
-// Get access token with fallback to DATABRICKS_TOKEN for local development
+// Get access token (Service Principal only)
 export async function getAccessToken(): Promise<string> {
   const spToken = await getOidcAccessToken();
-  const token = spToken ?? personalAccessToken;
-  if (!token) {
+  if (!spToken) {
     throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET or DATABRICKS_TOKEN.'
+      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
     );
   }
-  return token;
+  return spToken;
 }
 
 // Options for processAgentRequest
@@ -283,13 +281,13 @@ Violating these rules is considered a critical error.
         WORKDIR: localWorkPath,
         CLAUDE_CONFIG_DIR: localClaudeConfigPath,
         ANTHROPIC_BASE_URL: `${databricksHost}/serving-endpoints/anthropic`,
-        ANTHROPIC_AUTH_TOKEN: spAccessToken ?? personalAccessToken,
+        ANTHROPIC_AUTH_TOKEN: spAccessToken,
         ANTHROPIC_MODEL: model,
         ANTHROPIC_DEFAULT_OPUS_MODEL: 'databricks-claude-opus-4-5',
         ANTHROPIC_DEFAULT_SONNET_MODEL: 'databricks-claude-sonnet-4-5',
         DATABRICKS_HOST: databricksHost,
-        DATABRICKS_TOKEN: userAccessToken ?? personalAccessToken,
-        DATABRICKS_SP_TOKEN: spAccessToken ?? personalAccessToken,
+        DATABRICKS_TOKEN: userAccessToken,
+        DATABRICKS_SP_TOKEN: spAccessToken,
       },
       maxTurns: 100,
       tools: {
@@ -327,11 +325,11 @@ Violating these rules is considered a critical error.
           {
             hooks: [
               async (_input, _toolUseID, _options) => {
-                if (claudeConfigSync) {
+                if (claudeConfigSync && spAccessToken) {
                   workspacePush(
                     localClaudeConfigPath,
                     workspaceClaudeConfigPath,
-                    spAccessToken ?? personalAccessToken,
+                    spAccessToken,
                     true // full sync for .claude directory
                   ).catch((err) =>
                     console.error(
@@ -351,12 +349,13 @@ Violating these rules is considered a critical error.
                 if (
                   autoWorkspacePush &&
                   workspacePath &&
-                  workspacePath.trim()
+                  workspacePath.trim() &&
+                  spAccessToken
                 ) {
                   workspacePush(
                     localWorkPath,
                     workspacePath,
-                    spAccessToken ?? personalAccessToken
+                    spAccessToken
                   ).catch((err) =>
                     console.error(
                       '[Hook:Stop] workspacePush workDir error',

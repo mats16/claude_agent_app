@@ -94,7 +94,7 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     }
 
     // Validate name format
-    if (!/^[a-zA-Z0-9_]+$/.test(editedName)) {
+    if (!/^[a-zA-Z0-9-]+$/.test(editedName)) {
       message.error(t('skillsModal.invalidName'));
       return;
     }
@@ -317,8 +317,8 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
                     let value = e.target.value;
                     // Remove .md extension if entered
                     value = value.replace(/\.md$/i, '');
-                    // Only allow alphanumeric and underscores
-                    value = value.replace(/[^a-zA-Z0-9_]/g, '');
+                    // Only allow alphanumeric and hyphens
+                    value = value.replace(/[^a-zA-Z0-9-]/g, '');
                     setEditedName(value);
                   }}
                   placeholder={t('skillsModal.skillNamePlaceholder')}

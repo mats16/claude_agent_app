@@ -788,7 +788,7 @@ fastify.get<{ Params: { skillName: string } }>(
     const { skillName } = request.params;
 
     // Validate skill name
-    if (!/^[a-zA-Z0-9_]+$/.test(skillName)) {
+    if (!/^[a-zA-Z0-9-]+$/.test(skillName)) {
       return reply.status(400).send({ error: 'Invalid skill name' });
     }
 
@@ -834,7 +834,7 @@ fastify.post<{ Body: { name: string; content: string } }>(
       return reply.status(400).send({ error: 'name and content are required' });
     }
 
-    if (!/^[a-zA-Z0-9_]+$/.test(name)) {
+    if (!/^[a-zA-Z0-9-]+$/.test(name)) {
       return reply.status(400).send({ error: 'Invalid skill name' });
     }
 
@@ -895,7 +895,7 @@ fastify.patch<{ Params: { skillName: string }; Body: { content: string } }>(
       return reply.status(400).send({ error: 'content is required' });
     }
 
-    if (!/^[a-zA-Z0-9_-]+$/.test(skillName)) {
+    if (!/^[a-zA-Z0-9-]+$/.test(skillName)) {
       return reply.status(400).send({ error: 'Invalid skill name' });
     }
 
@@ -948,7 +948,7 @@ fastify.delete<{ Params: { skillName: string } }>(
     const { skillName } = request.params;
 
     // Validate skill name
-    if (!/^[a-zA-Z0-9_]+$/.test(skillName)) {
+    if (!/^[a-zA-Z0-9-]+$/.test(skillName)) {
       return reply.status(400).send({ error: 'Invalid skill name' });
     }
 

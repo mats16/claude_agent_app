@@ -384,9 +384,26 @@ export async function archiveSessionHandler(
 
 // Get session events handler
 export async function getSessionEventsHandler(
-  request: FastifyRequest<{ Params: { sessionId: string } }>
+  request: FastifyRequest<{ Params: { sessionId: string } }>,
+  reply: FastifyReply
 ) {
   const { sessionId } = request.params;
+
+  let context;
+  try {
+    context = extractRequestContext(request);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+
+  const { userId } = context;
+
+  // Check if session exists and belongs to user
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
+    return reply.status(404).send({ error: 'Session not found' });
+  }
+
   const messages = await getMessagesBySessionId(sessionId);
   return { events: messages };
 }

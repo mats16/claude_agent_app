@@ -139,7 +139,9 @@
     "waitingForResponse": "Session started. Waiting for response...",
     "typeMessage": "Type your message...",
     "openInDatabricks": "Open in Databricks",
-    "autoSyncDisabled": "Auto sync disabled"
+    "autoSyncDisabled": "Auto sync disabled",
+    "notFound": "Session not found",
+    "notFoundDescription": "The session you are looking for does not exist or has been deleted."
   },
   "welcome": {
     "exploreTitle": "Explore workspace files",

@@ -28,6 +28,7 @@ export function useAgent(options: UseAgentOptions = {}) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [sessionNotFound, setSessionNotFound] = useState(false);
   const [selectedModel, setSelectedModel] = useState(
     model || 'databricks-claude-sonnet-4-5'
   );
@@ -94,6 +95,7 @@ export function useAgent(options: UseAgentOptions = {}) {
       setIsConnected(false);
       setIsProcessing(false);
       setIsReconnecting(false);
+      setSessionNotFound(false);
 
       // Update initialMessageRef with new value
       initialMessageRef.current = initialMessage;
@@ -124,6 +126,8 @@ export function useAgent(options: UseAgentOptions = {}) {
             setMessages(loadedMessages);
           }
           loadedSessionIdRef.current = sessionId;
+        } else if (response.status === 404) {
+          setSessionNotFound(true);
         }
       } catch (error) {
         console.error('Failed to load history:', error);
@@ -530,6 +534,7 @@ export function useAgent(options: UseAgentOptions = {}) {
     isProcessing,
     isLoadingHistory,
     isReconnecting,
+    sessionNotFound,
     sendMessage,
     selectedModel,
     setSelectedModel,

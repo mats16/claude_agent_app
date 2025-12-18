@@ -139,7 +139,9 @@
     "waitingForResponse": "セッションを開始しました。応答を待っています...",
     "typeMessage": "メッセージを入力...",
     "openInDatabricks": "Databricks で開く",
-    "autoSyncDisabled": "自動同期は無効"
+    "autoSyncDisabled": "自動同期は無効",
+    "notFound": "セッションが見つかりません",
+    "notFoundDescription": "お探しのセッションは存在しないか、削除されています。"
   },
   "welcome": {
     "exploreTitle": "ワークスペースファイルを探索",

@@ -9,6 +9,7 @@ import {
   CloudServerOutlined,
   FolderOutlined,
   RobotOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useAgent } from '../hooks/useAgent';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -154,6 +155,7 @@ export default function SessionPage() {
     isProcessing,
     isLoadingHistory,
     isReconnecting,
+    sessionNotFound,
     sendMessage,
     selectedModel,
   } = useAgent({
@@ -217,6 +219,51 @@ export default function SessionPage() {
     if (isReconnecting) return t('sessionPage.reconnecting');
     return t('sessionPage.disconnected');
   };
+
+  // Show not found page if session doesn't exist
+  if (sessionNotFound) {
+    return (
+      <Flex
+        vertical
+        justify="center"
+        align="center"
+        style={{
+          height: '100%',
+          background: colors.background,
+        }}
+      >
+        <Flex
+          vertical
+          align="center"
+          gap={spacing.lg}
+          style={{ maxWidth: 400, textAlign: 'center' }}
+        >
+          <ExclamationCircleOutlined
+            style={{
+              fontSize: 64,
+              color: colors.warning,
+            }}
+          />
+          <Text
+            style={{
+              fontSize: typography.fontSizeLarge,
+              fontWeight: typography.fontWeightMedium,
+              color: colors.textPrimary,
+            }}
+          >
+            {t('sessionPage.notFound')}
+          </Text>
+          <Text
+            style={{
+              color: colors.textSecondary,
+            }}
+          >
+            {t('sessionPage.notFoundDescription')}
+          </Text>
+        </Flex>
+      </Flex>
+    );
+  }
 
   return (
     <Flex

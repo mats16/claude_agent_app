@@ -41,7 +41,35 @@ npm run db:studio       # Open Drizzle Studio for DB inspection
 databricks bundle validate
 databricks bundle deploy -t dev   # Development
 databricks bundle deploy -t prod  # Production
+
+# Secrets management
+databricks secrets create-scope claude_agent              # Create scope
+databricks secrets put-secret claude_agent db_url         # Set DB_URL secret
+databricks secrets list-secrets claude_agent              # List secrets
 ```
+
+### Databricks Apps Secrets Configuration
+
+Secrets are configured via two files:
+
+**1. DAB Resource Definition** (`resources/claude_agent.app.yml`):
+```yaml
+resources:
+  - name: secret
+    secret:
+      scope: claude_agent    # Databricks secret scope
+      key: db_url            # Secret key name
+      permission: READ
+```
+
+**2. App Runtime Configuration** (`app/app.yaml`):
+```yaml
+env:
+  - name: DB_URL
+    valueFrom: secret        # References the resource name above
+```
+
+The secret is injected as `DB_URL` environment variable at runtime.
 
 Development servers:
 - Backend: http://localhost:8000
@@ -62,9 +90,11 @@ For local development, the Vite proxy injects Databricks headers from environmen
 
 Backend always expects these headers and does not use fallback values, ensuring consistency between local and production environments.
 
+### Required (Production)
+- `DB_URL` - PostgreSQL connection string (required, throws error if not set)
+
 ### Optional
 - `PORT` - Backend port (default: 8000)
-- `DB_URL` - PostgreSQL connection string
 
 ## Database Schema
 

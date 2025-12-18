@@ -11,15 +11,18 @@ import {
   Typography,
   Empty,
   Popconfirm,
+  Dropdown,
 } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   ThunderboltOutlined,
   PlusOutlined,
   DeleteOutlined,
   SaveOutlined,
   EditOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
-import { useSkills, type Skill } from '../hooks/useSkills';
+import { useSkills, type Skill, type PresetSkill } from '../hooks/useSkills';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -35,12 +38,15 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
   const { t } = useTranslation();
   const {
     skills,
+    presetSkills,
     loading,
     error,
     fetchSkills,
     createSkill,
     updateSkill,
     deleteSkill,
+    fetchPresetSkills,
+    importPresetSkill,
   } = useSkills();
 
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
@@ -51,6 +57,8 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
   const [editedVersion, setEditedVersion] = useState('1.0.0');
   const [editedContent, setEditedContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   // Fetch skills when modal opens
   useEffect(() => {
@@ -58,6 +66,13 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
       fetchSkills();
     }
   }, [isOpen, fetchSkills]);
+
+  // Fetch preset skills when import modal opens
+  useEffect(() => {
+    if (isImportModalOpen) {
+      fetchPresetSkills();
+    }
+  }, [isImportModalOpen, fetchPresetSkills]);
 
   // Update edited fields when selected skill changes
   useEffect(() => {
@@ -201,6 +216,27 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     }
   };
 
+  const handleImportPreset = async () => {
+    if (!selectedPreset) return;
+
+    setIsSaving(true);
+    const success = await importPresetSkill(selectedPreset);
+    setIsSaving(false);
+
+    if (success) {
+      message.success(t('skillsModal.importSuccess'));
+      setIsImportModalOpen(false);
+      setSelectedPreset(null);
+      // Select the newly imported skill
+      const importedSkill = skills.find((s) => s.name === selectedPreset);
+      if (importedSkill) {
+        setSelectedSkill(importedSkill);
+      }
+    } else {
+      message.error(t('skillsModal.presetExists'));
+    }
+  };
+
   const hasChanges = isCreating
     ? editedName.trim() !== '' || editedContent.trim() !== ''
     : selectedSkill && editedContent !== selectedSkill.content;
@@ -236,15 +272,29 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
           }}
         >
           <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleNewSkill}
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'new',
+                    label: t('skillsModal.newSkill'),
+                    icon: <PlusOutlined />,
+                    onClick: handleNewSkill,
+                  },
+                  {
+                    key: 'import',
+                    label: t('skillsModal.importPreset'),
+                    icon: <ThunderboltOutlined />,
+                    onClick: () => setIsImportModalOpen(true),
+                  },
+                ] as MenuProps['items'],
+              }}
               disabled={loading || isSaving}
-              block
             >
-              {t('skillsModal.newSkill')}
-            </Button>
+              <Button type="primary" block>
+                {t('skillsModal.createMenu')} <DownOutlined />
+              </Button>
+            </Dropdown>
           </div>
 
           <div style={{ flex: 1, overflow: 'auto' }}>
@@ -476,6 +526,62 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
           )}
         </div>
       </Flex>
+
+      {/* Preset Skills Import Modal */}
+      <Modal
+        title={t('skillsModal.importPresetTitle')}
+        open={isImportModalOpen}
+        onCancel={() => {
+          setIsImportModalOpen(false);
+          setSelectedPreset(null);
+        }}
+        onOk={handleImportPreset}
+        okText={t('skillsModal.import')}
+        cancelText={t('skillsModal.cancel')}
+        okButtonProps={{ disabled: !selectedPreset, loading: isSaving }}
+        cancelButtonProps={{ disabled: isSaving }}
+        width={600}
+      >
+        {loading ? (
+          <Flex justify="center" align="center" style={{ padding: 24 }}>
+            <Spin />
+          </Flex>
+        ) : presetSkills.length === 0 ? (
+          <Empty description={t('skillsModal.noPresets')} />
+        ) : (
+          <List
+            dataSource={presetSkills}
+            renderItem={(preset) => (
+              <List.Item
+                key={preset.name}
+                onClick={() => setSelectedPreset(preset.name)}
+                style={{
+                  cursor: 'pointer',
+                  padding: '12px 16px',
+                  background:
+                    selectedPreset === preset.name ? '#f5f5f5' : 'transparent',
+                  borderLeft:
+                    selectedPreset === preset.name
+                      ? '3px solid #f5a623'
+                      : '3px solid transparent',
+                }}
+              >
+                <List.Item.Meta
+                  title={
+                    <Text
+                      strong={selectedPreset === preset.name}
+                      style={{ fontFamily: 'monospace' }}
+                    >
+                      {preset.name}
+                    </Text>
+                  }
+                  description={preset.description}
+                />
+              </List.Item>
+            )}
+          />
+        )}
+      </Modal>
     </Modal>
   );
 }

@@ -48,6 +48,13 @@
   "skillsModal": {
     "title": "Manage Skills",
     "newSkill": "New Skill",
+    "createMenu": "Create",
+    "importPreset": "Import from preset",
+    "importPresetTitle": "Select preset skill",
+    "import": "Import",
+    "importSuccess": "Preset skill imported successfully",
+    "presetExists": "A skill with this name already exists",
+    "noPresets": "No preset skills available",
     "skillName": "Skill Name",
     "skillNamePlaceholder": "my-skill",
     "skillContent": "Skill Content",

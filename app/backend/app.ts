@@ -1040,6 +1040,121 @@ fastify.delete<{ Params: { skillName: string } }>(
   }
 );
 
+// Preset Skills API - List all preset skills
+fastify.get('/api/v1/claude/preset-skills', async (_request, reply) => {
+  const presetSkillsPath = path.join(__dirname, 'preset-skills');
+
+  try {
+    // Ensure preset-skills directory exists
+    if (!fs.existsSync(presetSkillsPath)) {
+      return { presets: [] };
+    }
+
+    // Read all .md files in the preset-skills directory
+    const files = fs.readdirSync(presetSkillsPath);
+    const presets = files
+      .filter((file) => file.endsWith('.md'))
+      .map((file) => {
+        const filePath = path.join(presetSkillsPath, file);
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const parsed = parseSkillContent(fileContent);
+        return {
+          name: parsed.name,
+          description: parsed.description,
+          version: parsed.version,
+          content: parsed.content,
+        };
+      })
+      .filter((preset) => preset.name); // Filter out presets without names
+
+    return { presets };
+  } catch (error: any) {
+    console.error('Failed to list preset skills:', error);
+    return reply.status(500).send({ error: error.message });
+  }
+});
+
+// Preset Skills API - Import a preset skill to user's skills
+fastify.post<{ Params: { presetName: string } }>(
+  '/api/v1/claude/preset-skills/:presetName/import',
+  async (request, reply) => {
+    let context;
+    try {
+      context = extractRequestContext(request);
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+
+    const { userEmail } = context;
+    const { presetName } = request.params;
+
+    // Validate preset name
+    if (!/^[a-zA-Z0-9-]+$/.test(presetName)) {
+      return reply.status(400).send({ error: 'Invalid preset name' });
+    }
+
+    const presetSkillsPath = path.join(__dirname, 'preset-skills');
+    const presetFilePath = path.join(presetSkillsPath, `${presetName}.md`);
+
+    // Check if preset exists
+    if (!fs.existsSync(presetFilePath)) {
+      return reply.status(404).send({ error: 'Preset skill not found' });
+    }
+
+    // Read preset file
+    const presetContent = fs.readFileSync(presetFilePath, 'utf-8');
+    const parsed = parseSkillContent(presetContent);
+
+    const localBasePath = path.join(process.env.HOME ?? '/tmp', 'u');
+    const skillsPath = path.join(localBasePath, userEmail, '.claude/skills');
+    const skillDirPath = path.join(skillsPath, parsed.name);
+    const skillPath = path.join(skillDirPath, 'SKILL.md');
+
+    try {
+      // Check if skill already exists
+      if (fs.existsSync(skillDirPath)) {
+        return reply
+          .status(409)
+          .send({ error: 'A skill with this name already exists' });
+      }
+
+      // Create skill directory
+      fs.mkdirSync(skillDirPath, { recursive: true });
+
+      // Write skill file with YAML frontmatter
+      const fileContent = formatSkillContent(
+        parsed.name,
+        parsed.description,
+        parsed.version,
+        parsed.content
+      );
+      fs.writeFileSync(skillPath, fileContent, 'utf-8');
+
+      // Sync to workspace (fire-and-forget)
+      // Use --full flag to ensure proper sync of skill directories
+      const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
+      const spToken = await getOidcAccessToken();
+      ensureWorkspaceDirectory(workspaceSkillsPath, spToken)
+        .then(() => workspacePush(skillsPath, workspaceSkillsPath, spToken, true))
+        .catch((err) => {
+          console.error(
+            `[Preset Skills] Failed to sync after import: ${err.message}`
+          );
+        });
+
+      return {
+        name: parsed.name,
+        description: parsed.description,
+        version: parsed.version,
+        content: parsed.content,
+      };
+    } catch (error: any) {
+      console.error('Failed to import preset skill:', error);
+      return reply.status(500).send({ error: error.message });
+    }
+  }
+);
+
 // Workspace API - List root workspace (returns Users and Shared)
 fastify.get('/api/v1/Workspace', async (_request, _reply) => {
   return {

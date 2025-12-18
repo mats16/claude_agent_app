@@ -48,6 +48,13 @@
   "skillsModal": {
     "title": "スキル管理",
     "newSkill": "新しいスキル",
+    "createMenu": "作成",
+    "importPreset": "プリセットからインポート",
+    "importPresetTitle": "プリセットスキルを選択",
+    "import": "インポート",
+    "importSuccess": "プリセットスキルをインポートしました",
+    "presetExists": "同名のスキルが既に存在します",
+    "noPresets": "プリセットスキルがありません",
     "skillName": "スキル名",
     "skillNamePlaceholder": "my-skill",
     "skillContent": "スキルの内容",

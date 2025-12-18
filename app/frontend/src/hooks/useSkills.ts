@@ -7,8 +7,16 @@ export interface Skill {
   content: string;
 }
 
+export interface PresetSkill {
+  name: string;
+  description: string;
+  version: string;
+  content: string;
+}
+
 export function useSkills() {
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [presetSkills, setPresetSkills] = useState<PresetSkill[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,13 +133,64 @@ export function useSkills() {
     [fetchSkills]
   );
 
+  const fetchPresetSkills = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/v1/claude/preset-skills');
+      if (!response.ok) {
+        throw new Error('Failed to fetch preset skills');
+      }
+      const data = await response.json();
+      setPresetSkills(data.presets || []);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Failed to fetch preset skills:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const importPresetSkill = useCallback(
+    async (presetName: string): Promise<boolean> => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/v1/claude/preset-skills/${presetName}/import`,
+          {
+            method: 'POST',
+          }
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to import preset skill');
+        }
+
+        await fetchSkills(); // Refresh list
+        return true;
+      } catch (err: any) {
+        setError(err.message);
+        console.error('Failed to import preset skill:', err);
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchSkills]
+  );
+
   return {
     skills,
+    presetSkills,
     loading,
     error,
     fetchSkills,
     createSkill,
     updateSkill,
     deleteSkill,
+    fetchPresetSkills,
+    importPresetSkill,
   };
 }

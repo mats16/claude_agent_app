@@ -179,9 +179,9 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
       }
       open={isOpen}
       onCancel={onClose}
-      width={900}
+      width={1200}
       footer={null}
-      styles={{ body: { padding: 0, height: 600 } }}
+      styles={{ body: { padding: 0, height: 700 } }}
     >
       {error && (
         <div style={{ padding: 16 }}>
@@ -377,7 +377,10 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
                       borderRadius: 8,
                       background: '#fafafa',
                       whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
                       minHeight: 0,
+                      maxWidth: '100%',
                     }}
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>

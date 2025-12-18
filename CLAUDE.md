@@ -170,6 +170,21 @@ Sessions can be archived to hide them from the active session list without perma
 - Directory deletion failures are logged but don't fail the archive operation
 - SessionsContext fetches all sessions once and filters client-side for performance
 
+### Claude Backup Settings
+Manual backup/restore operations for Claude configuration (`.claude` directory) separate from automatic sync.
+
+**API Endpoints**:
+- `GET /api/v1/users/me/settings/claude/backup` - Get `claudeConfigSync` setting
+- `PATCH /api/v1/users/me/settings/claude/backup` - Update `claudeConfigSync` setting
+- `POST /api/v1/users/me/settings/claude/backup/pull` - Manual restore from workspace to local
+- `POST /api/v1/users/me/settings/claude/backup/push` - Manual backup from local to workspace
+
+**Operations**:
+- **Pull (Restore)**: Downloads `/Workspace/Users/{email}/.claude` → `$HOME/u/{email}/.claude` with overwrite
+- **Push (Backup)**: Uploads `$HOME/u/{email}/.claude` → `/Workspace/Users/{email}/.claude` using `--full` sync flag
+- Uses Service Principal OIDC token via `getOidcAccessToken()`
+- Frontend: `SettingsModal.tsx` provides UI for manual operations and auto-backup toggle
+
 ## Frontend State Management
 
 To minimize redundant API requests, shared data should be managed via React Context rather than fetching in each component.
@@ -225,6 +240,10 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `GET /api/v1/users/me` - Get user info (userId, email, workspaceHome, hasWorkspacePermission)
 - `GET /api/v1/users/me/settings` - Get user settings (hasAccessToken, claudeConfigSync)
 - `PATCH /api/v1/users/me/settings` - Update user settings (accessToken, claudeConfigSync)
+- `GET /api/v1/users/me/settings/claude/backup` - Get Claude backup settings (claudeConfigSync)
+- `PATCH /api/v1/users/me/settings/claude/backup` - Update Claude backup settings (claudeConfigSync)
+- `POST /api/v1/users/me/settings/claude/backup/pull` - Pull (restore) Claude config from workspace to local
+- `POST /api/v1/users/me/settings/claude/backup/push` - Push (backup) Claude config from local to workspace
 
 ### WebSocket
 - `/api/v1/sessions/ws` - Real-time session list updates (notifies on session creation)
@@ -258,3 +277,4 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `app/frontend/src/components/SessionList.tsx` - Session list with filtering and archive UI
 - `app/frontend/src/components/MessageRenderer.tsx` - Tool output rendering
 - `app/frontend/src/components/Sidebar.tsx` - Session creation UI
+- `app/frontend/src/components/SettingsModal.tsx` - Settings UI using Claude backup API endpoints

@@ -21,3 +21,12 @@ resources:
       permissions:
         - level: CAN_USE
           group_name: users
+
+  sql_warehouses:
+    claude_agent_sql:
+      name: claude-agent-sql
+      cluster_size: 2X-Small
+      min_num_clusters: 0
+      max_num_clusters: 4
+      auto_stop_mins: 10
+      enable_serverless_compute: true

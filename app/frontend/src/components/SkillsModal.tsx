@@ -1,32 +1,18 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import {
-  Modal,
-  Button,
-  Input,
-  List,
-  Flex,
-  message,
-  Spin,
-  Typography,
-  Empty,
-  Popconfirm,
-  Dropdown,
-} from 'antd';
-import type { MenuProps } from 'antd';
-import {
-  ThunderboltOutlined,
-  PlusOutlined,
-  DeleteOutlined,
-  SaveOutlined,
-  EditOutlined,
-  DownOutlined,
-} from '@ant-design/icons';
-import { useSkills, type Skill, type PresetSkill } from '../hooks/useSkills';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+/**
+ * Skills management modal
+ * Container component that orchestrates skill list, editor, and import
+ */
 
-const { TextArea } = Input;
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Modal, Flex, Typography, message } from 'antd';
+import { ThunderboltOutlined } from '@ant-design/icons';
+import { useSkills, type Skill } from '../hooks/useSkills';
+import SkillsList from './skills/SkillsList';
+import SkillEditor from './skills/SkillEditor';
+import PresetImportModal from './skills/PresetImportModal';
+import { colors, spacing } from '../styles/theme';
+
 const { Text } = Typography;
 
 interface SkillsModalProps {
@@ -49,13 +35,18 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     importPresetSkill,
   } = useSkills();
 
+  // Selection state
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Form state
   const [editedName, setEditedName] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
   const [editedVersion, setEditedVersion] = useState('1.0.0');
   const [editedContent, setEditedContent] = useState('');
+
+  // UI state
   const [isSaving, setIsSaving] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -87,7 +78,7 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     }
   }, [selectedSkill]);
 
-  const handleNewSkill = () => {
+  const handleNewSkill = useCallback(() => {
     setIsCreating(true);
     setIsEditing(true);
     setSelectedSkill(null);
@@ -95,15 +86,18 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     setEditedDescription('');
     setEditedVersion('1.0.0');
     setEditedContent('');
-  };
+  }, []);
 
-  const handleSelectSkill = (skill: Skill) => {
-    if (!isSaving) {
-      setSelectedSkill(skill);
-    }
-  };
+  const handleSelectSkill = useCallback(
+    (skill: Skill) => {
+      if (!isSaving) {
+        setSelectedSkill(skill);
+      }
+    },
+    [isSaving]
+  );
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     // Validate
     if (!editedName.trim()) {
       message.error(t('skillsModal.nameRequired'));
@@ -176,30 +170,44 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     } else {
       message.error(t('skillsModal.saveFailed'));
     }
-  };
+  }, [
+    editedName,
+    editedDescription,
+    editedVersion,
+    editedContent,
+    isCreating,
+    selectedSkill,
+    skills,
+    createSkill,
+    updateSkill,
+    t,
+  ]);
 
-  const handleDelete = async (skillName: string) => {
-    setIsSaving(true);
-    const success = await deleteSkill(skillName);
-    setIsSaving(false);
+  const handleDelete = useCallback(
+    async (skillName: string) => {
+      setIsSaving(true);
+      const success = await deleteSkill(skillName);
+      setIsSaving(false);
 
-    if (success) {
-      message.success(t('skillsModal.deleted'));
-      // Clear selection if deleted skill was selected
-      if (selectedSkill?.name === skillName) {
-        setSelectedSkill(null);
-        setIsCreating(false);
+      if (success) {
+        message.success(t('skillsModal.deleted'));
+        // Clear selection if deleted skill was selected
+        if (selectedSkill?.name === skillName) {
+          setSelectedSkill(null);
+          setIsCreating(false);
+        }
+      } else {
+        message.error(t('skillsModal.deleteFailed'));
       }
-    } else {
-      message.error(t('skillsModal.deleteFailed'));
-    }
-  };
+    },
+    [deleteSkill, selectedSkill, t]
+  );
 
-  const handleEdit = () => {
+  const handleEdit = useCallback(() => {
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (isCreating) {
       setIsCreating(false);
       setIsEditing(false);
@@ -215,9 +223,9 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
       setEditedVersion(selectedSkill.version);
       setEditedContent(selectedSkill.content);
     }
-  };
+  }, [isCreating, selectedSkill]);
 
-  const handleImportPreset = async () => {
+  const handleImportPreset = useCallback(async () => {
     if (!selectedPreset) return;
 
     setIsSaving(true);
@@ -236,7 +244,12 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     } else {
       message.error(t('skillsModal.importFailed'));
     }
-  };
+  }, [selectedPreset, importPresetSkill, skills, t]);
+
+  const handleCloseImportModal = useCallback(() => {
+    setIsImportModalOpen(false);
+    setSelectedPreset(null);
+  }, []);
 
   const hasChanges = isCreating
     ? editedName.trim() !== '' || editedContent.trim() !== ''
@@ -245,8 +258,8 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
   return (
     <Modal
       title={
-        <Flex align="center" gap={8}>
-          <ThunderboltOutlined style={{ color: '#f5a623' }} />
+        <Flex align="center" gap={spacing.sm}>
+          <ThunderboltOutlined style={{ color: colors.brand }} />
           {t('skillsModal.title')}
         </Flex>
       }
@@ -257,349 +270,55 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
       styles={{ body: { padding: 0, height: 700 } }}
     >
       {error && (
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: spacing.lg }}>
           <Text type="danger">{error}</Text>
         </div>
       )}
 
       <Flex style={{ height: '100%' }}>
-        {/* Left Panel - Skills List */}
-        <div
-          style={{
-            width: 280,
-            borderRight: '1px solid #f0f0f0',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
-            <Dropdown
-              trigger={['click']}
-              open={dropdownOpen}
-              onOpenChange={(open) => setDropdownOpen(open)}
-              menu={{
-                items: [
-                  {
-                    key: 'new',
-                    label: t('skillsModal.newSkill'),
-                    icon: <PlusOutlined />,
-                  },
-                  {
-                    key: 'import',
-                    label: t('skillsModal.importPreset'),
-                    icon: <ThunderboltOutlined />,
-                  },
-                ],
-                onClick: ({ key }) => {
-                  if (key === 'new') {
-                    handleNewSkill();
-                    setDropdownOpen(false);
-                  } else if (key === 'import') {
-                    setIsImportModalOpen(true);
-                    setDropdownOpen(false);
-                  }
-                },
-              }}
-            >
-              <Button type="primary" block disabled={loading || isSaving}>
-                {t('skillsModal.createMenu')} <DownOutlined />
-              </Button>
-            </Dropdown>
-          </div>
+        <SkillsList
+          skills={skills}
+          selectedSkill={selectedSkill}
+          isCreating={isCreating}
+          loading={loading}
+          isSaving={isSaving}
+          dropdownOpen={dropdownOpen}
+          onDropdownOpenChange={setDropdownOpen}
+          onNewSkill={handleNewSkill}
+          onImportClick={() => setIsImportModalOpen(true)}
+          onSelectSkill={handleSelectSkill}
+          onDeleteSkill={handleDelete}
+        />
 
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            {loading && skills.length === 0 ? (
-              <Flex
-                justify="center"
-                align="center"
-                style={{ height: '100%', padding: 24 }}
-              >
-                <Spin />
-              </Flex>
-            ) : skills.length === 0 ? (
-              <Empty
-                description={t('skillsModal.noSkills')}
-                style={{ marginTop: 60 }}
-              />
-            ) : (
-              <List
-                dataSource={skills}
-                renderItem={(skill) => (
-                  <List.Item
-                    key={skill.name}
-                    onClick={() => handleSelectSkill(skill)}
-                    style={{
-                      cursor: 'pointer',
-                      padding: '12px 16px',
-                      background:
-                        selectedSkill?.name === skill.name && !isCreating
-                          ? '#f5f5f5'
-                          : 'transparent',
-                      borderLeft:
-                        selectedSkill?.name === skill.name && !isCreating
-                          ? '3px solid #f5a623'
-                          : '3px solid transparent',
-                    }}
-                    actions={[
-                      <Popconfirm
-                        title={t('skillsModal.deleteConfirm')}
-                        onConfirm={(e) => {
-                          e?.stopPropagation();
-                          handleDelete(skill.name);
-                        }}
-                        okText={t('common.ok')}
-                        cancelText={t('common.cancel')}
-                        disabled={isSaving}
-                      >
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<DeleteOutlined />}
-                          danger
-                          disabled={isSaving}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </Popconfirm>,
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={
-                        <Text
-                          ellipsis
-                          style={{
-                            fontWeight:
-                              selectedSkill?.name === skill.name && !isCreating
-                                ? 600
-                                : 400,
-                          }}
-                        >
-                          {skill.name}
-                        </Text>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Right Panel - Editor */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            padding: 24,
-          }}
-        >
-          {!selectedSkill && !isCreating ? (
-            <Flex
-              justify="center"
-              align="center"
-              style={{ height: '100%', color: '#999' }}
-            >
-              <Empty description={t('skillsModal.selectOrCreate')} />
-            </Flex>
-          ) : (
-            <>
-              <Flex gap={16} style={{ marginBottom: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    {t('skillsModal.skillName')}
-                  </Text>
-                  <Input
-                    value={editedName}
-                    onChange={(e) => {
-                      let value = e.target.value;
-                      // Remove .md extension if entered
-                      value = value.replace(/\.md$/i, '');
-                      // Only allow alphanumeric and hyphens
-                      value = value.replace(/[^a-zA-Z0-9-]/g, '');
-                      setEditedName(value);
-                    }}
-                    placeholder={t('skillsModal.skillNamePlaceholder')}
-                    disabled={!isCreating || isSaving}
-                    style={{ fontFamily: 'monospace' }}
-                  />
-                </div>
-
-                <div style={{ width: 200 }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    {t('skillsModal.skillVersion')}
-                  </Text>
-                  <Input
-                    value={editedVersion}
-                    onChange={(e) => {
-                      let value = e.target.value;
-                      // Only allow digits and dots
-                      value = value.replace(/[^0-9.]/g, '');
-                      setEditedVersion(value);
-                    }}
-                    placeholder={t('skillsModal.skillVersionPlaceholder')}
-                    disabled={(!isEditing && !isCreating) || isSaving}
-                    style={{ fontFamily: 'monospace' }}
-                  />
-                </div>
-              </Flex>
-
-              <div style={{ marginBottom: 16 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                  {t('skillsModal.skillDescription')}{' '}
-                  <Text type="danger">*</Text>
-                </Text>
-                <TextArea
-                  value={editedDescription}
-                  onChange={(e) => setEditedDescription(e.target.value)}
-                  placeholder={t('skillsModal.skillDescriptionPlaceholder')}
-                  disabled={(!isEditing && !isCreating) || isSaving}
-                  rows={3}
-                />
-              </div>
-
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: 0,
-                }}
-              >
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                  {t('skillsModal.skillContent')} <Text type="danger">*</Text>
-                </Text>
-
-                {isEditing || isCreating ? (
-                  <TextArea
-                    value={editedContent}
-                    onChange={(e) => setEditedContent(e.target.value)}
-                    placeholder={t('skillsModal.skillContentPlaceholder')}
-                    disabled={isSaving}
-                    style={{
-                      flex: 1,
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      resize: 'none',
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      flex: 1,
-                      overflow: 'auto',
-                      padding: 16,
-                      border: '1px solid #d9d9d9',
-                      borderRadius: 8,
-                      background: '#fafafa',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      minHeight: 0,
-                      maxWidth: '100%',
-                    }}
-                  >
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {editedContent}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
-
-              {isEditing || isCreating ? (
-                <Flex gap={8} justify="flex-end" style={{ marginTop: 16 }}>
-                  <Button onClick={handleCancel} disabled={isSaving}>
-                    {t('skillsModal.cancel')}
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={handleSave}
-                    loading={isSaving}
-                    disabled={!hasChanges}
-                  >
-                    {t('skillsModal.save')}
-                  </Button>
-                </Flex>
-              ) : (
-                <Flex justify="flex-end" style={{ marginTop: 16 }}>
-                  <Button
-                    type="default"
-                    icon={<EditOutlined />}
-                    onClick={handleEdit}
-                    disabled={isSaving}
-                  >
-                    {t('skillsModal.edit')}
-                  </Button>
-                </Flex>
-              )}
-            </>
-          )}
-        </div>
+        <SkillEditor
+          isCreating={isCreating}
+          isEditing={isEditing}
+          isSaving={isSaving}
+          hasChanges={!!hasChanges}
+          editedName={editedName}
+          editedDescription={editedDescription}
+          editedVersion={editedVersion}
+          editedContent={editedContent}
+          onNameChange={setEditedName}
+          onDescriptionChange={setEditedDescription}
+          onVersionChange={setEditedVersion}
+          onContentChange={setEditedContent}
+          onEdit={handleEdit}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
       </Flex>
 
-      {/* Preset Skills Import Modal */}
-      <Modal
-        title={t('skillsModal.importPresetTitle')}
-        open={isImportModalOpen}
-        onCancel={() => {
-          setIsImportModalOpen(false);
-          setSelectedPreset(null);
-        }}
-        onOk={handleImportPreset}
-        okText={t('skillsModal.import')}
-        cancelText={t('skillsModal.cancel')}
-        okButtonProps={{ disabled: !selectedPreset, loading: isSaving }}
-        cancelButtonProps={{ disabled: isSaving }}
-        width={600}
-      >
-        {loading ? (
-          <Flex justify="center" align="center" style={{ padding: 24 }}>
-            <Spin />
-          </Flex>
-        ) : presetSkills.length === 0 ? (
-          <Empty description={t('skillsModal.noPresets')} />
-        ) : (
-          <List
-            dataSource={presetSkills}
-            renderItem={(preset) => (
-              <List.Item
-                key={preset.name}
-                onClick={() => setSelectedPreset(preset.name)}
-                style={{
-                  cursor: 'pointer',
-                  padding: '12px 16px',
-                  background:
-                    selectedPreset === preset.name ? '#f5f5f5' : 'transparent',
-                  borderLeft:
-                    selectedPreset === preset.name
-                      ? '3px solid #f5a623'
-                      : '3px solid transparent',
-                }}
-              >
-                <List.Item.Meta
-                  title={
-                    <Flex align="center" gap={8}>
-                      <Text
-                        strong={selectedPreset === preset.name}
-                        style={{ fontFamily: 'monospace' }}
-                      >
-                        {preset.name}
-                      </Text>
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: '12px', fontFamily: 'monospace' }}
-                      >
-                        v{preset.version}
-                      </Text>
-                    </Flex>
-                  }
-                  description={preset.description}
-                />
-              </List.Item>
-            )}
-          />
-        )}
-      </Modal>
+      <PresetImportModal
+        isOpen={isImportModalOpen}
+        presetSkills={presetSkills}
+        selectedPreset={selectedPreset}
+        loading={loading}
+        isSaving={isSaving}
+        onClose={handleCloseImportModal}
+        onSelectPreset={setSelectedPreset}
+        onImport={handleImportPreset}
+      />
     </Modal>
   );
 }

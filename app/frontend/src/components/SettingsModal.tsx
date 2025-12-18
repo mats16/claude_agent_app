@@ -43,7 +43,7 @@ export default function SettingsModal({
   isInitialSetup = false,
   onPermissionGranted,
 }: SettingsModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const {
     userInfo,
     userSettings,
@@ -146,79 +146,56 @@ export default function SettingsModal({
         style={{ marginBottom: 16 }}
       />
 
-      {/* Service Principal name */}
-      <div style={{ marginBottom: 16 }}>
-        <Text type="secondary">{t('settingsModal.grantPermissionTo')}</Text>
-        <Flex align="center" gap={8} style={{ marginTop: 4 }}>
-          <RobotOutlined style={{ fontSize: 16, color: '#666' }} />
-          <Text>
-            <Text strong>Service Principal:</Text>{' '}
-            <Text code>{spInfo?.displayName || 'Service Principal'}</Text>
-          </Text>
-        </Flex>
-      </div>
+      {/* Service Principal authentication note */}
+      <Alert
+        type="info"
+        message={t('settingsModal.spAuthNote')}
+        style={{ marginBottom: 16 }}
+      />
 
-      <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-        {t('settingsModal.chooseOption')}
-      </Text>
-
-      {/* Option 1 */}
+      {/* Instructions */}
       <div
         style={{
           background: '#fafafa',
           borderRadius: 8,
-          padding: 12,
-          marginBottom: 12,
+          padding: 16,
+          marginBottom: 16,
         }}
       >
-        <Text strong style={{ display: 'block', marginBottom: 8 }}>
-          {t('settingsModal.option1Title')}
+        <Text strong style={{ display: 'block', marginBottom: 12 }}>
+          {t('settingsModal.instructionsTitle')}
         </Text>
         <Text>
-          {t('settingsModal.option1Step1Prefix')}{' '}
-          <Text code style={{ color: '#cf1322' }}>
-            Can Manage
-          </Text>{' '}
-          {t('settingsModal.option1Step1Suffix')}
-        </Text>
-      </div>
-
-      {/* Option 2 */}
-      <div
-        style={{
-          background: '#fafafa',
-          borderRadius: 8,
-          padding: 12,
-          marginBottom: 12,
-        }}
-      >
-        <Text strong style={{ display: 'block', marginBottom: 8 }}>
-          {t('settingsModal.option2Title')}
-        </Text>
-        <ol style={{ margin: 0, paddingLeft: 20 }}>
-          <li>
-            <Text>
-              {t('settingsModal.option2Step1Prefix')}{' '}
-              <Text code style={{ color: '#cf1322' }}>
-                Can Edit
+          {i18n.language === 'ja' ? (
+            <>
+              <Text code>{spInfo?.displayName || 'Service Principal'}</Text>{' '}
+              {t('settingsModal.instructionsTextBefore')}{' '}
+              <Text code style={{ color: '#cf1322', fontSize: 14 }}>
+                Can Manage
               </Text>{' '}
-              {t('settingsModal.option2Step1Suffix')}
-            </Text>
-          </li>
-          <li>
-            <Text>{t('settingsModal.option2Step2')}</Text>
-          </li>
-        </ol>
+              {t('settingsModal.instructionsTextAfter')}
+            </>
+          ) : (
+            <>
+              {t('settingsModal.instructionsTextBefore')}{' '}
+              <Text code style={{ color: '#cf1322', fontSize: 14 }}>
+                Can Manage
+              </Text>{' '}
+              {t('settingsModal.instructionsTextAfter')}{' '}
+              <Text code>{spInfo?.displayName || 'Service Principal'}</Text>
+            </>
+          )}
+        </Text>
       </div>
 
       {/* Open Databricks Console link */}
-      <Flex justify="center" style={{ marginTop: 16 }}>
+      <Flex justify="center" style={{ marginBottom: 16 }}>
         <Link href={`https://${spInfo?.databricksHost}/browse`} target="_blank">
           {t('settingsModal.openDatabricksConsole')}
         </Link>
       </Flex>
 
-      <Flex justify="center" style={{ marginTop: 16 }}>
+      <Flex justify="center">
         <Button
           type="primary"
           icon={<ReloadOutlined />}
@@ -306,7 +283,7 @@ export default function SettingsModal({
       closable={canClose}
       maskClosable={canClose}
       keyboard={canClose}
-      width={440}
+      width={500}
     >
       {isLoading && hasPermission === null ? (
         <Flex justify="center" align="center" style={{ minHeight: 200 }}>

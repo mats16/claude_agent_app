@@ -45,12 +45,7 @@ export async function workspacePush(
   token?: string,
   full?: boolean
 ): Promise<void> {
-  const cmdParts = [
-    'databricks',
-    'sync',
-    localPath,
-    workspacePath,
-  ];
+  const cmdParts = ['databricks', 'sync', localPath, workspacePath];
 
   if (full) {
     cmdParts.push('--full');

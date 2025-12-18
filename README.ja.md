@@ -1,4 +1,4 @@
-# Claude Coding Agent
+# Claude Code on Databricks
 
 Databricks Apps上で動作するClaude Codeライクなコーディングエージェントを提供するWebアプリケーションです。AIアシスタントと対話しながら、Databricks Workspace内でコマンド実行、ファイル読み書き、コード検索などを行えます。
 
@@ -77,10 +77,17 @@ DATABRICKS_CLIENT_ID=your-client-id
 DATABRICKS_CLIENT_SECRET=your-client-secret
 DB_URL=postgresql://user:password@host:5432/database
 
-# オプション（ローカル開発用）
+# ローカル開発用（Viteプロキシによりヘッダーとして注入）
 DATABRICKS_TOKEN=your-personal-access-token
+DATABRICKS_USER_NAME=Your Name
+DATABRICKS_USER_ID=user-id-from-idp
+DATABRICKS_USER_EMAIL=your-email@example.com
+
+# オプション
 PORT=8000
 ```
+
+> **注意**: 本番環境では `DB_URL` は Databricks Secrets 経由で注入されます（[シークレット設定](#シークレット設定本番環境)を参照）。
 
 ### 4. データベースマイグレーション
 
@@ -108,6 +115,22 @@ npm run dev
 cd app
 npm run build
 ```
+
+### シークレット設定（本番環境）
+
+本番デプロイでは DB_URL を Databricks Secrets に保存する必要があります:
+
+```bash
+# シークレットスコープを作成
+databricks secrets create-scope claude_agent
+
+# DB_URL を保存
+databricks secrets put-secret claude_agent db_url
+```
+
+シークレットは以下のファイルで参照されます:
+- `resources/claude_agent.app.yml` - DAB リソース定義
+- `app/app.yaml` - アプリ実行設定
 
 ### Databricks Appsへのデプロイ
 
@@ -152,7 +175,10 @@ claude_agent_app/
 │   │   ├── agent/         # Claude Agent SDK統合
 │   │   └── db/            # データベース（Drizzle ORM）
 │   ├── shared/            # 共有型定義
+│   ├── app.yaml           # Databricks Apps実行設定
 │   └── package.json       # Turborepo設定
+├── resources/
+│   └── claude_agent.app.yml  # DABアプリリソース定義
 ├── databricks.yml         # Databricksバンドル設定
 ├── CLAUDE.md              # Claude Codeガイダンス
 └── README.md

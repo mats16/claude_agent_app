@@ -1,4 +1,4 @@
-# Claude Coding Agent
+# Claude Code on Databricks
 
 A web application that provides Claude Code-like coding agent capabilities running on Databricks Apps. Users interact with an AI assistant that can execute commands, read/write files, and search code within a Databricks Workspace.
 
@@ -77,10 +77,17 @@ DATABRICKS_CLIENT_ID=your-client-id
 DATABRICKS_CLIENT_SECRET=your-client-secret
 DB_URL=postgresql://user:password@host:5432/database
 
-# Optional (for local development)
+# Required for local development (injected as headers by Vite proxy)
 DATABRICKS_TOKEN=your-personal-access-token
+DATABRICKS_USER_NAME=Your Name
+DATABRICKS_USER_ID=user-id-from-idp
+DATABRICKS_USER_EMAIL=your-email@example.com
+
+# Optional
 PORT=8000
 ```
+
+> **Note**: In production, `DB_URL` is injected via Databricks Secrets (see [Configure Secrets](#configure-secrets-production)).
 
 ### 4. Run database migration
 
@@ -108,6 +115,22 @@ npm run dev
 cd app
 npm run build
 ```
+
+### Configure Secrets (Production)
+
+DB_URL must be stored in Databricks Secrets for production deployment:
+
+```bash
+# Create secret scope
+databricks secrets create-scope claude_agent
+
+# Store DB_URL
+databricks secrets put-secret claude_agent db_url
+```
+
+The secret is referenced in:
+- `resources/claude_agent.app.yml` - DAB resource definition
+- `app/app.yaml` - App runtime configuration
 
 ### Deploy to Databricks Apps
 
@@ -152,7 +175,10 @@ claude_agent_app/
 │   │   ├── agent/         # Claude Agent SDK integration
 │   │   └── db/            # Database (Drizzle ORM)
 │   ├── shared/            # Shared types
+│   ├── app.yaml           # Databricks Apps runtime config
 │   └── package.json       # Turborepo configuration
+├── resources/
+│   └── claude_agent.app.yml  # DAB app resource definition
 ├── databricks.yml         # Databricks bundle config
 ├── CLAUDE.md              # Claude Code guidance
 └── README.md

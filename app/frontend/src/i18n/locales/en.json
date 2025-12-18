@@ -66,7 +66,13 @@
     "invalidName": "Skill name can only contain alphanumeric characters, hyphens, and underscores",
     "nameExists": "A skill with this name already exists",
     "noSkills": "No skills yet",
-    "selectOrCreate": "Select a skill or create a new one"
+    "selectOrCreate": "Select a skill or create a new one",
+    "descriptionRequired": "Skill description is required",
+    "skillDescription": "Description",
+    "skillDescriptionPlaceholder": "This skill should be used when...",
+    "skillVersion": "Version",
+    "skillVersionPlaceholder": "1.0.0",
+    "invalidVersion": "Version must be in semantic versioning format (e.g., 1.0.0)"
   },
   "workspaceModal": {
     "title": "Select Workspace Directory",

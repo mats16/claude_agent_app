@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import matter from 'gray-matter';
 import {
   processAgentRequest,
   SDKMessage,
@@ -49,6 +50,37 @@ const fastify = Fastify({
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8000;
+
+// Helper functions for skill YAML frontmatter parsing
+function parseSkillContent(fileContent: string): {
+  name: string;
+  description: string;
+  version: string;
+  content: string;
+} {
+  const parsed = matter(fileContent);
+  return {
+    name: parsed.data.name || '',
+    description: parsed.data.description || '',
+    version: parsed.data.version || '1.0.0',
+    content: parsed.content.trim(),
+  };
+}
+
+function formatSkillContent(
+  name: string,
+  description: string,
+  version: string,
+  content: string
+): string {
+  return `---
+name: ${name}
+description: ${description}
+version: ${version}
+---
+
+${content}`;
+}
 
 // Session event queue for streaming events to WebSocket
 interface SessionQueue {
@@ -759,8 +791,14 @@ fastify.get('/api/v1/claude/skills', async (request, reply) => {
       .map((entry) => {
         const skillFilePath = path.join(skillsPath, entry.name, 'SKILL.md');
         if (fs.existsSync(skillFilePath)) {
-          const content = fs.readFileSync(skillFilePath, 'utf-8');
-          return { name: entry.name, content };
+          const fileContent = fs.readFileSync(skillFilePath, 'utf-8');
+          const parsed = parseSkillContent(fileContent);
+          return {
+            name: entry.name,
+            description: parsed.description,
+            version: parsed.version,
+            content: parsed.content,
+          };
         }
         return null;
       })
@@ -806,8 +844,14 @@ fastify.get<{ Params: { skillName: string } }>(
         return reply.status(404).send({ error: 'Skill not found' });
       }
 
-      const content = fs.readFileSync(skillPath, 'utf-8');
-      return { name: skillName, content };
+      const fileContent = fs.readFileSync(skillPath, 'utf-8');
+      const parsed = parseSkillContent(fileContent);
+      return {
+        name: skillName,
+        description: parsed.description,
+        version: parsed.version,
+        content: parsed.content,
+      };
     } catch (error: any) {
       console.error('Failed to read skill:', error);
       return reply.status(500).send({ error: error.message });
@@ -816,122 +860,133 @@ fastify.get<{ Params: { skillName: string } }>(
 );
 
 // Skills API - Create new skill
-fastify.post<{ Body: { name: string; content: string } }>(
-  '/api/v1/claude/skills',
-  async (request, reply) => {
-    let context;
-    try {
-      context = extractRequestContext(request);
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
-    }
-
-    const { userEmail } = context;
-    const { name, content } = request.body;
-
-    // Validate inputs
-    if (!name || !content) {
-      return reply.status(400).send({ error: 'name and content are required' });
-    }
-
-    if (!/^[a-zA-Z0-9-]+$/.test(name)) {
-      return reply.status(400).send({ error: 'Invalid skill name' });
-    }
-
-    const localBasePath = path.join(process.env.HOME ?? '/tmp', 'u');
-    const skillsPath = path.join(localBasePath, userEmail, '.claude/skills');
-    const skillDirPath = path.join(skillsPath, name);
-    const skillPath = path.join(skillDirPath, 'SKILL.md');
-
-    try {
-      // Check if skill already exists
-      if (fs.existsSync(skillDirPath)) {
-        return reply.status(409).send({ error: 'Skill already exists' });
-      }
-
-      // Create skill directory
-      fs.mkdirSync(skillDirPath, { recursive: true });
-
-      // Write skill file
-      fs.writeFileSync(skillPath, content, 'utf-8');
-
-      // Sync to workspace (fire-and-forget)
-      // Use --full flag to ensure proper sync of skill directories
-      const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
-      const spToken = await getOidcAccessToken();
-      ensureWorkspaceDirectory(workspaceSkillsPath, spToken)
-        .then(() =>
-          workspacePush(skillsPath, workspaceSkillsPath, spToken, true)
-        )
-        .catch((err) => {
-          console.error(`[Skills] Failed to sync after create: ${err.message}`);
-        });
-
-      return { name, content };
-    } catch (error: any) {
-      console.error('Failed to create skill:', error);
-      return reply.status(500).send({ error: error.message });
-    }
+fastify.post<{
+  Body: {
+    name: string;
+    description: string;
+    version?: string;
+    content: string;
+  };
+}>('/api/v1/claude/skills', async (request, reply) => {
+  let context;
+  try {
+    context = extractRequestContext(request);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
   }
-);
+
+  const { userEmail } = context;
+  const { name, description, version = '1.0.0', content } = request.body;
+
+  // Validate inputs
+  if (!name || !description || !content) {
+    return reply
+      .status(400)
+      .send({ error: 'name, description, and content are required' });
+  }
+
+  if (!/^[a-zA-Z0-9-]+$/.test(name)) {
+    return reply.status(400).send({ error: 'Invalid skill name' });
+  }
+
+  const localBasePath = path.join(process.env.HOME ?? '/tmp', 'u');
+  const skillsPath = path.join(localBasePath, userEmail, '.claude/skills');
+  const skillDirPath = path.join(skillsPath, name);
+  const skillPath = path.join(skillDirPath, 'SKILL.md');
+
+  try {
+    // Check if skill already exists
+    if (fs.existsSync(skillDirPath)) {
+      return reply.status(409).send({ error: 'Skill already exists' });
+    }
+
+    // Create skill directory
+    fs.mkdirSync(skillDirPath, { recursive: true });
+
+    // Write skill file with YAML frontmatter
+    const fileContent = formatSkillContent(name, description, version, content);
+    fs.writeFileSync(skillPath, fileContent, 'utf-8');
+
+    // Sync to workspace (fire-and-forget)
+    // Use --full flag to ensure proper sync of skill directories
+    const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
+    const spToken = await getOidcAccessToken();
+    ensureWorkspaceDirectory(workspaceSkillsPath, spToken)
+      .then(() => workspacePush(skillsPath, workspaceSkillsPath, spToken, true))
+      .catch((err) => {
+        console.error(`[Skills] Failed to sync after create: ${err.message}`);
+      });
+
+    return { name, description, version, content };
+  } catch (error: any) {
+    console.error('Failed to create skill:', error);
+    return reply.status(500).send({ error: error.message });
+  }
+});
 
 // Skills API - Update existing skill
-fastify.patch<{ Params: { skillName: string }; Body: { content: string } }>(
-  '/api/v1/claude/skills/:skillName',
-  async (request, reply) => {
-    let context;
-    try {
-      context = extractRequestContext(request);
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
-    }
-
-    const { userEmail } = context;
-    const { skillName } = request.params;
-    const { content } = request.body;
-
-    // Validate inputs
-    if (!content) {
-      return reply.status(400).send({ error: 'content is required' });
-    }
-
-    if (!/^[a-zA-Z0-9-]+$/.test(skillName)) {
-      return reply.status(400).send({ error: 'Invalid skill name' });
-    }
-
-    const localBasePath = path.join(process.env.HOME ?? '/tmp', 'u');
-    const skillsPath = path.join(localBasePath, userEmail, '.claude/skills');
-    const skillDirPath = path.join(skillsPath, skillName);
-    const skillPath = path.join(skillDirPath, 'SKILL.md');
-
-    try {
-      // Check if skill exists
-      if (!fs.existsSync(skillPath)) {
-        return reply.status(404).send({ error: 'Skill not found' });
-      }
-
-      // Update skill file
-      fs.writeFileSync(skillPath, content, 'utf-8');
-
-      // Sync to workspace (fire-and-forget)
-      // Use --full flag to ensure proper sync of skill directories
-      const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
-      const spToken = await getOidcAccessToken();
-      ensureWorkspaceDirectory(workspaceSkillsPath, spToken)
-        .then(() =>
-          workspacePush(skillsPath, workspaceSkillsPath, spToken, true)
-        )
-        .catch((err) => {
-          console.error(`[Skills] Failed to sync after update: ${err.message}`);
-        });
-
-      return { name: skillName, content };
-    } catch (error: any) {
-      console.error('Failed to update skill:', error);
-      return reply.status(500).send({ error: error.message });
-    }
+fastify.patch<{
+  Params: { skillName: string };
+  Body: { description: string; version?: string; content: string };
+}>('/api/v1/claude/skills/:skillName', async (request, reply) => {
+  let context;
+  try {
+    context = extractRequestContext(request);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
   }
-);
+
+  const { userEmail } = context;
+  const { skillName } = request.params;
+  const { description, version = '1.0.0', content } = request.body;
+
+  // Validate inputs
+  if (!description || !content) {
+    return reply
+      .status(400)
+      .send({ error: 'description and content are required' });
+  }
+
+  if (!/^[a-zA-Z0-9-]+$/.test(skillName)) {
+    return reply.status(400).send({ error: 'Invalid skill name' });
+  }
+
+  const localBasePath = path.join(process.env.HOME ?? '/tmp', 'u');
+  const skillsPath = path.join(localBasePath, userEmail, '.claude/skills');
+  const skillDirPath = path.join(skillsPath, skillName);
+  const skillPath = path.join(skillDirPath, 'SKILL.md');
+
+  try {
+    // Check if skill exists
+    if (!fs.existsSync(skillPath)) {
+      return reply.status(404).send({ error: 'Skill not found' });
+    }
+
+    // Update skill file with YAML frontmatter
+    const fileContent = formatSkillContent(
+      skillName,
+      description,
+      version,
+      content
+    );
+    fs.writeFileSync(skillPath, fileContent, 'utf-8');
+
+    // Sync to workspace (fire-and-forget)
+    // Use --full flag to ensure proper sync of skill directories
+    const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
+    const spToken = await getOidcAccessToken();
+    ensureWorkspaceDirectory(workspaceSkillsPath, spToken)
+      .then(() => workspacePush(skillsPath, workspaceSkillsPath, spToken, true))
+      .catch((err) => {
+        console.error(`[Skills] Failed to sync after update: ${err.message}`);
+      });
+
+    return { name: skillName, description, version, content };
+  } catch (error: any) {
+    console.error('Failed to update skill:', error);
+    return reply.status(500).send({ error: error.message });
+  }
+});
 
 // Skills API - Delete skill
 fastify.delete<{ Params: { skillName: string } }>(

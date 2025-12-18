@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 
 export interface Skill {
   name: string;
+  description: string;
+  version: string;
   content: string;
 }
 
@@ -29,14 +31,19 @@ export function useSkills() {
   }, []);
 
   const createSkill = useCallback(
-    async (name: string, content: string): Promise<boolean> => {
+    async (
+      name: string,
+      description: string,
+      version: string,
+      content: string
+    ): Promise<boolean> => {
       setLoading(true);
       setError(null);
       try {
         const response = await fetch('/api/v1/claude/skills', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, content }),
+          body: JSON.stringify({ name, description, version, content }),
         });
 
         if (!response.ok) {
@@ -58,14 +65,19 @@ export function useSkills() {
   );
 
   const updateSkill = useCallback(
-    async (name: string, content: string): Promise<boolean> => {
+    async (
+      name: string,
+      description: string,
+      version: string,
+      content: string
+    ): Promise<boolean> => {
       setLoading(true);
       setError(null);
       try {
         const response = await fetch(`/api/v1/claude/skills/${name}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ description, version, content }),
         });
 
         if (!response.ok) {

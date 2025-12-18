@@ -66,7 +66,13 @@
     "invalidName": "スキル名は英数字、ハイフン、アンダースコアのみ使用できます",
     "nameExists": "この名前のスキルは既に存在します",
     "noSkills": "スキルがありません",
-    "selectOrCreate": "スキルを選択するか新しく作成してください"
+    "selectOrCreate": "スキルを選択するか新しく作成してください",
+    "descriptionRequired": "スキルの説明は必須です",
+    "skillDescription": "説明",
+    "skillDescriptionPlaceholder": "このスキルは...の時に使用されます",
+    "skillVersion": "バージョン",
+    "skillVersionPlaceholder": "1.0.0",
+    "invalidVersion": "バージョンはセマンティックバージョニング形式で入力してください (例: 1.0.0)"
   },
   "workspaceModal": {
     "title": "ワークスペースディレクトリを選択",

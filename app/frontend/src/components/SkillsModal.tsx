@@ -47,6 +47,8 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [editedVersion, setEditedVersion] = useState('1.0.0');
   const [editedContent, setEditedContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -61,6 +63,8 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
   useEffect(() => {
     if (selectedSkill) {
       setEditedName(selectedSkill.name);
+      setEditedDescription(selectedSkill.description);
+      setEditedVersion(selectedSkill.version);
       setEditedContent(selectedSkill.content);
       setIsCreating(false);
       setIsEditing(false);
@@ -72,6 +76,8 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     setIsEditing(true);
     setSelectedSkill(null);
     setEditedName('');
+    setEditedDescription('');
+    setEditedVersion('1.0.0');
     setEditedContent('');
   };
 
@@ -88,6 +94,11 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
       return;
     }
 
+    if (!editedDescription.trim()) {
+      message.error(t('skillsModal.descriptionRequired'));
+      return;
+    }
+
     if (!editedContent.trim()) {
       message.error(t('skillsModal.contentRequired'));
       return;
@@ -96,6 +107,12 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
     // Validate name format
     if (!/^[a-zA-Z0-9-]+$/.test(editedName)) {
       message.error(t('skillsModal.invalidName'));
+      return;
+    }
+
+    // Validate version format (semantic versioning: major.minor.patch)
+    if (!/^\d+\.\d+\.\d+$/.test(editedVersion.trim())) {
+      message.error(t('skillsModal.invalidVersion'));
       return;
     }
 
@@ -109,9 +126,19 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
         setIsSaving(false);
         return;
       }
-      success = await createSkill(editedName, editedContent);
+      success = await createSkill(
+        editedName,
+        editedDescription,
+        editedVersion,
+        editedContent
+      );
     } else if (selectedSkill) {
-      success = await updateSkill(selectedSkill.name, editedContent);
+      success = await updateSkill(
+        selectedSkill.name,
+        editedDescription,
+        editedVersion,
+        editedContent
+      );
     }
 
     setIsSaving(false);
@@ -122,7 +149,12 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
       setIsEditing(false);
       // Select the newly created/updated skill
       if (isCreating) {
-        const newSkill = { name: editedName, content: editedContent };
+        const newSkill = {
+          name: editedName,
+          description: editedDescription,
+          version: editedVersion,
+          content: editedContent,
+        };
         setSelectedSkill(newSkill);
       }
     } else {
@@ -156,11 +188,15 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
       setIsCreating(false);
       setIsEditing(false);
       setEditedName('');
+      setEditedDescription('');
+      setEditedVersion('1.0.0');
       setEditedContent('');
     } else if (selectedSkill) {
       // Exit edit mode and reset to original values
       setIsEditing(false);
       setEditedName(selectedSkill.name);
+      setEditedDescription(selectedSkill.description);
+      setEditedVersion(selectedSkill.version);
       setEditedContent(selectedSkill.content);
     }
   };
@@ -307,23 +343,57 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
             </Flex>
           ) : (
             <>
+              <Flex gap={16} style={{ marginBottom: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    {t('skillsModal.skillName')}
+                  </Text>
+                  <Input
+                    value={editedName}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      // Remove .md extension if entered
+                      value = value.replace(/\.md$/i, '');
+                      // Only allow alphanumeric and hyphens
+                      value = value.replace(/[^a-zA-Z0-9-]/g, '');
+                      setEditedName(value);
+                    }}
+                    placeholder={t('skillsModal.skillNamePlaceholder')}
+                    disabled={!isCreating || isSaving}
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </div>
+
+                <div style={{ width: 200 }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    {t('skillsModal.skillVersion')}
+                  </Text>
+                  <Input
+                    value={editedVersion}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      // Only allow digits and dots
+                      value = value.replace(/[^0-9.]/g, '');
+                      setEditedVersion(value);
+                    }}
+                    placeholder={t('skillsModal.skillVersionPlaceholder')}
+                    disabled={(!isEditing && !isCreating) || isSaving}
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </div>
+              </Flex>
+
               <div style={{ marginBottom: 16 }}>
                 <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                  {t('skillsModal.skillName')}
+                  {t('skillsModal.skillDescription')}{' '}
+                  <Text type="danger">*</Text>
                 </Text>
-                <Input
-                  value={editedName}
-                  onChange={(e) => {
-                    let value = e.target.value;
-                    // Remove .md extension if entered
-                    value = value.replace(/\.md$/i, '');
-                    // Only allow alphanumeric and hyphens
-                    value = value.replace(/[^a-zA-Z0-9-]/g, '');
-                    setEditedName(value);
-                  }}
-                  placeholder={t('skillsModal.skillNamePlaceholder')}
-                  disabled={!isCreating || isSaving}
-                  style={{ fontFamily: 'monospace' }}
+                <TextArea
+                  value={editedDescription}
+                  onChange={(e) => setEditedDescription(e.target.value)}
+                  placeholder={t('skillsModal.skillDescriptionPlaceholder')}
+                  disabled={(!isEditing && !isCreating) || isSaving}
+                  rows={3}
                 />
               </div>
 
@@ -335,24 +405,9 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
                   minHeight: 0,
                 }}
               >
-                <Flex
-                  justify="space-between"
-                  align="center"
-                  style={{ marginBottom: 8 }}
-                >
-                  <Text strong>{t('skillsModal.skillContent')}</Text>
-                  {!isEditing && !isCreating && (
-                    <Button
-                      type="default"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={handleEdit}
-                      disabled={isSaving}
-                    >
-                      {t('skillsModal.edit')}
-                    </Button>
-                  )}
-                </Flex>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                  {t('skillsModal.skillContent')} <Text type="danger">*</Text>
+                </Text>
 
                 {isEditing || isCreating ? (
                   <TextArea
@@ -390,7 +445,7 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
                 )}
               </div>
 
-              {(isEditing || isCreating) && (
+              {isEditing || isCreating ? (
                 <Flex gap={8} justify="flex-end" style={{ marginTop: 16 }}>
                   <Button onClick={handleCancel} disabled={isSaving}>
                     {t('skillsModal.cancel')}
@@ -403,6 +458,17 @@ export default function SkillsModal({ isOpen, onClose }: SkillsModalProps) {
                     disabled={!hasChanges}
                   >
                     {t('skillsModal.save')}
+                  </Button>
+                </Flex>
+              ) : (
+                <Flex justify="flex-end" style={{ marginTop: 16 }}>
+                  <Button
+                    type="default"
+                    icon={<EditOutlined />}
+                    onClick={handleEdit}
+                    disabled={isSaving}
+                  >
+                    {t('skillsModal.edit')}
                   </Button>
                 </Flex>
               )}

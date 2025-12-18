@@ -1269,10 +1269,18 @@ fastify.register(async (fastify) => {
                 `[WebSocket] Starting agent for session: ${sessionId}`
               );
 
-              // Fetch session to get workspacePath and autoWorkspacePush for resume
+              // Fetch session to get workspacePath, autoWorkspacePush, and cwd for resume
               const session = await getSessionById(sessionId, userId);
               const workspacePath = session?.workspacePath ?? undefined;
               const autoWorkspacePush = session?.autoWorkspacePush ?? false;
+              const sessionCwd = session?.cwd;
+
+              // Validate that cwd exists (required for resume)
+              if (!sessionCwd) {
+                throw new Error(
+                  'Session working directory not found. Cannot resume session.'
+                );
+              }
 
               // Get user settings for claudeConfigSync
               const userSettings = await getSettingsDirect(userId);
@@ -1294,7 +1302,7 @@ fastify.register(async (fastify) => {
                   sessionId,
                   userEmail,
                   workspacePath,
-                  { autoWorkspacePush, claudeConfigSync },
+                  { autoWorkspacePush, claudeConfigSync, cwd: sessionCwd },
                   stream,
                   accessToken
                 )) {

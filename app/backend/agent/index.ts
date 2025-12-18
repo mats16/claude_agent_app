@@ -246,6 +246,7 @@ export async function* processAgentRequest(
 Claude Code is running on Databricks Apps.
 
 If the words Catalog, Schema, or Table appear, treat them as elements of the Unity Catalog.
+Do not use jq command, it is not available.
 
 # Editing Rules
 

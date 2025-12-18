@@ -657,21 +657,19 @@ fastify.get('/api/v1/users/me/settings', async (request, reply) => {
   if (!userSettings) {
     return {
       userId,
-      hasAccessToken: false,
       claudeConfigSync: true,
     };
   }
 
   return {
     userId: userSettings.userId,
-    hasAccessToken: !!userSettings.accessToken,
     claudeConfigSync: userSettings.claudeConfigSync,
   };
 });
 
 // Update current user settings
 fastify.patch<{
-  Body: { accessToken?: string; claudeConfigSync?: boolean };
+  Body: { claudeConfigSync?: boolean };
 }>('/api/v1/users/me/settings', async (request, reply) => {
   let context;
   try {
@@ -682,24 +680,17 @@ fastify.patch<{
 
   const { userId, userEmail } = context;
 
-  const { accessToken, claudeConfigSync } = request.body;
+  const { claudeConfigSync } = request.body;
 
   // At least one field must be provided
-  if (accessToken === undefined && claudeConfigSync === undefined) {
-    return reply
-      .status(400)
-      .send({ error: 'accessToken or claudeConfigSync is required' });
+  if (claudeConfigSync === undefined) {
+    return reply.status(400).send({ error: 'claudeConfigSync is required' });
   }
 
   // Ensure user exists before creating settings
   await upsertUser(userId, userEmail);
 
-  const updates: { accessToken?: string; claudeConfigSync?: boolean } = {};
-  if (accessToken !== undefined) updates.accessToken = accessToken;
-  if (claudeConfigSync !== undefined)
-    updates.claudeConfigSync = claudeConfigSync;
-
-  await upsertSettings(userId, updates);
+  await upsertSettings(userId, { claudeConfigSync });
   return { success: true };
 });
 

@@ -70,7 +70,7 @@ Tables defined in `app/backend/db/schema.ts`:
 - `users` - User records (id, email)
 - `sessions` - Chat sessions with foreign key to users (includes `cwd` for working directory, `is_archived` for archive status)
 - `events` - Session messages/events
-- `settings` - User settings (access token, config sync)
+- `settings` - User settings (config sync)
 
 ### Row Level Security (RLS)
 `sessions` and `settings` tables have RLS enabled. Queries use `withUserContext()` helper to set `app.current_user_id`:
@@ -238,8 +238,8 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `PATCH /api/v1/sessions/:id/archive` - Archive session (sets `is_archived=true`, deletes working directory in background)
 - `POST /api/v1/users` - Create/upsert user
 - `GET /api/v1/users/me` - Get user info (userId, email, workspaceHome, hasWorkspacePermission)
-- `GET /api/v1/users/me/settings` - Get user settings (hasAccessToken, claudeConfigSync)
-- `PATCH /api/v1/users/me/settings` - Update user settings (accessToken, claudeConfigSync)
+- `GET /api/v1/users/me/settings` - Get user settings (claudeConfigSync)
+- `PATCH /api/v1/users/me/settings` - Update user settings (claudeConfigSync)
 - `GET /api/v1/users/me/settings/claude/backup` - Get Claude backup settings (claudeConfigSync)
 - `PATCH /api/v1/users/me/settings/claude/backup` - Update Claude backup settings (claudeConfigSync)
 - `POST /api/v1/users/me/settings/claude/backup/pull` - Pull (restore) Claude config from workspace to local

@@ -17,7 +17,6 @@ export interface UserInfo {
 
 export interface UserSettings {
   userId: string;
-  hasAccessToken: boolean;
   claudeConfigSync: boolean;
 }
 

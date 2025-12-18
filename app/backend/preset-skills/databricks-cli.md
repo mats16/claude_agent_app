@@ -77,7 +77,6 @@ databricks volumes create <volume-name> \
 
 - `--help` You can display detailed help for each command using the options.
 
-
 ## Related Commands
 
 - `databricks fs` - Volumes File の操作

@@ -65,9 +65,7 @@ export default function SessionList({ onSessionSelect }: SessionListProps) {
         navigate('/');
       }
     } catch (err) {
-      message.error(
-        t('sessionList.archiveError', 'Failed to archive session')
-      );
+      message.error(t('sessionList.archiveError', 'Failed to archive session'));
     }
   };
 

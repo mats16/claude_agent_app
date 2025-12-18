@@ -1133,7 +1133,9 @@ fastify.post<{ Params: { presetName: string } }>(
       const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
       const spToken = await getOidcAccessToken();
       ensureWorkspaceDirectory(workspaceSkillsPath, spToken)
-        .then(() => workspacePush(skillsPath, workspaceSkillsPath, spToken, true))
+        .then(() =>
+          workspacePush(skillsPath, workspaceSkillsPath, spToken, true)
+        )
         .catch((err) => {
           console.error(
             `[Preset Skills] Failed to sync after import: ${err.message}`

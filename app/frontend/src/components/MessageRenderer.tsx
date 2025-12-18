@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTranslation } from 'react-i18next';
+import { DownOutlined, UpOutlined } from '@ant-design/icons';
 import type { ImageContent } from '@app/shared';
 
 interface MessageRendererProps {
@@ -152,6 +154,73 @@ function parseAgentMessage(content: string): ParsedBlock[] {
   return blocks;
 }
 
+function CollapsibleOutput({
+  content,
+  toolName,
+}: {
+  content: string;
+  toolName?: string;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const lines = content.split('\n');
+
+  // Only show collapse for Bash tool with 4+ lines
+  if (toolName !== 'Bash' || lines.length < 4) {
+    return <pre className="tool-output-content">{content}</pre>;
+  }
+
+  const displayLines = isExpanded ? lines : lines.slice(0, 3);
+  const hiddenCount = lines.length - 3;
+
+  return (
+    <div>
+      <pre className="tool-output-content">{displayLines.join('\n')}</pre>
+      {!isExpanded && (
+        <button
+          onClick={() => setIsExpanded(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            marginTop: '4px',
+            border: '1px solid #d9d9d9',
+            borderRadius: '4px',
+            background: '#fafafa',
+            cursor: 'pointer',
+            fontSize: '12px',
+            color: '#595959',
+          }}
+        >
+          <DownOutlined style={{ fontSize: '10px' }} />
+          <span>{hiddenCount} more lines</span>
+        </button>
+      )}
+      {isExpanded && (
+        <button
+          onClick={() => setIsExpanded(false)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            marginTop: '4px',
+            border: '1px solid #d9d9d9',
+            borderRadius: '4px',
+            background: '#fafafa',
+            cursor: 'pointer',
+            fontSize: '12px',
+            color: '#595959',
+          }}
+        >
+          <UpOutlined style={{ fontSize: '10px' }} />
+          <span>Show less</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function MarkdownContent({ content }: { content: string }) {
   return (
     <ReactMarkdown
@@ -265,7 +334,10 @@ export default function MessageRenderer({
               {formattedOutput && (
                 <div className="tool-output">
                   <span className="tool-output-connector">└</span>
-                  <pre className="tool-output-content">{formattedOutput}</pre>
+                  <CollapsibleOutput
+                    content={formattedOutput}
+                    toolName={block.toolName}
+                  />
                 </div>
               )}
             </div>

@@ -10,6 +10,7 @@ import sessionRoutes from './routes/v1/sessions/index.js';
 import sessionWebSocketRoutes from './routes/v1/sessions/websocket.js';
 import userRoutes from './routes/v1/users/index.js';
 import skillRoutes from './routes/v1/skills/index.js';
+import presetConfigRoutes from './routes/v1/preset-configs/index.js';
 import workspaceRoutes from './routes/v1/workspace/index.js';
 import servicePrincipalRoutes from './routes/v1/service-principal/index.js';
 
@@ -40,6 +41,9 @@ export async function buildApp() {
   });
   await fastify.register(userRoutes, { prefix: '/api/v1/users' });
   await fastify.register(skillRoutes, { prefix: '/api/v1/claude/skills' });
+  await fastify.register(presetConfigRoutes, {
+    prefix: '/api/v1/preset-configs',
+  });
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/Workspace' });
   await fastify.register(servicePrincipalRoutes, {
     prefix: '/api/v1/service-principal',

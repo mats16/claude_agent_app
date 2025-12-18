@@ -5,8 +5,6 @@ import {
   createSkillHandler,
   updateSkillHandler,
   deleteSkillHandler,
-  listPresetSkillsHandler,
-  importPresetSkillHandler,
 } from './handlers.js';
 
 const skillRoutes: FastifyPluginAsync = async (fastify) => {
@@ -24,12 +22,6 @@ const skillRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Delete skill
   fastify.delete('/:skillName', deleteSkillHandler);
-
-  // Preset skills routes
-  fastify.get('/presets', listPresetSkillsHandler);
-
-  // Import preset skill
-  fastify.post('/presets/:presetName/import', importPresetSkillHandler);
 };
 
 export default skillRoutes;

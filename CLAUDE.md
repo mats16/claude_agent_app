@@ -62,7 +62,7 @@ Development servers:
 
 Tables defined in `app/backend/db/schema.ts`:
 - `users` - User records (id, email)
-- `sessions` - Chat sessions with foreign key to users (includes `cwd` for working directory)
+- `sessions` - Chat sessions with foreign key to users (includes `cwd` for working directory, `is_archived` for archive status)
 - `events` - Session messages/events
 - `settings` - User settings (access token, config sync)
 
@@ -139,12 +139,16 @@ To minimize redundant API requests, shared data should be managed via React Cont
 ### Contexts (`app/frontend/src/contexts/`)
 - **UserContext**: User info (`/api/v1/users/me`) and settings (`/api/v1/users/me/settings`)
 - **SessionsContext**: Session list (`/api/v1/sessions`) with real-time updates via WebSocket (`/api/v1/sessions/ws`)
+  - Fetches all sessions once with `filter=all` for performance
+  - Client-side filtering using `useMemo` for instant filter switching (Active/Archived/All)
+  - Avoids redundant API calls when changing filters
 
 ### Guidelines
 - Do NOT call the same API endpoint from multiple components. Use existing Context instead.
 - When adding a new shared API call, create a Context or add to an existing one.
 - Use `getSession(sessionId)` from `SessionsContext` to get session data instead of fetching `/api/v1/sessions`.
 - Use `updateSessionLocally()` to update local state after PATCH requests for immediate UI updates.
+- For performance-critical filtering or sorting, prefer client-side operations with `useMemo` over API calls.
 
 ## UI/Design
 

@@ -27,28 +27,37 @@ function formatToolInput(toolName: string, inputJson: string): string {
     // Format based on tool type
     switch (toolName) {
       case 'Bash':
-        return input.command || inputJson;
+        return input.command || '';
       case 'Read':
-        return input.file_path || inputJson;
+        return input.file_path || '';
       case 'Write':
-        return input.file_path || inputJson;
+        return input.file_path || '';
       case 'Edit':
-        return input.file_path || inputJson;
+        return input.file_path || '';
+      case 'NotebookEdit':
+        return input.notebook_path || input.file_path || '';
       case 'Glob':
-        return input.pattern || inputJson;
+        return input.pattern || '';
       case 'Grep':
-        return input.pattern || inputJson;
+        return input.pattern || '';
       case 'WebSearch':
-        return input.query || inputJson;
+        return input.query || '';
       case 'WebFetch':
-        return input.url || inputJson;
+        return input.url || '';
       default:
-        // For other tools, show a shortened version of the input
-        const str = JSON.stringify(input);
-        return str.length > 50 ? str.slice(0, 50) + '...' : str;
+        // For other tools, exclude large content fields and show a shortened version
+        const sanitized = { ...input };
+        if (sanitized.content) {
+          delete sanitized.content;
+        }
+        if (sanitized.new_source) {
+          delete sanitized.new_source;
+        }
+        const str = JSON.stringify(sanitized);
+        return str.length > 80 ? str.slice(0, 80) + '...' : str;
     }
   } catch {
-    return inputJson.length > 50 ? inputJson.slice(0, 50) + '...' : inputJson;
+    return inputJson.length > 80 ? inputJson.slice(0, 80) + '...' : inputJson;
   }
 }
 
@@ -60,7 +69,12 @@ function formatToolOutput(
   if (!output) return null;
 
   // Hide output for certain tools
-  if (toolName === 'Glob') {
+  if (
+    toolName === 'Glob' ||
+    toolName === 'Skill' ||
+    toolName === 'Write' ||
+    toolName === 'NotebookEdit'
+  ) {
     return null;
   }
 

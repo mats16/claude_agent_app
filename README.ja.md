@@ -5,10 +5,11 @@ Databricks Apps上で動作するClaude Codeライクなコーディングエー
 ## 機能
 
 - **ファイル操作**: ファイルの読み取り、書き込み、編集
-- **コード検索**: Globパターン検索、正規表現検索（grep）
+- **コード検索**: Globパターン検索、正規表現検索 (grep)
 - **コマンド実行**: ワークスペース内でのシェルコマンド実行
 - **ストリーミング応答**: WebSocketによるリアルタイムのエージェント応答表示
-- **ワークスペース同期**: Databricks Workspaceとローカルストレージ間の双方向同期
+- **ワークスペース同期**: Databricks Workspaceとローカルストレージ間の双方向同期 (非同期キュー処理)
+- **リトライ対応**: ワークスペース操作の指数バックオフによる自動リトライ
 - **多言語対応**: 日本語・英語UI
 
 ## アーキテクチャ
@@ -25,7 +26,7 @@ Databricks Apps上で動作するClaude Codeライクなコーディングエー
 │      Backend (Node.js + Fastify)        │
 │  - REST API & WebSocketハンドラ          │
 │  - Claude Agent SDK統合                  │
-│  - Databricks Workspace同期              │
+│  - Workspace同期 (fastq非同期キュー)       │
 └──────────────┬──────────────────────────┘
                │
 ┌──────────────▼──────────────────────────┐
@@ -46,9 +47,9 @@ Databricks Apps上で動作するClaude Codeライクなコーディングエー
 ## 前提条件
 
 - Node.js 18+
-- PostgreSQLデータベース（例: Neon）
+- PostgreSQLデータベース (例: Neon)
 - Service Principal設定済みのDatabricks Workspace
-- Anthropic APIキー（Claude Agent SDKで設定）
+- Anthropic APIキー (Claude Agent SDKで設定)
 
 ## セットアップ
 
@@ -77,7 +78,7 @@ DATABRICKS_CLIENT_ID=your-client-id
 DATABRICKS_CLIENT_SECRET=your-client-secret
 DB_URL=postgresql://user:password@host:5432/database
 
-# ローカル開発用（Viteプロキシによりヘッダーとして注入）
+# ローカル開発用 (Viteプロキシによりヘッダーとして注入)
 DATABRICKS_TOKEN=your-personal-access-token
 DATABRICKS_USER_NAME=Your Name
 DATABRICKS_USER_ID=user-id-from-idp
@@ -87,7 +88,7 @@ DATABRICKS_USER_EMAIL=your-email@example.com
 PORT=8000
 ```
 
-> **注意**: 本番環境では `DB_URL` は Databricks Secrets 経由で注入されます（[シークレット設定](#シークレット設定本番環境)を参照）。
+> **注意**: 本番環境では `DB_URL` は Databricks Secrets 経由で注入されます ([シークレット設定](#シークレット設定本番環境)を参照)。
 
 ### 4. データベースマイグレーション
 
@@ -116,7 +117,7 @@ cd app
 npm run build
 ```
 
-### シークレット設定（本番環境）
+### シークレット設定 (本番環境)
 
 本番デプロイでは DB_URL を Databricks Secrets に保存する必要があります:
 
@@ -173,7 +174,8 @@ claude_agent_app/
 │   │   └── public/
 │   ├── backend/           # Node.jsバックエンド
 │   │   ├── agent/         # Claude Agent SDK統合
-│   │   └── db/            # データベース（Drizzle ORM）
+│   │   ├── services/      # ビジネスロジック (キュー、同期など)
+│   │   └── db/            # データベース (Drizzle ORM)
 │   ├── shared/            # 共有型定義
 │   ├── app.yaml           # Databricks Apps実行設定
 │   └── package.json       # Turborepo設定

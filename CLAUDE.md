@@ -142,17 +142,21 @@ Configured in `app/backend/agent/index.ts`:
 - Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
 
 ### Workspace Sync
-Sync between local storage and Databricks Workspace uses Databricks CLI commands defined in `app/backend/utils/databricks.ts`:
+Sync between local storage and Databricks Workspace uses a fastq-based async queue (`app/backend/services/workspaceQueueService.ts`) with retry support:
 
-**Pull (workspace → local)**: New session creation triggers background workspace pull in `app/backend/app.ts` (non-blocking):
+**Queue Features**:
+- Global queue with per-user task tracking (`getUserPendingCount(userId)`)
+- Configurable concurrency (default: 3)
+- Exponential backoff retry with jitter (max 3 retries)
+- Graceful shutdown support (`drainQueue()` in server.ts)
+
+**Pull (workspace → local)**: New session creation enqueues workspace pull via `enqueuePull()`:
 - Uses `databricks workspace export-dir` command
-- Runs in background via fire-and-forget pattern
 - Agent starts immediately without waiting for sync completion
 
-**Push (local → workspace)**: Handled by Stop hooks in `app/backend/agent/index.ts`:
+**Push (local → workspace)**: Handled by Stop hooks in `app/backend/agent/index.ts` via `enqueuePush()`:
 - Uses `databricks sync` command with exclusions (.gitignore, .bundle, node_modules, etc.)
 - Only runs when `autoWorkspacePush` or `claudeConfigSync` flags are enabled
-- Executes at session end via SDK Stop hooks
 - Claude config sync uses `--full` flag for complete synchronization (deletes remote files not in local, important for `.claude/skills`)
 
 #### Sync Flags
@@ -190,7 +194,7 @@ Sessions can be archived to hide them from the active session list without perma
 **Archive Process**:
 1. User triggers archive via UI (InboxOutlined icon on hover in session list)
 2. `PATCH /api/v1/sessions/:id/archive` sets `is_archived=true` in database
-3. Working directory (`sessions.cwd`) is deleted in background using fire-and-forget pattern via `deleteWorkDir()` in `app/backend/utils/databricks.ts`
+3. Working directory (`sessions.cwd`) is enqueued for deletion via `enqueueDelete()` in workspaceQueueService
 4. If the archived session is currently displayed, UI automatically navigates to home page
 
 **UI Behavior**:
@@ -311,6 +315,9 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `GET /api/v1/workspace/*` - List any workspace path (path converted to Databricks format internally)
 - `POST /api/v1/workspace/*` - Create a directory (body: `{ object_type: "DIRECTORY" }`)
 
+#### Queue
+- `GET /api/v1/queue/status` - Get workspace sync queue status (userPendingCount, userTasks, totalPendingCount, queueStats)
+
 ### WebSocket
 - `/api/v1/sessions/ws` - Real-time session list updates (notifies on session creation)
 - `/api/v1/sessions/:sessionId/ws` - Connect to existing session for streaming
@@ -340,9 +347,11 @@ app/backend/
 │       │   ├── agents/         # Subagents management
 │       │   └── sp-permission/  # Service principal info
 │       ├── preset-settings/ # Preset skills/agents
-│       └── workspace/       # Workspace listing
+│       ├── workspace/       # Workspace listing
+│       └── queue/           # Workspace sync queue status
 ├── services/           # Business logic layer
 │   ├── sessionState.ts # In-memory session queue management
+│   ├── workspaceQueueService.ts # fastq-based workspace sync queue
 │   ├── skillService.ts
 │   ├── subagentService.ts
 │   ├── workspaceService.ts
@@ -357,6 +366,7 @@ app/backend/
 ### Key Files
 - `app/backend/agent/index.ts` - Claude Agent SDK configuration, Stop hooks for workspace push
 - `app/backend/services/sessionState.ts` - In-memory state for session queues, WebSocket connections
+- `app/backend/services/workspaceQueueService.ts` - fastq-based async queue for workspace sync (pull, push, delete)
 - `app/backend/utils/databricks.ts` - Databricks CLI wrapper functions (`workspacePull`, `workspacePush`, `deleteWorkDir`)
 - `app/backend/utils/headers.ts` - Request header extraction (`extractRequestContext`)
 

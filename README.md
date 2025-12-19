@@ -8,7 +8,8 @@ A web application that provides Claude Code-like coding agent capabilities runni
 - **Code Search**: Glob pattern search, regex search (grep)
 - **Command Execution**: Shell command execution within workspace
 - **Streaming Responses**: Real-time agent response display via WebSocket
-- **Workspace Sync**: Bidirectional sync between Databricks Workspace and local storage
+- **Workspace Sync**: Bidirectional sync between Databricks Workspace and local storage with async queue
+- **Retry Support**: Automatic retry with exponential backoff for workspace operations
 - **Multi-language Support**: English and Japanese UI
 
 ## Architecture
@@ -25,7 +26,7 @@ A web application that provides Claude Code-like coding agent capabilities runni
 │      Backend (Node.js + Fastify)        │
 │  - REST API & WebSocket handlers        │
 │  - Claude Agent SDK integration         │
-│  - Databricks Workspace sync            │
+│  - Workspace sync (fastq async queue)   │
 └──────────────┬──────────────────────────┘
                │
 ┌──────────────▼──────────────────────────┐
@@ -173,6 +174,7 @@ claude_agent_app/
 │   │   └── public/
 │   ├── backend/           # Node.js backend
 │   │   ├── agent/         # Claude Agent SDK integration
+│   │   ├── services/      # Business logic (queue, sync, etc.)
 │   │   └── db/            # Database (Drizzle ORM)
 │   ├── shared/            # Shared types
 │   ├── app.yaml           # Databricks Apps runtime config

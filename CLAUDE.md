@@ -185,8 +185,9 @@ Sync behavior is controlled by these flags passed to `processAgentRequest()`:
 
 #### Architecture Notes
 - Workspace pull moved from SDK hooks to API layer to avoid JSON stream contamination
-- Background sync allows fast session creation without blocking
-- Agent may start before workspace files are fully synced (usually completes quickly)
+- API returns session_id immediately after SDK emits init message (fast response)
+- Agent waits for workspace pull to complete before processing the first user message
+- This is achieved by `MessageStream.waitForReady` Promise that blocks the first message yield until pull completes
 
 ### Session Archive
 Sessions can be archived to hide them from the active session list without permanent deletion.

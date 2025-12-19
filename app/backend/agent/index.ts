@@ -83,6 +83,7 @@ export interface ProcessAgentRequestOptions {
   autoWorkspacePush?: boolean; // workspace pushを実行
   claudeConfigSync?: boolean; // claude config pull/push
   cwd?: string; // working directory path (created before agent starts)
+  waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
 }
 
 // MessageStream: Manages message queue for streaming input
@@ -91,9 +92,11 @@ export class MessageStream {
   private queue: MessageContent[][] = [];
   private resolvers: Array<() => void> = [];
   private isDone = false;
+  private waitForReady?: Promise<void>;
 
-  constructor(initialMessage: MessageContent[]) {
+  constructor(initialMessage: MessageContent[], waitForReady?: Promise<void>) {
     this.queue.push(initialMessage);
+    this.waitForReady = waitForReady;
   }
 
   // Add message to queue (called from WebSocket handler)
@@ -107,6 +110,19 @@ export class MessageStream {
 
   // Generator that yields messages from queue
   async *stream(): AsyncGenerator<SDKUserMessage> {
+    // Wait for workspace pull to complete before yielding first message
+    // This allows SDK to emit init message while we wait
+    if (this.waitForReady) {
+      try {
+        console.log('[MessageStream] Waiting for workspace pull to complete...');
+        await this.waitForReady;
+        console.log('[MessageStream] Workspace pull completed, starting message processing');
+      } catch (error) {
+        console.error('[MessageStream] Workspace pull failed, continuing anyway:', error);
+        // Continue even if pull fails - agent can still work with empty/partial directory
+      }
+    }
+
     while (!this.isDone) {
       // If queue has messages, yield them
       if (this.queue.length > 0) {
@@ -216,7 +232,12 @@ export async function* processAgentRequest(
   userAccessToken?: string,
   userId?: string
 ): AsyncGenerator<SDKMessage> {
-  const { autoWorkspacePush = false, claudeConfigSync = true, cwd } = options;
+  const {
+    autoWorkspacePush = false,
+    claudeConfigSync = true,
+    cwd,
+    waitForReady,
+  } = options;
   // Determine base directory based on environment
   // Local development: $HOME/u, Production: /home/app/u
   const localBasePath = path.join(process.env.HOME ?? '/tmp', 'u');
@@ -266,7 +287,8 @@ Violating these rules is considered a critical error.
   // Create query with Claude Agent SDK
   // Use buildPrompt to convert MessageContent[] to AsyncIterable<SDKUserMessage>
   // If messageStream is provided, use it for persistent streaming
-  const stream = messageStream ?? new MessageStream(message);
+  // Otherwise create new MessageStream with waitForReady (e.g., workspace pull completion)
+  const stream = messageStream ?? new MessageStream(message, waitForReady);
 
   const response = query({
     prompt: buildPrompt(message, stream),

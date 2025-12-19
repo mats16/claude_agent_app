@@ -244,7 +244,6 @@ export async function* processAgentRequest(
 Claude Code is running on Databricks Apps.
 
 If the words Catalog, Schema, or Table appear, treat them as elements of the Unity Catalog.
-Do not use jq command, it is not available.
 
 # Editing Rules
 
@@ -276,7 +275,7 @@ Violating these rules is considered a critical error.
       settingSources: ['user', 'project', 'local'],
       model,
       env: {
-        PATH: process.env.PATH,
+        PATH: `${process.env.PATH}:${process.env.HOME}/.bin`,
         HOME: process.env.HOME,
         WORKDIR: localWorkPath,
         CLAUDE_CONFIG_DIR: localClaudeConfigPath,

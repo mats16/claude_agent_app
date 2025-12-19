@@ -144,7 +144,15 @@
     "noSubdirectories": "サブディレクトリがありません",
     "noPermission": "アクセス権限がありません",
     "fetchFailed": "ディレクトリの取得に失敗しました",
-    "homeFetchFailed": "ホームディレクトリの取得に失敗しました"
+    "homeFetchFailed": "ホームディレクトリの取得に失敗しました",
+    "newFolder": "新しいフォルダ",
+    "folderName": "フォルダ名",
+    "folderNamePlaceholder": "my-folder",
+    "createFolder": "作成",
+    "createSuccess": "フォルダを作成しました",
+    "createFailed": "フォルダの作成に失敗しました",
+    "nameRequired": "フォルダ名は必須です",
+    "invalidName": "フォルダ名に無効な文字が含まれています"
   },
   "titleEditModal": {
     "title": "セッション設定",

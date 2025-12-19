@@ -1,11 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Typography, List, Spin, Empty, Alert, Flex } from 'antd';
+import {
+  Modal,
+  Typography,
+  List,
+  Spin,
+  Empty,
+  Alert,
+  Flex,
+  Button,
+  Input,
+  message,
+} from 'antd';
 import {
   FolderOutlined,
   FolderOpenOutlined,
   FileOutlined,
   BookOutlined,
+  FolderAddOutlined,
+  CheckOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -33,6 +47,9 @@ export default function WorkspaceSelectModal({
   const [objects, setObjects] = useState<WorkspaceObject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sort objects: directories first, then alphabetically
   const sortedObjects = useMemo(() => {
@@ -86,6 +103,8 @@ export default function WorkspaceSelectModal({
 
   useEffect(() => {
     if (isOpen) {
+      setIsCreating(false);
+      setNewFolderName('');
       if (initialPath) {
         setCurrentPath(initialPath);
         fetchDirectories(initialPath);
@@ -126,6 +145,8 @@ export default function WorkspaceSelectModal({
   const handleDirectoryClick = (path: string) => {
     setCurrentPath(path);
     fetchDirectories(path);
+    setIsCreating(false);
+    setNewFolderName('');
   };
 
   const handleParentClick = () => {
@@ -134,12 +155,68 @@ export default function WorkspaceSelectModal({
       const parentPath = parts.slice(0, -1).join('/');
       setCurrentPath(parentPath);
       fetchDirectories(parentPath);
+      setIsCreating(false);
+      setNewFolderName('');
     }
   };
 
   const handleSelect = () => {
     onSelect(currentPath);
     onClose();
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      message.error(t('workspaceModal.nameRequired'));
+      return;
+    }
+
+    // Validate folder name (no slashes, etc.)
+    if (/[/\\:*?"<>|]/.test(newFolderName)) {
+      message.error(t('workspaceModal.invalidName'));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const newPath = `${currentPath}/${newFolderName.trim()}`;
+      // Convert to lowercase API path: /Workspace/Users/email/folder -> /users/email/folder
+      const apiPath = newPath.replace(/^\/Workspace/, '').toLowerCase();
+      const res = await fetch(`/api/v1/workspace${apiPath}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ object_type: 'DIRECTORY' }),
+      });
+
+      if (res.status === 403) {
+        message.error(t('workspaceModal.noPermission'));
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.error) {
+        message.error(data.error);
+        return;
+      }
+
+      message.success(t('workspaceModal.createSuccess'));
+      setIsCreating(false);
+      setNewFolderName('');
+
+      // Refresh the directory list
+      await fetchDirectories(currentPath);
+    } catch (e) {
+      console.error('Failed to create folder:', e);
+      message.error(t('workspaceModal.createFailed'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelCreate = () => {
+    setIsCreating(false);
+    setNewFolderName('');
   };
 
   const canGoUp = currentPath.split('/').length > 2;
@@ -159,17 +236,60 @@ export default function WorkspaceSelectModal({
     }
   };
 
+  // Custom footer with New Folder button on the left
+  const modalFooter = (
+    <Flex justify="space-between" align="center">
+      <div>
+        {isCreating ? (
+          <Flex align="center" gap={8}>
+            <Input
+              placeholder={t('workspaceModal.folderNamePlaceholder')}
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onPressEnter={handleCreateFolder}
+              style={{ width: 200 }}
+              autoFocus
+              disabled={isSubmitting}
+            />
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={handleCreateFolder}
+              loading={isSubmitting}
+            >
+              {t('workspaceModal.createFolder')}
+            </Button>
+            <Button
+              icon={<CloseOutlined />}
+              onClick={handleCancelCreate}
+              disabled={isSubmitting}
+            />
+          </Flex>
+        ) : (
+          <Button
+            icon={<FolderAddOutlined />}
+            onClick={() => setIsCreating(true)}
+            disabled={isLoading || !currentPath}
+          >
+            {t('workspaceModal.newFolder')}
+          </Button>
+        )}
+      </div>
+      <Flex gap={8}>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
+        <Button type="primary" onClick={handleSelect} disabled={!currentPath}>
+          {t('common.select')}
+        </Button>
+      </Flex>
+    </Flex>
+  );
+
   return (
     <Modal
       title={t('workspaceModal.title')}
       open={isOpen}
-      onOk={handleSelect}
       onCancel={onClose}
-      okText={t('common.select')}
-      cancelText={t('common.cancel')}
-      okButtonProps={{
-        disabled: !currentPath,
-      }}
+      footer={modalFooter}
       width={560}
     >
       <Flex

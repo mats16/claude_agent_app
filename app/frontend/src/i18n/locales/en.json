@@ -144,7 +144,15 @@
     "noSubdirectories": "No subdirectories",
     "noPermission": "No access permission",
     "fetchFailed": "Failed to fetch directories",
-    "homeFetchFailed": "Failed to fetch home directory"
+    "homeFetchFailed": "Failed to fetch home directory",
+    "newFolder": "New Folder",
+    "folderName": "Folder name",
+    "folderNamePlaceholder": "my-folder",
+    "createFolder": "Create",
+    "createSuccess": "Folder created successfully",
+    "createFailed": "Failed to create folder",
+    "nameRequired": "Folder name is required",
+    "invalidName": "Folder name contains invalid characters"
   },
   "titleEditModal": {
     "title": "Session Settings",

@@ -3,6 +3,7 @@ import {
   listRootWorkspaceHandler,
   listUserWorkspaceHandler,
   listWorkspacePathHandler,
+  createDirectoryHandler,
 } from './handlers.js';
 
 const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
@@ -18,8 +19,12 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
   // List any workspace path (uses Service Principal token)
   // GET /api/v1/workspace/*
   // Supports: /users/me/..., /users/:email/..., /shared/...
-  // Note: This must be registered last due to wildcard
   fastify.get('/*', listWorkspacePathHandler);
+
+  // Create a directory in workspace
+  // POST /api/v1/workspace/*
+  // Example: POST /api/v1/workspace/users/me/new-folder
+  fastify.post('/*', createDirectoryHandler);
 };
 
 export default workspaceRoutes;

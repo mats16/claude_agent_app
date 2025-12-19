@@ -75,3 +75,33 @@ export async function listWorkspacePath(
   const wsPath = `/Workspace/${subpath}`;
   return listWorkspace(wsPath);
 }
+
+// Create a directory in workspace
+export async function createDirectory(
+  workspacePath: string
+): Promise<{ path: string }> {
+  const token = await getAccessToken();
+  const response = await fetch(`${databricksHost}/api/2.0/workspace/mkdirs`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ path: workspacePath }),
+  });
+
+  const data = (await response.json()) as {
+    error_code?: string;
+    message?: string;
+  };
+
+  if (data.error_code === 'PERMISSION_DENIED') {
+    throw new WorkspaceError('Permission denied', 'PERMISSION_DENIED');
+  }
+
+  if (data.error_code) {
+    throw new WorkspaceError(data.message || 'API error', 'API_ERROR');
+  }
+
+  return { path: workspacePath };
+}

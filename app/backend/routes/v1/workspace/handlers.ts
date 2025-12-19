@@ -107,3 +107,55 @@ export async function listWorkspacePathHandler(
     return reply.status(500).send({ error: error.message });
   }
 }
+
+// Create a directory in workspace
+// POST /api/v1/workspace/*
+// Example: POST /api/v1/workspace/users/me/new-folder
+// Body: { object_type: "DIRECTORY" }
+export async function createDirectoryHandler(
+  request: FastifyRequest<{
+    Params: { '*': string };
+    Body: { object_type: string };
+  }>,
+  reply: FastifyReply
+) {
+  const subpath = request.params['*'];
+  const { object_type } = request.body || {};
+
+  if (!subpath) {
+    return reply.status(400).send({ error: 'Path is required' });
+  }
+
+  if (object_type !== 'DIRECTORY') {
+    return reply
+      .status(400)
+      .send({ error: 'Only DIRECTORY object_type is supported' });
+  }
+
+  // Get user email for 'me' resolution
+  let userEmail: string | undefined;
+  try {
+    const context = extractRequestContext(request);
+    userEmail = context.userEmail;
+  } catch {
+    // Ignore - userEmail will be undefined
+  }
+
+  // Convert lowercase API path to Databricks workspace path
+  const workspacePath = `/Workspace/${convertToWorkspacePath(subpath, userEmail)}`;
+
+  try {
+    const result = await workspaceService.createDirectory(workspacePath);
+    return result;
+  } catch (error: any) {
+    if (error instanceof workspaceService.WorkspaceError) {
+      if (error.code === 'PERMISSION_DENIED') {
+        return reply.status(403).send({ error: 'PERMISSION_DENIED' });
+      }
+      if (error.code === 'API_ERROR') {
+        return reply.status(400).send({ error: error.message });
+      }
+    }
+    return reply.status(500).send({ error: error.message });
+  }
+}

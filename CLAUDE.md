@@ -309,6 +309,7 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `GET /api/v1/workspace/users/:email` - List user's workspace
 - `GET /api/v1/workspace/users/me` - List current user's workspace (`me` as email alias)
 - `GET /api/v1/workspace/*` - List any workspace path (path converted to Databricks format internally)
+- `POST /api/v1/workspace/*` - Create a directory (body: `{ object_type: "DIRECTORY" }`)
 
 ### WebSocket
 - `/api/v1/sessions/ws` - Real-time session list updates (notifies on session creation)

@@ -337,3 +337,96 @@ body {
   border-radius: 8px;
   margin: 0.75em 0;
 }
+
+/* TipTap Editor Styles */
+.tiptap-editor {
+  flex: 1;
+  padding: 0;
+  outline: none;
+}
+
+.tiptap-editor .ProseMirror {
+  outline: none;
+  min-height: 1.5em;
+  max-height: 12em;
+  overflow-y: auto;
+}
+
+.tiptap-editor .ProseMirror p {
+  margin: 0;
+}
+
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #bfbfbf;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* Code blocks in editor */
+.tiptap-editor pre {
+  background: #1e1e1e;
+  border-radius: 8px;
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+
+.tiptap-editor pre code {
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #d4d4d4;
+  background: none;
+}
+
+/* Inline code in editor */
+.tiptap-editor code:not(pre code) {
+  background: #f5f5f5;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 0.85em;
+  color: #d63384;
+}
+
+/* Bold and italic in editor */
+.tiptap-editor strong {
+  font-weight: 600;
+}
+
+.tiptap-editor em {
+  font-style: italic;
+}
+
+/* Lists in editor */
+.tiptap-editor ul,
+.tiptap-editor ol {
+  padding-left: 1.5em;
+  margin: 0.25em 0;
+}
+
+.tiptap-editor li {
+  margin-bottom: 0.1em;
+}
+
+/* Blockquote in editor */
+.tiptap-editor blockquote {
+  margin: 0.5em 0;
+  padding: 0.25em 0.75em;
+  border-left: 3px solid #f5a623;
+  background: #fffbf0;
+  color: #555;
+}
+
+/* Sidebar editor - taller minimum height */
+.sidebar-editor {
+  margin-bottom: 8px;
+}
+
+.sidebar-editor .tiptap-editor .ProseMirror {
+  min-height: 4.5em;
+  max-height: 28.5em;
+}

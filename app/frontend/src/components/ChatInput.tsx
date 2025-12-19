@@ -5,7 +5,7 @@
 
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Flex, message } from 'antd';
+import { Button, Flex, message } from 'antd';
 import {
   SendOutlined,
   PaperClipOutlined,
@@ -17,6 +17,7 @@ import type { AttachedImage } from './ImageUpload';
 import type { AttachedFile } from '../hooks/useFileUpload';
 import { stickyInputStyle } from '../styles/common';
 import { spacing } from '../styles/theme';
+import MarkdownEditor from './MarkdownEditor';
 import {
   isSupportedImageType,
   isWithinSizeLimit as isImageWithinSizeLimit,
@@ -32,8 +33,6 @@ import {
   createPreviewUrl as createFilePreviewUrl,
   revokePreviewUrl as revokeFilePreviewUrl,
 } from '../utils/fileUtils';
-
-const { TextArea } = Input;
 
 interface ChatInputProps {
   /** Current input value */
@@ -81,16 +80,6 @@ export default function ChatInput({
 }: ChatInputProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-        e.preventDefault();
-        onSubmit();
-      }
-    },
-    [onSubmit]
-  );
 
   // Unified file handler - routes to image or file based on type
   const handleFiles = useCallback(
@@ -355,15 +344,12 @@ export default function ChatInput({
 
         {/* Input row */}
         <Flex gap={spacing.sm} align="flex-end">
-          <TextArea
+          <MarkdownEditor
             value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onChange={onInputChange}
+            onSubmit={onSubmit}
             placeholder={placeholder || t('sessionPage.typeMessage')}
             disabled={disabled || isProcessing}
-            variant="borderless"
-            autoSize={{ minRows: 1, maxRows: 9 }}
-            style={{ flex: 1, padding: 0, alignSelf: 'stretch' }}
           />
           {/* Unified attachment button */}
           <Button

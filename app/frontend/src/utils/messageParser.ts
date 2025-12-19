@@ -83,11 +83,7 @@ function insertToolResult(
     return content;
   }
 
-  const truncated =
-    resultText.length > 500
-      ? resultText.slice(0, 500) + '\n... (truncated)'
-      : resultText;
-  const resultBlock = `[ToolResult]\n${truncated}\n[/ToolResult]`;
+  const resultBlock = `[ToolResult]\n${resultText}\n[/ToolResult]`;
 
   // Find the tool use marker with this ID and insert result after it
   const toolIdPattern = new RegExp(

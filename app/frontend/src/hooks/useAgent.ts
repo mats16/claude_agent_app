@@ -309,12 +309,7 @@ export function useAgent(options: UseAgentOptions = {}) {
 
                   // Skip displaying WebSearch results (keep them hidden)
                   if (toolName !== 'WebSearch') {
-                    // Truncate long results
-                    const truncated =
-                      resultText.length > 500
-                        ? resultText.slice(0, 500) + '\n... (truncated)'
-                        : resultText;
-                    const resultBlock = `[ToolResult]\n${truncated}\n[/ToolResult]`;
+                    const resultBlock = `[ToolResult]\n${resultText}\n[/ToolResult]`;
 
                     // Find the tool use marker with this ID and insert result after it
                     const toolIdPattern = new RegExp(

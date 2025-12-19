@@ -86,10 +86,8 @@ function formatToolOutput(
     return t('toolOutput.linesRead', { count: lines.length });
   }
 
-  // For other tools, show the output as-is (truncated if needed)
-  return output.length > 500
-    ? output.slice(0, 500) + '\n... (truncated)'
-    : output;
+  // For other tools, show the output as-is
+  return output;
 }
 
 function parseAgentMessage(content: string): ParsedBlock[] {
@@ -164,59 +162,73 @@ const CollapsibleOutput = memo(function CollapsibleOutput({
   const [isExpanded, setIsExpanded] = useState(false);
   const lines = content.split('\n');
 
-  // Only show collapse for Bash tool with 4+ lines
-  if (toolName !== 'Bash' || lines.length < 4) {
+  const MAX_COLLAPSED_LINES = 3;
+  const MAX_COLLAPSED_CHARS = 500;
+
+  // Check if content needs collapsing (Bash with 4+ lines, or any tool with 500+ chars)
+  const needsLineCollapse =
+    toolName === 'Bash' && lines.length > MAX_COLLAPSED_LINES;
+  const needsCharCollapse = content.length > MAX_COLLAPSED_CHARS;
+  const needsCollapse = needsLineCollapse || needsCharCollapse;
+
+  if (!needsCollapse) {
     return <pre className="tool-output-content">{content}</pre>;
   }
 
-  const displayLines = isExpanded ? lines : lines.slice(0, 3);
-  const hiddenCount = lines.length - 3;
+  // Calculate collapsed content
+  let collapsedContent: string;
+  let hiddenInfo: string;
 
-  return (
-    <div>
-      <pre className="tool-output-content">{displayLines.join('\n')}</pre>
-      {!isExpanded && (
-        <button
-          onClick={() => setIsExpanded(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '4px 8px',
-            marginTop: '4px',
-            border: '1px solid #d9d9d9',
-            borderRadius: '4px',
-            background: '#fafafa',
-            cursor: 'pointer',
-            fontSize: '12px',
-            color: '#595959',
-          }}
-        >
-          <DownOutlined style={{ fontSize: '10px' }} />
-          <span>{hiddenCount} more lines</span>
-        </button>
-      )}
-      {isExpanded && (
-        <button
-          onClick={() => setIsExpanded(false)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '4px 8px',
-            marginTop: '4px',
-            border: '1px solid #d9d9d9',
-            borderRadius: '4px',
-            background: '#fafafa',
-            cursor: 'pointer',
-            fontSize: '12px',
-            color: '#595959',
-          }}
-        >
+  if (needsLineCollapse) {
+    // Line-based collapse for Bash
+    collapsedContent = lines.slice(0, MAX_COLLAPSED_LINES).join('\n');
+    hiddenInfo = `${lines.length - MAX_COLLAPSED_LINES} more lines`;
+  } else {
+    // Character-based collapse for other tools
+    collapsedContent = content.slice(0, MAX_COLLAPSED_CHARS) + '...';
+    hiddenInfo = `${content.length - MAX_COLLAPSED_CHARS} more characters`;
+  }
+
+  const displayContent = isExpanded ? content : collapsedContent;
+
+  const buttonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 8px',
+    marginTop: '4px',
+    border: '1px solid #d9d9d9',
+    borderRadius: '4px',
+    background: '#fafafa',
+    cursor: 'pointer',
+    fontSize: '12px',
+    color: '#595959',
+  };
+
+  if (isExpanded) {
+    // When expanded, make the entire content clickable to collapse
+    return (
+      <div
+        onClick={() => setIsExpanded(false)}
+        style={{ cursor: 'pointer' }}
+        title="Click to collapse"
+      >
+        <pre className="tool-output-content">{displayContent}</pre>
+        <button style={buttonStyle}>
           <UpOutlined style={{ fontSize: '10px' }} />
           <span>Show less</span>
         </button>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <pre className="tool-output-content">{displayContent}</pre>
+      <button onClick={() => setIsExpanded(true)} style={buttonStyle}>
+        <DownOutlined style={{ fontSize: '10px' }} />
+        <span>{hiddenInfo}</span>
+      </button>
     </div>
   );
 });

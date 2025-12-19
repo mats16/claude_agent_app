@@ -117,7 +117,21 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
             // Only send queued events if session is still being processed
             // Completed sessions should load history from REST API
             if (queue && !queue.completed) {
+              const lastEventUuid = message.last_event_uuid as
+                | string
+                | undefined;
+              // If client provides last_event_uuid, only send events after that UUID
+              // This prevents re-sending events on reconnection
+              let startSending = !lastEventUuid;
+
               for (const event of queue.events) {
+                if (!startSending) {
+                  // Once we find the lastEventUuid, start sending from the next event
+                  if (event.uuid === lastEventUuid) {
+                    startSending = true;
+                  }
+                  continue;
+                }
                 socket.send(JSON.stringify(event));
               }
               queue.listeners.add(onEvent);

@@ -52,6 +52,8 @@ export function useAgent(options: UseAgentOptions = {}) {
   const isHistoryLoadedRef = useRef(false);
   // Track loaded event UUIDs to skip duplicates from WebSocket
   const loadedEventUuidsRef = useRef<Set<string>>(new Set());
+  // Track the last received event UUID for reconnection
+  const lastReceivedEventUuidRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -99,6 +101,7 @@ export function useAgent(options: UseAgentOptions = {}) {
       eventBufferRef.current = [];
       isHistoryLoadedRef.current = false;
       loadedEventUuidsRef.current = new Set();
+      lastReceivedEventUuidRef.current = null;
 
       // Reset state
       setMessages([]);
@@ -142,6 +145,11 @@ export function useAgent(options: UseAgentOptions = {}) {
               }
             }
             loadedEventUuidsRef.current = uuids;
+            // Track the last event UUID for reconnection
+            const lastLoadedEvent = events[events.length - 1];
+            if (lastLoadedEvent?.uuid) {
+              lastReceivedEventUuidRef.current = lastLoadedEvent.uuid;
+            }
 
             const loadedMessages = convertSDKMessagesToChat(events);
             setMessages(loadedMessages);
@@ -276,7 +284,13 @@ export function useAgent(options: UseAgentOptions = {}) {
         setIsReconnecting(false);
         setConnectionError(null);
         reconnectAttemptsRef.current = 0;
-        ws.send(JSON.stringify({ type: 'connect' }));
+        // Send last_event_uuid to avoid re-receiving already processed events
+        ws.send(
+          JSON.stringify({
+            type: 'connect',
+            last_event_uuid: lastReceivedEventUuidRef.current,
+          })
+        );
       };
 
       ws.onmessage = (event) => {
@@ -302,6 +316,11 @@ export function useAgent(options: UseAgentOptions = {}) {
         // Skip events that were already loaded from REST API
         if (message.uuid && loadedEventUuidsRef.current.has(message.uuid)) {
           return;
+        }
+
+        // Track the last received event UUID for reconnection
+        if (message.uuid) {
+          lastReceivedEventUuidRef.current = message.uuid;
         }
 
         // Handle control message: connected

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, Typography, Flex } from 'antd';
@@ -16,26 +17,29 @@ const { Title, Text } = Typography;
 function WelcomePage() {
   const { t } = useTranslation();
 
-  const actionCards = [
-    {
-      id: 'explore',
-      icon: <FolderOutlined style={{ fontSize: 24, color: colors.brand }} />,
-      title: t('welcome.exploreTitle'),
-      description: t('welcome.exploreDescription'),
-    },
-    {
-      id: 'eda',
-      icon: <BookOutlined style={{ fontSize: 24, color: colors.brand }} />,
-      title: t('welcome.edaTitle'),
-      description: t('welcome.edaDescription'),
-    },
-    {
-      id: 'apps',
-      icon: <RocketOutlined style={{ fontSize: 24, color: colors.brand }} />,
-      title: t('welcome.appsTitle'),
-      description: t('welcome.appsDescription'),
-    },
-  ];
+  const actionCards = useMemo(
+    () => [
+      {
+        id: 'explore',
+        icon: <FolderOutlined style={{ fontSize: 24, color: colors.brand }} />,
+        title: t('welcome.exploreTitle'),
+        description: t('welcome.exploreDescription'),
+      },
+      {
+        id: 'eda',
+        icon: <BookOutlined style={{ fontSize: 24, color: colors.brand }} />,
+        title: t('welcome.edaTitle'),
+        description: t('welcome.edaDescription'),
+      },
+      {
+        id: 'apps',
+        icon: <RocketOutlined style={{ fontSize: 24, color: colors.brand }} />,
+        title: t('welcome.appsTitle'),
+        description: t('welcome.appsDescription'),
+      },
+    ],
+    [t]
+  );
 
   return (
     <Flex

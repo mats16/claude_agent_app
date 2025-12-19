@@ -29,6 +29,7 @@ export function useAgent(options: UseAgentOptions = {}) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [sessionNotFound, setSessionNotFound] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState(
     model || 'databricks-claude-sonnet-4-5'
   );
@@ -96,6 +97,7 @@ export function useAgent(options: UseAgentOptions = {}) {
       setIsProcessing(false);
       setIsReconnecting(false);
       setSessionNotFound(false);
+      setConnectionError(null);
 
       // Update initialMessageRef with new value
       initialMessageRef.current = initialMessage;
@@ -157,6 +159,7 @@ export function useAgent(options: UseAgentOptions = {}) {
         console.log(`WebSocket connected (session: ${sessionId})`);
         setIsConnected(true);
         setIsReconnecting(false);
+        setConnectionError(null);
         reconnectAttemptsRef.current = 0;
         ws.send(JSON.stringify({ type: 'connect' }));
       };
@@ -455,6 +458,7 @@ export function useAgent(options: UseAgentOptions = {}) {
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        setConnectionError('WebSocket connection error occurred');
       };
     };
 
@@ -535,6 +539,7 @@ export function useAgent(options: UseAgentOptions = {}) {
     isLoadingHistory,
     isReconnecting,
     sessionNotFound,
+    connectionError,
     sendMessage,
     selectedModel,
     setSelectedModel,

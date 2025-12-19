@@ -40,6 +40,17 @@ interface LocationState {
   model?: string;
 }
 
+function isLocationState(state: unknown): state is LocationState {
+  if (state === null || typeof state !== 'object') {
+    return false;
+  }
+  const s = state as Record<string, unknown>;
+  return (
+    (s.initialMessage === undefined || typeof s.initialMessage === 'string') &&
+    (s.model === undefined || typeof s.model === 'string')
+  );
+}
+
 export default function SessionPage() {
   const { t } = useTranslation();
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -119,7 +130,7 @@ export default function SessionPage() {
     }
   }, [sessionWorkspacePath]);
 
-  const locationState = location.state as LocationState | null;
+  const locationState = isLocationState(location.state) ? location.state : null;
   const initialMessage = !initialMessageConsumedRef.current
     ? locationState?.initialMessage
     : undefined;
@@ -138,6 +149,7 @@ export default function SessionPage() {
     isLoadingHistory,
     isReconnecting,
     sessionNotFound,
+    connectionError,
     sendMessage,
     selectedModel,
   } = useAgent({
@@ -197,6 +209,7 @@ export default function SessionPage() {
   ]);
 
   const getStatusText = () => {
+    if (connectionError) return connectionError;
     if (isConnected) return t('sessionPage.connected');
     if (isReconnecting) return t('sessionPage.reconnecting');
     return t('sessionPage.disconnected');

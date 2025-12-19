@@ -14,6 +14,19 @@ export interface PresetSkill {
   content: string;
 }
 
+// API Response types
+interface SkillsResponse {
+  skills: Skill[];
+}
+
+interface PresetSkillsResponse {
+  presets: PresetSkill[];
+}
+
+interface ErrorResponse {
+  error?: string;
+}
+
 export function useSkills() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [presetSkills, setPresetSkills] = useState<PresetSkill[]>([]);
@@ -28,10 +41,11 @@ export function useSkills() {
       if (!response.ok) {
         throw new Error('Failed to fetch skills');
       }
-      const data = await response.json();
-      setSkills(data.skills || []);
-    } catch (err: any) {
-      setError(err.message);
+      const data: SkillsResponse = await response.json();
+      setSkills(Array.isArray(data.skills) ? data.skills : []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch skills';
+      setError(message);
       console.error('Failed to fetch skills:', err);
     } finally {
       setLoading(false);
@@ -55,14 +69,15 @@ export function useSkills() {
         });
 
         if (!response.ok) {
-          const data = await response.json();
+          const data: ErrorResponse = await response.json();
           throw new Error(data.error || 'Failed to create skill');
         }
 
         await fetchSkills(); // Refresh list
         return true;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to create skill';
+        setError(message);
         console.error('Failed to create skill:', err);
         return false;
       } finally {
@@ -89,14 +104,15 @@ export function useSkills() {
         });
 
         if (!response.ok) {
-          const data = await response.json();
+          const data: ErrorResponse = await response.json();
           throw new Error(data.error || 'Failed to update skill');
         }
 
         await fetchSkills(); // Refresh list
         return true;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to update skill';
+        setError(message);
         console.error('Failed to update skill:', err);
         return false;
       } finally {
@@ -116,14 +132,15 @@ export function useSkills() {
         });
 
         if (!response.ok) {
-          const data = await response.json();
+          const data: ErrorResponse = await response.json();
           throw new Error(data.error || 'Failed to delete skill');
         }
 
         await fetchSkills(); // Refresh list
         return true;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to delete skill';
+        setError(message);
         console.error('Failed to delete skill:', err);
         return false;
       } finally {
@@ -141,10 +158,11 @@ export function useSkills() {
       if (!response.ok) {
         throw new Error('Failed to fetch preset skills');
       }
-      const data = await response.json();
-      setPresetSkills(data.presets || []);
-    } catch (err: any) {
-      setError(err.message);
+      const data: PresetSkillsResponse = await response.json();
+      setPresetSkills(Array.isArray(data.presets) ? data.presets : []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch preset skills';
+      setError(message);
       console.error('Failed to fetch preset skills:', err);
     } finally {
       setLoading(false);
@@ -164,14 +182,15 @@ export function useSkills() {
         );
 
         if (!response.ok) {
-          const data = await response.json();
+          const data: ErrorResponse = await response.json();
           throw new Error(data.error || 'Failed to import preset skill');
         }
 
         await fetchSkills(); // Refresh list
         return true;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to import preset skill';
+        setError(message);
         console.error('Failed to import preset skill:', err);
         return false;
       } finally {

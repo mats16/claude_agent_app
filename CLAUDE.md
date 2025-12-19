@@ -296,11 +296,19 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `PATCH /api/v1/settings/agents/:subagentName` - Update subagent
 - `DELETE /api/v1/settings/agents/:subagentName` - Delete subagent
 
-#### Preset Settings
-- `GET /api/v1/preset-settings/skills` - List preset skills
-- `POST /api/v1/preset-settings/skills/:presetName/import` - Import preset skill
+#### Preset Settings (Local)
+- `GET /api/v1/preset-settings/skills` - List local preset skills
+- `POST /api/v1/preset-settings/skills/:presetName/import` - Import local preset skill
 - `GET /api/v1/preset-settings/agents` - List preset subagents
 - `POST /api/v1/preset-settings/agents/:presetName/import` - Import preset subagent
+
+#### GitHub Skills (Frontend Direct Access)
+GitHub skills are fetched directly from the frontend without backend API:
+- Source: `https://github.com/anthropics/skills` repository
+- API: `https://api.github.com/repos/anthropics/skills/contents/skills` (directory list)
+- Content: `https://raw.githubusercontent.com/anthropics/skills/main/skills/{name}/SKILL.md`
+- Cache: 15-minute client-side cache in `useSkills.ts`
+- Import: Uses existing `POST /api/v1/settings/skills` to save
 
 #### Sessions
 - `POST /api/v1/sessions` - Create session with initial message (workspacePath is optional)
@@ -379,6 +387,7 @@ app/backend/
 
 ### Frontend Core
 - `app/frontend/src/hooks/useAgent.ts` - WebSocket handling, SDK message parsing
+- `app/frontend/src/hooks/useSkills.ts` - Skills management, GitHub skills fetch (direct API access with 15-min cache)
 - `app/frontend/src/contexts/SessionsContext.tsx` - Session list state with client-side filtering
 - `app/frontend/src/contexts/UserContext.tsx` - User info and settings state
 - `app/frontend/src/pages/SessionPage.tsx` - Chat UI with message streaming

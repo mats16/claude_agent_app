@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../utils/headers.js';
-import * as skillService from '../../../services/skillService.js';
+import { extractRequestContext } from '../../../../utils/headers.js';
+import * as skillService from '../../../../services/skillService.js';
 
 // List all skills
 export async function listSkillsHandler(

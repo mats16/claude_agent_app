@@ -24,7 +24,7 @@ export function useSkills() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/claude/skills');
+      const response = await fetch('/api/v1/settings/skills');
       if (!response.ok) {
         throw new Error('Failed to fetch skills');
       }
@@ -48,7 +48,7 @@ export function useSkills() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/v1/claude/skills', {
+        const response = await fetch('/api/v1/settings/skills', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, description, version, content }),
@@ -82,7 +82,7 @@ export function useSkills() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/v1/claude/skills/${name}`, {
+        const response = await fetch(`/api/v1/settings/skills/${name}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ description, version, content }),
@@ -111,7 +111,7 @@ export function useSkills() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/v1/claude/skills/${name}`, {
+        const response = await fetch(`/api/v1/settings/skills/${name}`, {
           method: 'DELETE',
         });
 
@@ -137,7 +137,7 @@ export function useSkills() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/preset-configs/claude/skills');
+      const response = await fetch('/api/v1/preset-settings/skills');
       if (!response.ok) {
         throw new Error('Failed to fetch preset skills');
       }
@@ -157,7 +157,7 @@ export function useSkills() {
       setError(null);
       try {
         const response = await fetch(
-          `/api/v1/preset-configs/claude/skills/${presetName}/import`,
+          `/api/v1/preset-settings/skills/${presetName}/import`,
           {
             method: 'POST',
           }

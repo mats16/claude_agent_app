@@ -41,7 +41,7 @@ export default function AppSettingsModal({
   // Fetch SP info if no permission
   const fetchSpInfo = useCallback(async () => {
     try {
-      const spRes = await fetch('/api/v1/service-principal');
+      const spRes = await fetch('/api/v1/settings/sp-permission');
       if (spRes.ok) {
         const spData = await spRes.json();
         setSpInfo(spData);

@@ -39,12 +39,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setIsPulling(true);
     setMessage(null);
     try {
-      const response = await fetch(
-        '/api/v1/users/me/settings/claude/backup/pull',
-        {
-          method: 'POST',
-        }
-      );
+      const response = await fetch('/api/v1/settings/claude-backup/pull', {
+        method: 'POST',
+      });
 
       if (!response.ok) {
         throw new Error('Failed to pull claude config');
@@ -63,7 +60,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/v1/users/me/settings/claude/backup', {
+      const response = await fetch('/api/v1/settings/claude-backup', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ claudeConfigSync }),

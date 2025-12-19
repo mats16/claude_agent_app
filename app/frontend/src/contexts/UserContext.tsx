@@ -44,7 +44,7 @@ export function UserProvider({ children }: UserProviderProps) {
 
   const fetchUserInfo = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/users/me');
+      const res = await fetch('/api/v1/me');
       if (res.ok) {
         const data = await res.json();
         setUserInfo(data);
@@ -60,7 +60,7 @@ export function UserProvider({ children }: UserProviderProps) {
 
   const fetchUserSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/users/me/settings');
+      const res = await fetch('/api/v1/settings');
       if (res.ok) {
         const data = await res.json();
         setUserSettings(data);

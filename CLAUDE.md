@@ -129,7 +129,7 @@ await db.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`)
   - `X-Request-Id`: Request UUID (optional)
 
 ### Workspace Permission Check
-`GET /api/v1/users/me` checks SP permission by attempting to create `.claude` directory via `workspace/mkdirs` API. Returns `hasWorkspacePermission: boolean`.
+`GET /api/v1/me` checks SP permission by attempting to create `.claude` directory via `workspace/mkdirs` API. Returns `hasWorkspacePermission: boolean`.
 
 ### WebSocket Communication
 The frontend connects via WebSocket for real-time streaming. SDK messages flow:
@@ -209,10 +209,10 @@ Sessions can be archived to hide them from the active session list without perma
 Manual backup/restore operations for Claude configuration (`.claude` directory) separate from automatic sync.
 
 **API Endpoints**:
-- `GET /api/v1/users/me/settings/claude/backup` - Get `claudeConfigSync` setting
-- `PATCH /api/v1/users/me/settings/claude/backup` - Update `claudeConfigSync` setting
-- `POST /api/v1/users/me/settings/claude/backup/pull` - Manual restore from workspace to local
-- `POST /api/v1/users/me/settings/claude/backup/push` - Manual backup from local to workspace
+- `GET /api/v1/settings/claude-backup` - Get `claudeConfigSync` setting
+- `PATCH /api/v1/settings/claude-backup` - Update `claudeConfigSync` setting
+- `POST /api/v1/settings/claude-backup/pull` - Manual restore from workspace to local
+- `POST /api/v1/settings/claude-backup/push` - Manual backup from local to workspace
 
 **Operations**:
 - **Pull (Restore)**: Downloads `/Workspace/Users/{email}/.claude` → `$HOME/u/{email}/.claude` with overwrite
@@ -225,7 +225,7 @@ Manual backup/restore operations for Claude configuration (`.claude` directory) 
 To minimize redundant API requests, shared data should be managed via React Context rather than fetching in each component.
 
 ### Contexts (`app/frontend/src/contexts/`)
-- **UserContext**: User info (`/api/v1/users/me`) and settings (`/api/v1/users/me/settings`)
+- **UserContext**: User info (`/api/v1/me`) and settings (`/api/v1/settings`)
 - **SessionsContext**: Session list (`/api/v1/sessions`) with real-time updates via WebSocket (`/api/v1/sessions/ws`)
   - Fetches all sessions once with `filter=all` for performance
   - Client-side filtering using `useMemo` for instant filter switching (Active/Archived/All)
@@ -266,19 +266,47 @@ Apply the path to `app/frontend/public/favicon.svg`:
 ## API Endpoints
 
 ### REST
+
+#### User & Settings
+- `GET /api/v1/me` - Get user info (userId, email, workspaceHome, hasWorkspacePermission)
+- `GET /api/v1/settings` - Get user settings (claudeConfigSync)
+- `PATCH /api/v1/settings` - Update user settings (claudeConfigSync)
+- `GET /api/v1/settings/claude-backup` - Get Claude backup settings
+- `PATCH /api/v1/settings/claude-backup` - Update Claude backup settings
+- `POST /api/v1/settings/claude-backup/pull` - Pull (restore) Claude config from workspace
+- `POST /api/v1/settings/claude-backup/push` - Push (backup) Claude config to workspace
+- `GET /api/v1/settings/sp-permission` - Get service principal info
+
+#### Skills
+- `GET /api/v1/settings/skills` - List skills
+- `GET /api/v1/settings/skills/:skillName` - Get skill
+- `POST /api/v1/settings/skills` - Create skill
+- `PATCH /api/v1/settings/skills/:skillName` - Update skill
+- `DELETE /api/v1/settings/skills/:skillName` - Delete skill
+
+#### Agents (Subagents)
+- `GET /api/v1/settings/agents` - List subagents
+- `GET /api/v1/settings/agents/:subagentName` - Get subagent
+- `POST /api/v1/settings/agents` - Create subagent
+- `PATCH /api/v1/settings/agents/:subagentName` - Update subagent
+- `DELETE /api/v1/settings/agents/:subagentName` - Delete subagent
+
+#### Preset Settings
+- `GET /api/v1/preset-settings/skills` - List preset skills
+- `POST /api/v1/preset-settings/skills/:presetName/import` - Import preset skill
+- `GET /api/v1/preset-settings/agents` - List preset subagents
+- `POST /api/v1/preset-settings/agents/:presetName/import` - Import preset subagent
+
+#### Sessions
 - `POST /api/v1/sessions` - Create session with initial message (workspacePath is optional)
 - `GET /api/v1/sessions` - List sessions (filtered by userId via RLS, supports `?filter=active|archived|all`)
 - `GET /api/v1/sessions/:id/events` - Get session history
 - `PATCH /api/v1/sessions/:id` - Update session (title, autoWorkspacePush, workspacePath)
-- `PATCH /api/v1/sessions/:id/archive` - Archive session (sets `is_archived=true`, deletes working directory in background)
-- `POST /api/v1/users` - Create/upsert user
-- `GET /api/v1/users/me` - Get user info (userId, email, workspaceHome, hasWorkspacePermission)
-- `GET /api/v1/users/me/settings` - Get user settings (claudeConfigSync)
-- `PATCH /api/v1/users/me/settings` - Update user settings (claudeConfigSync)
-- `GET /api/v1/users/me/settings/claude/backup` - Get Claude backup settings (claudeConfigSync)
-- `PATCH /api/v1/users/me/settings/claude/backup` - Update Claude backup settings (claudeConfigSync)
-- `POST /api/v1/users/me/settings/claude/backup/pull` - Pull (restore) Claude config from workspace to local
-- `POST /api/v1/users/me/settings/claude/backup/push` - Push (backup) Claude config from local to workspace
+- `PATCH /api/v1/sessions/:id/archive` - Archive session (sets `is_archived=true`, deletes working directory)
+
+#### Workspace
+- `GET /api/v1/Workspace` - List root workspace
+- `GET /api/v1/Workspace/*` - List workspace path
 
 ### WebSocket
 - `/api/v1/sessions/ws` - Real-time session list updates (notifies on session creation)
@@ -301,14 +329,19 @@ app/backend/
 ├── routes/             # Route definitions with handlers
 │   ├── health/
 │   └── v1/
-│       ├── sessions/   # handlers.ts, index.ts, websocket.ts
-│       ├── users/
-│       ├── skills/
-│       ├── workspace/
-│       └── service-principal/
+│       ├── sessions/        # handlers.ts, index.ts, websocket.ts
+│       ├── me/              # User info endpoint
+│       ├── settings/        # User settings
+│       │   ├── claude-backup/  # Claude config backup
+│       │   ├── skills/         # Skills management
+│       │   ├── agents/         # Subagents management
+│       │   └── sp-permission/  # Service principal info
+│       ├── preset-settings/ # Preset skills/agents
+│       └── workspace/       # Workspace listing
 ├── services/           # Business logic layer
 │   ├── sessionState.ts # In-memory session queue management
 │   ├── skillService.ts
+│   ├── subagentService.ts
 │   ├── workspaceService.ts
 │   ├── userService.ts
 │   └── claudeBackupService.ts

@@ -8,12 +8,14 @@ import dotenv from 'dotenv';
 import healthRoutes from './routes/health/index.js';
 import sessionRoutes from './routes/v1/sessions/index.js';
 import sessionWebSocketRoutes from './routes/v1/sessions/websocket.js';
-import userRoutes from './routes/v1/users/index.js';
-import skillRoutes from './routes/v1/skills/index.js';
-import subagentRoutes from './routes/v1/subagents/index.js';
-import presetConfigRoutes from './routes/v1/preset-configs/index.js';
+import meRoutes from './routes/v1/me/index.js';
+import settingsRoutes from './routes/v1/settings/index.js';
+import claudeBackupRoutes from './routes/v1/settings/claude-backup/index.js';
+import skillRoutes from './routes/v1/settings/skills/index.js';
+import agentRoutes from './routes/v1/settings/agents/index.js';
+import spPermissionRoutes from './routes/v1/settings/sp-permission/index.js';
+import presetSettingsRoutes from './routes/v1/preset-settings/index.js';
 import workspaceRoutes from './routes/v1/workspace/index.js';
-import servicePrincipalRoutes from './routes/v1/service-principal/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,16 +42,20 @@ export async function buildApp() {
   await fastify.register(sessionWebSocketRoutes, {
     prefix: '/api/v1/sessions',
   });
-  await fastify.register(userRoutes, { prefix: '/api/v1/users' });
-  await fastify.register(skillRoutes, { prefix: '/api/v1/claude/skills' });
-  await fastify.register(subagentRoutes, { prefix: '/api/v1/claude/agents' });
-  await fastify.register(presetConfigRoutes, {
-    prefix: '/api/v1/preset-configs',
+  await fastify.register(meRoutes, { prefix: '/api/v1/me' });
+  await fastify.register(settingsRoutes, { prefix: '/api/v1/settings' });
+  await fastify.register(claudeBackupRoutes, {
+    prefix: '/api/v1/settings/claude-backup',
+  });
+  await fastify.register(skillRoutes, { prefix: '/api/v1/settings/skills' });
+  await fastify.register(agentRoutes, { prefix: '/api/v1/settings/agents' });
+  await fastify.register(spPermissionRoutes, {
+    prefix: '/api/v1/settings/sp-permission',
+  });
+  await fastify.register(presetSettingsRoutes, {
+    prefix: '/api/v1/preset-settings',
   });
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/Workspace' });
-  await fastify.register(servicePrincipalRoutes, {
-    prefix: '/api/v1/service-principal',
-  });
 
   return fastify;
 }

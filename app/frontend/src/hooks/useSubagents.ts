@@ -26,7 +26,7 @@ export function useSubagents() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/claude/agents');
+      const response = await fetch('/api/v1/settings/agents');
       if (!response.ok) {
         throw new Error('Failed to fetch subagents');
       }
@@ -51,7 +51,7 @@ export function useSubagents() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/v1/claude/agents', {
+        const response = await fetch('/api/v1/settings/agents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, description, content, tools, model }),
@@ -86,7 +86,7 @@ export function useSubagents() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/v1/claude/agents/${name}`, {
+        const response = await fetch(`/api/v1/settings/agents/${name}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ description, content, tools, model }),
@@ -115,7 +115,7 @@ export function useSubagents() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/v1/claude/agents/${name}`, {
+        const response = await fetch(`/api/v1/settings/agents/${name}`, {
           method: 'DELETE',
         });
 
@@ -141,7 +141,7 @@ export function useSubagents() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/preset-configs/claude/agents');
+      const response = await fetch('/api/v1/preset-settings/agents');
       if (!response.ok) {
         throw new Error('Failed to fetch preset subagents');
       }
@@ -161,7 +161,7 @@ export function useSubagents() {
       setError(null);
       try {
         const response = await fetch(
-          `/api/v1/preset-configs/claude/agents/${presetName}/import`,
+          `/api/v1/preset-settings/agents/${presetName}/import`,
           {
             method: 'POST',
           }

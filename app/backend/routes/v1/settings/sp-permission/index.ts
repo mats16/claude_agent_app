@@ -1,8 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { getAccessToken, databricksHost } from '../../../agent/index.js';
+import { getAccessToken, databricksHost } from '../../../../agent/index.js';
 
-const servicePrincipalRoutes: FastifyPluginAsync = async (fastify) => {
+const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {
   // Get service principal info
+  // GET /api/v1/settings/sp-permission
   fastify.get('/', async (_request, reply) => {
     try {
       const token = await getAccessToken();
@@ -40,4 +41,4 @@ const servicePrincipalRoutes: FastifyPluginAsync = async (fastify) => {
   });
 };
 
-export default servicePrincipalRoutes;
+export default spPermissionRoutes;

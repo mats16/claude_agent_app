@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../utils/headers.js';
-import * as subagentService from '../../../services/subagentService.js';
+import { extractRequestContext } from '../../../../utils/headers.js';
+import * as subagentService from '../../../../services/subagentService.js';
 
 // List all subagents
 export async function listSubagentsHandler(

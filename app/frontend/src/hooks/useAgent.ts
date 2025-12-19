@@ -38,6 +38,8 @@ export function useAgent(options: UseAgentOptions = {}) {
   const [selectedModel, setSelectedModel] = useState(
     model || 'databricks-claude-sonnet-4-5'
   );
+  // Track if model was explicitly set by user (not from props)
+  const modelSetByUserRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
   const currentResponseRef = useRef<string>('');
   const currentMessageIdRef = useRef<string>('');
@@ -118,9 +120,19 @@ export function useAgent(options: UseAgentOptions = {}) {
       // Update initialMessageRef with new value
       initialMessageRef.current = initialMessage;
 
+      // Reset model tracking on session change
+      modelSetByUserRef.current = false;
+
       prevSessionIdRef.current = sessionId;
     }
   }, [sessionId, initialMessage]);
+
+  // Update selectedModel when model prop changes (e.g., session data loaded async)
+  useEffect(() => {
+    if (model && !modelSetByUserRef.current) {
+      setSelectedModel(model);
+    }
+  }, [model]);
 
   // Load history from REST API when sessionId is provided (not for new sessions with initialMessage)
   useEffect(() => {

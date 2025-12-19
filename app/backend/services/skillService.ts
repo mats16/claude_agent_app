@@ -37,7 +37,7 @@ function getSkillsPath(userEmail: string): string {
 
 // Get preset skills directory path
 function getPresetSkillsPath(): string {
-  return path.join(__dirname, '../preset-skills');
+  return path.join(__dirname, '../preset-settings/skills');
 }
 
 // Sync skills to workspace (fire-and-forget)

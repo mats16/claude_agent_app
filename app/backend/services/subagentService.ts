@@ -37,7 +37,7 @@ function getAgentsPath(userEmail: string): string {
 
 // Get preset agents directory path
 function getPresetAgentsPath(): string {
-  return path.join(__dirname, '../preset-agents');
+  return path.join(__dirname, '../preset-settings/agents');
 }
 
 // Sync agents to workspace (fire-and-forget)

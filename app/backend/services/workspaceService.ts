@@ -57,12 +57,7 @@ export async function listWorkspace(
     throw new WorkspaceError(data.message || 'API error', 'API_ERROR');
   }
 
-  // Filter to only return directories
-  const directories = data.objects?.filter(
-    (obj) => obj.object_type === 'DIRECTORY'
-  );
-
-  return { objects: directories || [] };
+  return { objects: data.objects || [] };
 }
 
 // List user's workspace directory

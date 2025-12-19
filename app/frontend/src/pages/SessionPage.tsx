@@ -35,6 +35,46 @@ import {
 
 const { Text } = Typography;
 
+// Typewriter effect component for "Thinking..." text
+function ThinkingIndicator() {
+  const text = 'Thinking...';
+  const [displayedText, setDisplayedText] = useState('');
+  const [charIndex, setCharIndex] = useState(0);
+
+  useEffect(() => {
+    if (charIndex < text.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedText(text.slice(0, charIndex + 1));
+        setCharIndex(charIndex + 1);
+      }, 50);
+      return () => clearTimeout(timeout);
+    } else {
+      // Reset to loop the animation
+      const timeout = setTimeout(() => {
+        setDisplayedText('');
+        setCharIndex(0);
+      }, 800);
+      return () => clearTimeout(timeout);
+    }
+  }, [charIndex]);
+
+  return (
+    <Flex align="center" gap={spacing.sm}>
+      <Spin size="small" />
+      <Text
+        style={{
+          color: colors.textSecondary,
+          fontSize: typography.fontSizeSmall,
+          fontFamily: 'monospace',
+          minWidth: 80,
+        }}
+      >
+        {displayedText}
+      </Text>
+    </Flex>
+  );
+}
+
 interface LocationState {
   initialMessage?: string;
   model?: string;
@@ -457,7 +497,6 @@ export default function SessionPage() {
                   display: 'flex',
                   justifyContent: isUser ? 'flex-end' : 'flex-start',
                   padding: `${spacing.lg}px ${spacing.xxl}px`,
-                  borderBottom: isUser ? 'none' : `1px solid ${colors.border}`,
                 }}
               >
                 {!isUser && (
@@ -487,7 +526,9 @@ export default function SessionPage() {
                     images={message.images}
                   />
                   {showSpinnerInMessage && (
-                    <Spin size="small" style={{ marginTop: spacing.sm }} />
+                    <div style={{ marginTop: spacing.sm }}>
+                      <ThinkingIndicator />
+                    </div>
                   )}
                 </div>
               </div>
@@ -502,7 +543,6 @@ export default function SessionPage() {
                   display: 'flex',
                   justifyContent: 'flex-start',
                   padding: `${spacing.lg}px ${spacing.xxl}px`,
-                  borderBottom: `1px solid ${colors.border}`,
                 }}
               >
                 <div
@@ -517,7 +557,7 @@ export default function SessionPage() {
                 >
                   <RobotOutlined />
                 </div>
-                <Spin size="small" />
+                <ThinkingIndicator />
               </div>
             )}
 

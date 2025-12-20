@@ -518,8 +518,9 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
               value={selectedModel}
               onChange={setSelectedModel}
               disabled={isProcessing}
-              style={{ width: 140 }}
+              style={{ width: 'auto', minWidth: 100 }}
               size="small"
+              variant="borderless"
               popupMatchSelectWidth={240}
               placement="bottomRight"
               suffixIcon={<CaretDownOutlined />}

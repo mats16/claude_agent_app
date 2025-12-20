@@ -353,8 +353,20 @@ export default function ChatInput({
           </Flex>
         )}
 
-        {/* Input row */}
-        <Flex gap={spacing.sm} align="flex-end">
+        {/* Input row - TextArea */}
+        <TextArea
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder || t('sessionPage.typeMessage')}
+          disabled={disabled || isProcessing}
+          variant="borderless"
+          autoSize={{ minRows: 1, maxRows: 9 }}
+          style={{ padding: 0 }}
+        />
+
+        {/* Action row - Attachment button left, Send button right */}
+        <Flex justify="space-between" align="center">
           {/* Unified attachment button */}
           <Button
             type="text"
@@ -368,23 +380,13 @@ export default function ChatInput({
             }
             title={t('fileUpload.attachFile')}
           />
-          <TextArea
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder || t('sessionPage.typeMessage')}
-            disabled={disabled || isProcessing}
-            variant="borderless"
-            autoSize={{ minRows: 1, maxRows: 9 }}
-            style={{ flex: 1, padding: 0, alignSelf: 'stretch' }}
-          />
           <Button
             type="primary"
-            shape="circle"
             icon={<SendOutlined />}
             disabled={isSubmitDisabled}
             loading={isProcessing}
             onClick={onSubmit}
+            style={{ borderRadius: 8 }}
           />
         </Flex>
       </Flex>

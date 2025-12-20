@@ -555,11 +555,11 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
             >
               <Button
                 type="primary"
-                shape="circle"
                 icon={<SendOutlined />}
                 loading={isProcessing}
                 disabled={isSubmitDisabled}
                 onClick={handleSubmit}
+                style={{ borderRadius: 8 }}
               />
             </Tooltip>
           </Flex>

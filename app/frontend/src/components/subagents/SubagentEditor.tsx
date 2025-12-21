@@ -94,6 +94,8 @@ export default function SubagentEditor({
         display: 'flex',
         flexDirection: 'column',
         padding: spacing.xxl,
+        overflow: 'hidden',
+        minHeight: 0,
       }}
     >
       <Flex gap={spacing.lg} style={{ marginBottom: spacing.lg }}>

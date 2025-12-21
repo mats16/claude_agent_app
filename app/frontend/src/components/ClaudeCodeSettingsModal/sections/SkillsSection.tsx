@@ -306,7 +306,7 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
         </div>
       )}
 
-      <Flex style={{ height: '100%' }}>
+      <Flex style={{ height: '100%', overflow: 'hidden', minHeight: 0 }}>
         <SkillsList
           skills={skills}
           selectedSkill={selectedSkill}

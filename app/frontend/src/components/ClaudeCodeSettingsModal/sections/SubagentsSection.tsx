@@ -272,7 +272,7 @@ export default function SubagentsSection({ isVisible }: SubagentsSectionProps) {
         </div>
       )}
 
-      <Flex style={{ height: '100%' }}>
+      <Flex style={{ height: '100%', overflow: 'hidden', minHeight: 0 }}>
         <SubagentsList
           subagents={subagents}
           selectedSubagent={selectedSubagent}

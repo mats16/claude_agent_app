@@ -3,5 +3,9 @@ command: ["npm", "run", "start", "--workspace=backend"]
 env:
   - name: DB_URL
     valueFrom: db-url-secret
-  - name: WAREHOUSE_ID
-    valueFrom: warehouse
+  - name: WAREHOUSE_ID_2XS
+    valueFrom: warehouse-2xs
+  - name: WAREHOUSE_ID_XS
+    valueFrom: warehouse-2xs
+  - name: WAREHOUSE_ID_S
+    valueFrom: warehouse-2xs

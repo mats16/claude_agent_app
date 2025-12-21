@@ -96,6 +96,11 @@ Backend always expects these headers and does not use fallback values, ensuring 
 ### Optional
 - `PORT` - Backend port (default: 8000)
 
+### SQL Warehouse (MCP Tools)
+- `WAREHOUSE_ID_2XS` - 2X-Small SQL Warehouse ID (default for `run_sql`)
+- `WAREHOUSE_ID_XS` - X-Small SQL Warehouse ID
+- `WAREHOUSE_ID_S` - Small SQL Warehouse ID
+
 ## Database Schema
 
 Tables defined in `app/backend/db/schema.ts`:
@@ -139,7 +144,23 @@ The frontend connects via WebSocket for real-time streaming. SDK messages flow:
 
 ### Agent Tools
 Configured in `app/backend/agent/index.ts`:
-- Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
+- **Built-in**: Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
+- **MCP (Databricks)**: run_sql, get_warehouse_info, list_warehouses
+
+### MCP Servers
+MCP (Model Context Protocol) servers provide additional tools. Configured in `app/backend/agent/mcp/`.
+
+**Databricks MCP** (`databricks.ts`):
+- `run_sql` - Execute SQL on Databricks SQL Warehouse (SELECT, DDL, DML)
+  - `query`: SQL statement
+  - `size`: Warehouse size (`2xs`, `xs`, `s`) - recommended parameter
+  - `warehouse_id`: Direct warehouse ID (mutually exclusive with `size`)
+  - `max_rows`: Max rows to return (default: 1000, max: 10000)
+  - Uses `DATABRICKS_TOKEN` (user token) for authentication
+- `get_warehouse_info` - Get warehouse details via `/api/2.0/sql/warehouses/{id}`
+- `list_warehouses` - List all warehouses via `/api/2.0/sql/warehouses`
+
+MCP tool names are prefixed with `mcp__` in the frontend (e.g., `mcp__databricks__run_sql`).
 
 ### Workspace Sync
 Sync between local storage and Databricks Workspace uses a fastq-based async queue (`app/backend/services/workspaceQueueService.ts`) with retry support:
@@ -369,11 +390,13 @@ app/backend/
 ├── schemas/            # Zod validation schemas
 ├── db/                 # Drizzle ORM (schema, queries, migrations)
 ├── agent/              # Claude Agent SDK configuration
+│   └── mcp/            # MCP server implementations (databricks.ts)
 └── utils/              # Shared utilities (databricks, headers, skills)
 ```
 
 ### Key Files
-- `app/backend/agent/index.ts` - Claude Agent SDK configuration, Stop hooks for workspace push
+- `app/backend/agent/index.ts` - Claude Agent SDK configuration, MCP registration, Stop hooks for workspace push
+- `app/backend/agent/mcp/databricks.ts` - Databricks MCP server (SQL, warehouse management tools)
 - `app/backend/services/sessionState.ts` - In-memory state for session queues, WebSocket connections
 - `app/backend/services/workspaceQueueService.ts` - fastq-based async queue for workspace sync (pull, push, delete)
 - `app/backend/utils/databricks.ts` - Databricks CLI wrapper functions (`workspacePull`, `workspacePush`, `deleteWorkDir`)
@@ -393,3 +416,6 @@ app/backend/
 - `app/frontend/src/pages/SessionPage.tsx` - Chat UI with message streaming
 - `app/frontend/src/components/SessionList.tsx` - Session list with filtering and archive UI
 - `app/frontend/src/components/SettingsModal.tsx` - Settings UI using Claude backup API endpoints
+- `app/frontend/src/components/MessageRenderer.tsx` - Message display with tool output collapsing
+  - MCP tools (`mcp__*`) are collapsed by default (0 lines shown)
+  - Built-in tools show up to 3 lines when collapsed

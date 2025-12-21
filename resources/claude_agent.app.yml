@@ -11,9 +11,9 @@ resources:
             scope: claude_agent
             key: db_url
             permission: READ
-        - name: warehouse
+        - name: warehouse-2xs
           sql_warehouse:
-            id: ${resources.sql_warehouses.claude_agent_warehouse.id}
+            id: ${resources.sql_warehouses.claude_warehouse_2xs.id}
             permission: CAN_USE
       user_api_scopes:
         - sql
@@ -28,8 +28,8 @@ resources:
           group_name: users
 
   sql_warehouses:
-    claude_agent_warehouse:
-      name: claude-agent-warehouse
+    claude_warehouse_2xs:
+      name: claude-warehouse-2xs
       cluster_size: 2X-Small
       min_num_clusters: 0
       max_num_clusters: 2

@@ -56,6 +56,7 @@ export default function WorkspacePathSelector({
           style={{
             width: '100%',
             textAlign: 'left',
+            justifyContent: 'flex-start',
             overflow: 'hidden',
             paddingRight: workspacePath ? 32 : undefined,
           }}

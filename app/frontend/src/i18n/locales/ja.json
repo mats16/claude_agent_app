@@ -32,7 +32,7 @@
   "accountMenu": {
     "accountSettings": "アカウント設定",
     "appSettings": "アプリケーション設定",
-    "claudeCodeSettings": "Claude Code 設定",
+    "claudeCodeSettings": "Claude Code の設定",
     "autoBackup": "バックアップとリストア",
     "settings": "設定",
     "skills": "スキル",
@@ -41,7 +41,7 @@
     "language": "言語"
   },
   "claudeCodeSettings": {
-    "title": "Claude Code 設定",
+    "title": "Claude Code の設定",
     "skills": "スキル",
     "subagents": "サブエージェント",
     "mcp": "MCP",

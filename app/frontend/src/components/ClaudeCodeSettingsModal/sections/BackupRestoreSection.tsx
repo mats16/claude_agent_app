@@ -7,7 +7,6 @@ import { useState, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Button, Alert, Typography, Flex, Switch, Divider } from 'antd';
 import { SyncOutlined, DownloadOutlined } from '@ant-design/icons';
-import { useUser } from '../../../contexts/UserContext';
 import { colors, spacing } from '../../../styles/theme';
 
 const { Text, Title, Link } = Typography;
@@ -20,9 +19,9 @@ export default function BackupRestoreSection({
   isVisible,
 }: BackupRestoreSectionProps) {
   const { t } = useTranslation();
-  const { userSettings } = useUser();
 
   const [claudeConfigSync, setClaudeConfigSync] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [workspaceUrl, setWorkspaceUrl] = useState<string | null>(null);
@@ -31,17 +30,26 @@ export default function BackupRestoreSection({
     text: string;
   } | null>(null);
 
-  // Sync claudeConfigSync state with userSettings
-  useEffect(() => {
-    if (userSettings) {
-      setClaudeConfigSync(userSettings.claudeConfigSync);
-    }
-  }, [userSettings]);
-
-  // Clear message and fetch workspace URL when section becomes visible
+  // Fetch settings and workspace URL when section becomes visible
   useEffect(() => {
     if (isVisible) {
       setMessage(null);
+
+      // Fetch claude-backup settings
+      fetch('/api/v1/settings/claude-backup')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) {
+            setClaudeConfigSync(data.claudeConfigSync);
+          }
+        })
+        .catch(() => {
+          // Ignore errors
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+
       // Fetch browse_url for .claude folder
       fetch('/api/v1/workspace/status?path=users/me/.claude')
         .then((res) => (res.ok ? res.json() : null))
@@ -76,7 +84,8 @@ export default function BackupRestoreSection({
     }
   };
 
-  const handleSave = async () => {
+  const handleToggleChange = async (checked: boolean) => {
+    setClaudeConfigSync(checked);
     setIsSaving(true);
     setMessage(null);
 
@@ -84,16 +93,17 @@ export default function BackupRestoreSection({
       const response = await fetch('/api/v1/settings/claude-backup', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claudeConfigSync }),
+        body: JSON.stringify({ claudeConfigSync: checked }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to save settings');
       }
 
-      setMessage({ type: 'success', text: t('settingsModal.saved') });
       window.dispatchEvent(new Event('settings-changed'));
     } catch {
+      // Revert on error
+      setClaudeConfigSync(!checked);
       setMessage({ type: 'error', text: t('settingsModal.saveFailed') });
     } finally {
       setIsSaving(false);
@@ -115,11 +125,7 @@ export default function BackupRestoreSection({
           </Title>
         </Flex>
 
-        <Flex
-          justify="space-between"
-          align="center"
-          style={{ marginBottom: spacing.md }}
-        >
+        <Flex justify="space-between" align="center">
           <div style={{ flex: 1, marginRight: spacing.lg }}>
             <Text type="secondary">
               <Trans
@@ -136,19 +142,11 @@ export default function BackupRestoreSection({
           </div>
           <Switch
             checked={claudeConfigSync}
-            onChange={setClaudeConfigSync}
-            disabled={isSaving}
+            onChange={handleToggleChange}
+            disabled={isLoading || isSaving || isPulling}
+            loading={isLoading || isSaving}
           />
         </Flex>
-
-        <Button
-          type="primary"
-          onClick={handleSave}
-          loading={isSaving}
-          disabled={isPulling}
-        >
-          {isSaving ? t('common.saving') : t('common.save')}
-        </Button>
       </div>
 
       <Divider />

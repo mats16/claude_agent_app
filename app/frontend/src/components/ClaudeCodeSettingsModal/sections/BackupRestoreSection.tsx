@@ -160,7 +160,7 @@ export default function BackupRestoreSection({
         >
           <DownloadOutlined style={{ color: colors.brand }} />
           <Title level={5} style={{ margin: 0 }}>
-            {t('settingsModal.manualPullButton')}
+            {t('settingsModal.manualPullTitle')}
           </Title>
         </Flex>
 
@@ -168,7 +168,16 @@ export default function BackupRestoreSection({
           type="secondary"
           style={{ display: 'block', marginBottom: spacing.md }}
         >
-          {t('settingsModal.manualPullDescription')}
+          <Trans
+            i18nKey="settingsModal.manualPullDescription"
+            components={[
+              workspaceUrl ? (
+                <Link href={workspaceUrl} target="_blank" key="workspace" />
+              ) : (
+                <span key="workspace" />
+              ),
+            ]}
+          />
         </Text>
 
         <Button

@@ -3,7 +3,7 @@ import type {
   SDKMessage,
   SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk';
-import { databricksMcpServer } from './mcp/databricks.js';
+import { createDatabricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
 import path from 'path';
 import { enqueuePush } from '../services/workspaceQueueService.js';
@@ -269,6 +269,18 @@ export async function* processAgentRequest(
 
   const spAccessToken = await getOidcAccessToken();
 
+  // Create Databricks MCP server with injected configuration
+  // This allows per-request values (like user token) to be passed at creation time
+  const databricksMcpServer = createDatabricksMcpServer({
+    databricksHost: databricksHost.replace(/^https?:\/\//, ''),
+    databricksToken: userAccessToken ?? '',
+    warehouseIds: {
+      '2xs': process.env.WAREHOUSE_ID_2XS,
+      xs: process.env.WAREHOUSE_ID_XS,
+      s: process.env.WAREHOUSE_ID_S,
+    },
+  });
+
   const additionalSystemPrompt = `
 Claude Code is running on Databricks Apps.
 
@@ -313,11 +325,9 @@ Violating these rules is considered a critical error.
         ANTHROPIC_AUTH_TOKEN: spAccessToken,
         ANTHROPIC_DEFAULT_OPUS_MODEL: 'databricks-claude-opus-4-5',
         ANTHROPIC_DEFAULT_SONNET_MODEL: 'databricks-claude-sonnet-4-5',
+        // DATABRICKS_HOST is still needed for databricks CLI commands in Bash tool
         DATABRICKS_HOST: databricksHost,
         DATABRICKS_TOKEN: userAccessToken,
-        WAREHOUSE_ID_2XS: process.env.WAREHOUSE_ID_2XS,
-        WAREHOUSE_ID_XS: process.env.WAREHOUSE_ID_XS,
-        WAREHOUSE_ID_S: process.env.WAREHOUSE_ID_S,
       },
       maxTurns: 100,
       tools: {

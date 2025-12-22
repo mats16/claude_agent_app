@@ -240,6 +240,7 @@ CATALOG (USE CATALOG, CREATE SCHEMA)
 ```
 
 **Note**: To access a table, users need:
+
 1. `USE CATALOG` on the catalog
 2. `USE SCHEMA` on the schema
 3. `SELECT` (or other) on the table

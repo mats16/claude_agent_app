@@ -1,6 +1,9 @@
 import path from 'path';
 import { getOidcAccessToken } from '../agent/index.js';
-import { ensureWorkspaceDirectory } from '../utils/databricks.js';
+import {
+  ensureWorkspaceDirectory,
+  claudeConfigSyncFlags,
+} from '../utils/databricks.js';
 import { enqueuePull, enqueuePush } from './workspaceQueueService.js';
 
 // Get base path for user's local storage
@@ -68,6 +71,7 @@ export async function pushClaudeConfig(
     token: spAccessToken,
     localPath: localClaudeConfigPath,
     workspacePath: workspaceClaudeConfigPath,
+    flags: `${claudeConfigSyncFlags} --full`,
     replace: true,
   });
 

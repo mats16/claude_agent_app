@@ -186,9 +186,28 @@ Sync between local storage and Databricks Workspace uses a fastq-based async que
 - Agent starts immediately without waiting for sync completion
 
 **Push (local → workspace)**: Handled by Stop hooks in `app/backend/agent/index.ts` via `enqueuePush()`:
-- Uses `databricks sync` command with exclusions (.gitignore, .bundle, node_modules, etc.)
+- Uses `databricks sync` command with configurable exclusions
 - Only runs when `autoWorkspacePush` or `claudeConfigSync` flags are enabled
-- Claude config sync uses `--full` flag for complete synchronization (deletes remote files not in local, important for `.claude/skills`)
+- Skills/Agents CRUD operations use `replace: true` to propagate deletions to workspace
+
+#### Sync Parameters
+`enqueuePush()` accepts these parameters:
+- `flags`: Custom `--exclude` flags (e.g., `claudeConfigSyncFlags`, `workspaceSyncFlags`)
+- `replace`: If `true`, deletes workspace directory before sync (propagates deletions)
+
+**Exclusion Flag Constants** (`app/backend/utils/databricks.ts`):
+- `claudeConfigSyncFlags`: For `.claude` directory sync (excludes corrupted files, debug, telemetry, shell-snapshots)
+- `workspaceSyncFlags`: For workspace directory sync (excludes .bundle, *.pyc, __pycache__, node_modules, .turbo)
+
+#### Sync Behavior by Use Case
+
+| Use Case | replace | Exclusion Flags | Reason |
+|----------|---------|-----------------|--------|
+| Skills CRUD | `true` | None | Propagate skill deletions to workspace |
+| Agents CRUD | `true` | None | Propagate agent deletions to workspace |
+| Manual backup | `true` | `claudeConfigSyncFlags` + `--full` | Complete backup with cleanup |
+| Task end (claude config) | `false` | `claudeConfigSyncFlags` | Incremental sync, preserve other sessions |
+| Task end (workspace) | `false` | `workspaceSyncFlags` | Incremental sync, preserve existing files |
 
 #### Sync Flags
 Sync behavior is controlled by these flags passed to `processAgentRequest()`:
@@ -196,13 +215,12 @@ Sync behavior is controlled by these flags passed to `processAgentRequest()`:
 | Flag | Pull (new session) | Push (session end) |
 |------|-------------------|---------------------|
 | `autoWorkspacePush` | - | Enables workspace directory push (requires `workspacePath`) |
-| `claudeConfigSync` | Enables claude config pull | Enables claude config push (uses `--full` sync) |
+| `claudeConfigSync` | Enables claude config pull | Enables claude config push |
 
 - `autoWorkspacePush`: Session-level setting (stored in `sessions.auto_workspace_push`)
   - Automatically set to `false` when `workspacePath` is not specified (enforced in API and hooks)
   - Frontend default: `false`, automatically set to `true` when workspace path is selected
 - `claudeConfigSync`: User-level setting (stored in `settings.claude_config_sync`)
-  - Uses `--full` flag for complete synchronization to ensure `.claude/skills` are properly synced
 - Workspace pull always uses `overwrite=true` since each session has isolated directory
 
 #### Path Structure
@@ -252,7 +270,7 @@ Manual backup/restore operations for Claude configuration (`.claude` directory) 
 
 **Operations**:
 - **Pull (Restore)**: Downloads `/Workspace/Users/{email}/.claude` → `$HOME/u/{email}/.claude` with overwrite
-- **Push (Backup)**: Uploads `$HOME/u/{email}/.claude` → `/Workspace/Users/{email}/.claude` using `--full` sync flag
+- **Push (Backup)**: Uploads `$HOME/u/{email}/.claude` → `/Workspace/Users/{email}/.claude` with `replace: true` (deletes workspace directory first)
 - Uses Service Principal OIDC token via `getOidcAccessToken()`
 - Frontend: `SettingsModal.tsx` provides UI for manual operations and auto-backup toggle
 
@@ -417,7 +435,7 @@ app/backend/
 - `app/backend/agent/mcp/databricks.ts` - Databricks MCP server (SQL, warehouse management tools)
 - `app/backend/services/sessionState.ts` - In-memory state for session queues, WebSocket connections, SDK message creators (`createUserMessage`, `createResultMessage`, `createControlRequest`)
 - `app/backend/services/workspaceQueueService.ts` - fastq-based async queue for workspace sync (pull, push, delete)
-- `app/backend/utils/databricks.ts` - Databricks CLI wrapper functions (`workspacePull`, `workspacePush`, `deleteWorkDir`)
+- `app/backend/utils/databricks.ts` - Databricks CLI wrapper functions (`workspacePull`, `workspacePush`, `deleteWorkDir`) and sync flag constants (`claudeConfigSyncFlags`, `workspaceSyncFlags`)
 - `app/backend/utils/headers.ts` - Request header extraction (`extractRequestContext`)
 
 ### Database Layer

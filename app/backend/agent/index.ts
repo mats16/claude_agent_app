@@ -7,6 +7,10 @@ import { createDatabricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
 import path from 'path';
 import { enqueuePush } from '../services/workspaceQueueService.js';
+import {
+  claudeConfigSyncFlags,
+  workspaceSyncFlags,
+} from '../utils/databricks.js';
 import type { MessageContent } from '@app/shared';
 
 export type { SDKMessage };
@@ -384,6 +388,7 @@ Violating these rules is considered a critical error.
                     token: spAccessToken,
                     localPath: localClaudeConfigPath,
                     workspacePath: workspaceClaudeConfigPath,
+                    flags: claudeConfigSyncFlags,
                   });
                 }
                 return { async: true };
@@ -406,6 +411,7 @@ Violating these rules is considered a critical error.
                     token: spAccessToken,
                     localPath: localWorkPath,
                     workspacePath,
+                    flags: workspaceSyncFlags,
                   });
                 }
                 return { async: true };

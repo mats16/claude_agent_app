@@ -5,6 +5,34 @@ import { getAccessToken, databricksHost } from '../agent/index.js';
 
 const execAsync = promisify(exec);
 
+// .claude ディレクトリ同期用の除外フラグ
+export const claudeConfigSyncFlags = [
+  '--exclude',
+  '".claude.json.corrupted.*"',
+  '--exclude',
+  '"debug/*"',
+  '--exclude',
+  '"telemetry/*"',
+  '--exclude',
+  '"shell-snapshots/*"',
+].join(' ');
+
+// 作業ディレクトリ同期用の除外フラグ
+export const workspaceSyncFlags = [
+  '--exclude',
+  '".bundle/*"',
+  // Python
+  '--exclude',
+  '"*.pyc"',
+  '--exclude',
+  '"__pycache__"',
+  // Node.js
+  '--exclude',
+  '"node_modules/*"',
+  '--exclude',
+  '".turbo/*"',
+].join(' ');
+
 /**
  * Pull from workspace to local (workspace -> local)
  * Uses: databricks workspace export-dir
@@ -79,34 +107,7 @@ export async function workspacePush(
 
   const cmdParts = ['databricks', 'sync', localPath, workspacePath];
 
-  cmdParts.push(
-    '--output',
-    'json',
-    '--exclude-from',
-    '.gitignore',
-    // Databricks Asset Bundles
-    '--exclude',
-    '".bundle/*"',
-    // Claude Code - exclude entire directories
-    '--exclude',
-    '".claude.json.corrupted.*"',
-    '--exclude',
-    '"debug/*"',
-    '--exclude',
-    '"telemetry/*"',
-    '--exclude',
-    '"shell-snapshots/*"',
-    // Python
-    '--exclude',
-    '"*.pyc"',
-    '--exclude',
-    '"__pycache__"',
-    // Node.js
-    '--exclude',
-    '"node_modules/*"',
-    '--exclude',
-    '".turbo/*"'
-  );
+  cmdParts.push('--output', 'json', '--exclude-from', '.gitignore');
 
   // 追加フラグを末尾に連結
   const cmd = cmdParts.join(' ') + (flags ? ` ${flags}` : '');

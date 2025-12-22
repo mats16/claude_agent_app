@@ -83,6 +83,8 @@ export interface SyncOptions {
   overwrite?: boolean;
   /** Glob patterns to exclude */
   exclude?: string[];
+  /** Full sync mode - sync all files without .gitignore exclusions (default: false) */
+  full?: boolean;
 }
 
 export interface SyncResult {
@@ -502,8 +504,20 @@ export class WorkspaceClient {
     }
 
     // Build databricks sync command
-    const cmdParts = ['databricks', 'sync', `"${localPath}"`, `"${workspacePath}"`];
-    cmdParts.push('--output', 'json', '--exclude-from', '.gitignore');
+    const cmdParts = [
+      'databricks',
+      'sync',
+      `"${localPath}"`,
+      `"${workspacePath}"`,
+    ];
+    cmdParts.push('--output', 'json');
+
+    // Full sync mode or use .gitignore
+    if (options.full) {
+      cmdParts.push('--full');
+    } else {
+      cmdParts.push('--exclude-from', '.gitignore');
+    }
 
     // Add exclude patterns
     if (options.exclude && options.exclude.length > 0) {

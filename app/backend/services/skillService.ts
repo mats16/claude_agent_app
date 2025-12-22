@@ -9,7 +9,7 @@ import {
   formatSkillContent,
   type SkillMetadata,
 } from '../utils/skills.js';
-import { enqueuePush } from './workspaceQueueService.js';
+import { WorkspaceClient } from '../utils/workspaceClient.js';
 import { getSettingsDirect } from '../db/settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,11 +55,11 @@ function copyDirectoryRecursive(src: string, dest: string): void {
   }
 }
 
-// Sync skills to workspace via queue (fire-and-forget)
-async function syncSkillsToWorkspace(
+// Sync a single skill to workspace (fire-and-forget)
+async function syncSkillToWorkspace(
   userId: string,
   userEmail: string,
-  skillsPath: string
+  skillName: string
 ): Promise<void> {
   // Check if claudeConfigSync is enabled
   const userSettings = await getSettingsDirect(userId);
@@ -68,23 +68,70 @@ async function syncSkillsToWorkspace(
     return;
   }
 
-  const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
-
   const spToken = await getOidcAccessToken();
   if (!spToken) {
     console.error('[Skills] Workspace sync skipped (no SP token available)');
     return;
   }
 
-  // Enqueue push task (fire-and-forget via queue)
-  // Directory will be created automatically by WorkspaceClient.putObject
-  enqueuePush({
-    userId,
-    token: spToken,
-    localPath: skillsPath,
-    workspacePath: workspaceSkillsPath,
-    replace: true,
+  const localSkillPath = path.join(getSkillsPath(userEmail), skillName);
+  const workspaceSkillPath = `/Workspace/Users/${userEmail}/.claude/skills/${skillName}`;
+
+  const client = new WorkspaceClient({
+    host: process.env.DATABRICKS_HOST!,
+    getToken: async () => spToken,
   });
+
+  const result = await client.sync(localSkillPath, workspaceSkillPath, {
+    full: true,
+  });
+
+  if (result.success) {
+    console.log(`[Skills] Synced skill ${skillName} to workspace`);
+  } else {
+    console.error(
+      `[Skills] Failed to sync skill ${skillName}: ${result.error}`
+    );
+  }
+}
+
+// Delete a skill from workspace (fire-and-forget)
+async function deleteSkillFromWorkspace(
+  userId: string,
+  userEmail: string,
+  skillName: string
+): Promise<void> {
+  // Check if claudeConfigSync is enabled
+  const userSettings = await getSettingsDirect(userId);
+  if (!userSettings?.claudeConfigSync) {
+    console.log(
+      '[Skills] Workspace delete skipped (claudeConfigSync disabled)'
+    );
+    return;
+  }
+
+  const spToken = await getOidcAccessToken();
+  if (!spToken) {
+    console.error('[Skills] Workspace delete skipped (no SP token available)');
+    return;
+  }
+
+  const workspaceSkillPath = `/Workspace/Users/${userEmail}/.claude/skills/${skillName}`;
+
+  const client = new WorkspaceClient({
+    host: process.env.DATABRICKS_HOST!,
+    getToken: async () => spToken,
+  });
+
+  const result = await client.deleteObject(workspaceSkillPath);
+
+  if (result.deleted) {
+    console.log(`[Skills] Deleted skill ${skillName} from workspace`);
+  } else {
+    console.log(
+      `[Skills] Skill ${skillName} not found in workspace (already deleted)`
+    );
+  }
 }
 
 // List all skills for a user
@@ -166,8 +213,8 @@ export async function createSkill(
   const fileContent = formatSkillContent(name, description, version, content);
   fs.writeFileSync(skillPath, fileContent, 'utf-8');
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncSkillsToWorkspace(userId, userEmail, skillsPath).catch((err) => {
+  // Sync to workspace (fire-and-forget)
+  syncSkillToWorkspace(userId, userEmail, name).catch((err: Error) => {
     console.error(`[Skills] Failed to sync after create: ${err.message}`);
   });
 
@@ -201,8 +248,8 @@ export async function updateSkill(
   );
   fs.writeFileSync(skillPath, fileContent, 'utf-8');
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncSkillsToWorkspace(userId, userEmail, skillsPath).catch((err) => {
+  // Sync to workspace (fire-and-forget)
+  syncSkillToWorkspace(userId, userEmail, skillName).catch((err: Error) => {
     console.error(`[Skills] Failed to sync after update: ${err.message}`);
   });
 
@@ -226,9 +273,9 @@ export async function deleteSkill(
   // Delete skill directory recursively
   fs.rmSync(skillDirPath, { recursive: true, force: true });
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncSkillsToWorkspace(userId, userEmail, skillsPath).catch((err) => {
-    console.error(`[Skills] Failed to sync after delete: ${err.message}`);
+  // Delete from workspace (fire-and-forget)
+  deleteSkillFromWorkspace(userId, userEmail, skillName).catch((err: Error) => {
+    console.error(`[Skills] Failed to delete from workspace: ${err.message}`);
   });
 }
 
@@ -294,8 +341,8 @@ export async function importPresetSkill(
   // Copy entire preset directory (includes SKILL.md and any additional files)
   copyDirectoryRecursive(presetDirPath, skillDirPath);
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncSkillsToWorkspace(userId, userEmail, skillsPath).catch((err) => {
+  // Sync to workspace (fire-and-forget)
+  syncSkillToWorkspace(userId, userEmail, parsed.name).catch((err: Error) => {
     console.error(
       `[Preset Skills] Failed to sync after import: ${err.message}`
     );
@@ -392,15 +439,19 @@ export async function importGitHubSkill(
     // Copy skill directory
     copyDirectoryRecursive(clonedSkillPath, skillDirPath);
 
-    // Sync to workspace via queue (fire-and-forget)
-    syncSkillsToWorkspace(userId, userEmail, skillsPath).catch((err) => {
-      console.error(
-        `[GitHub Skills] Failed to sync after import: ${err.message}`
-      );
-    });
+    const finalSkillName = parsed.name || skillName;
+
+    // Sync to workspace (fire-and-forget)
+    syncSkillToWorkspace(userId, userEmail, finalSkillName).catch(
+      (err: Error) => {
+        console.error(
+          `[GitHub Skills] Failed to sync after import: ${err.message}`
+        );
+      }
+    );
 
     return {
-      name: parsed.name || skillName,
+      name: finalSkillName,
       description: parsed.description,
       version: parsed.version,
       content: parsed.content,

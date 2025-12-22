@@ -125,9 +125,11 @@ export async function createSessionHandler(
       host: process.env.DATABRICKS_HOST!,
       getToken: async () => spToken!,
     });
-    pullCompleted = client.sync(workspacePath, localWorkPath, {
-      overwrite: true,
-    }).then(() => undefined);
+    pullCompleted = client
+      .sync(workspacePath, localWorkPath, {
+        overwrite: true,
+      })
+      .then(() => undefined);
   }
 
   const startAgentProcessing = () => {

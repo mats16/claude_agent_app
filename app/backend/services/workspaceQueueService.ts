@@ -127,7 +127,9 @@ async function processTask(task: WorkspaceSyncTask): Promise<void> {
       }
       case 'delete':
         await rm(task.localPath, { recursive: true, force: true });
-        console.log(`[WorkspaceQueue] Deleted local directory: ${task.localPath}`);
+        console.log(
+          `[WorkspaceQueue] Deleted local directory: ${task.localPath}`
+        );
         break;
     }
 

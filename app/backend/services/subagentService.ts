@@ -7,7 +7,7 @@ import {
   formatSubagentContent,
   type SubagentMetadata,
 } from '../utils/subagents.js';
-import { enqueuePush } from './workspaceQueueService.js';
+import { WorkspaceClient } from '../utils/workspaceClient.js';
 import { getSettingsDirect } from '../db/settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,11 +38,12 @@ function getPresetAgentsPath(): string {
   return path.join(__dirname, '../preset-settings/agents');
 }
 
-// Sync agents to workspace via queue (fire-and-forget)
-async function syncAgentsToWorkspace(
+// Put a single agent to workspace (fire-and-forget)
+async function putAgentToWorkspace(
   userId: string,
   userEmail: string,
-  agentsPath: string
+  agentName: string,
+  content: string
 ): Promise<void> {
   // Check if claudeConfigSync is enabled
   const userSettings = await getSettingsDirect(userId);
@@ -53,23 +54,62 @@ async function syncAgentsToWorkspace(
     return;
   }
 
-  const workspaceAgentsPath = `/Workspace/Users/${userEmail}/.claude/agents`;
-
   const spToken = await getOidcAccessToken();
   if (!spToken) {
     console.error('[Subagents] Workspace sync skipped (no SP token available)');
     return;
   }
 
-  // Enqueue push task (fire-and-forget via queue)
-  // Directory will be created automatically by WorkspaceClient.putObject
-  enqueuePush({
-    userId,
-    token: spToken,
-    localPath: agentsPath,
-    workspacePath: workspaceAgentsPath,
-    replace: true,
+  const workspaceAgentPath = `/Workspace/Users/${userEmail}/.claude/agents/${agentName}.md`;
+
+  const client = new WorkspaceClient({
+    host: process.env.DATABRICKS_HOST!,
+    getToken: async () => spToken,
   });
+
+  await client.putObject(workspaceAgentPath, content, { overwrite: true });
+  console.log(`[Subagents] Uploaded agent ${agentName} to workspace`);
+}
+
+// Delete an agent from workspace (fire-and-forget)
+async function deleteAgentFromWorkspace(
+  userId: string,
+  userEmail: string,
+  agentName: string
+): Promise<void> {
+  // Check if claudeConfigSync is enabled
+  const userSettings = await getSettingsDirect(userId);
+  if (!userSettings?.claudeConfigSync) {
+    console.log(
+      '[Subagents] Workspace delete skipped (claudeConfigSync disabled)'
+    );
+    return;
+  }
+
+  const spToken = await getOidcAccessToken();
+  if (!spToken) {
+    console.error(
+      '[Subagents] Workspace delete skipped (no SP token available)'
+    );
+    return;
+  }
+
+  const workspaceAgentPath = `/Workspace/Users/${userEmail}/.claude/agents/${agentName}.md`;
+
+  const client = new WorkspaceClient({
+    host: process.env.DATABRICKS_HOST!,
+    getToken: async () => spToken,
+  });
+
+  const result = await client.deleteObject(workspaceAgentPath);
+
+  if (result.deleted) {
+    console.log(`[Subagents] Deleted agent ${agentName} from workspace`);
+  } else {
+    console.log(
+      `[Subagents] Agent ${agentName} not found in workspace (already deleted)`
+    );
+  }
 }
 
 // List all subagents for a user
@@ -165,10 +205,14 @@ export async function createSubagent(
   );
   fs.writeFileSync(subagentPath, fileContent, 'utf-8');
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncAgentsToWorkspace(userId, userEmail, agentsPath).catch((err) => {
-    console.error(`[Subagents] Failed to sync after create: ${err.message}`);
-  });
+  // Upload to workspace (fire-and-forget)
+  putAgentToWorkspace(userId, userEmail, name, fileContent).catch(
+    (err: Error) => {
+      console.error(
+        `[Subagents] Failed to upload after create: ${err.message}`
+      );
+    }
+  );
 
   return { name, description, tools, model, content };
 }
@@ -201,10 +245,14 @@ export async function updateSubagent(
   );
   fs.writeFileSync(subagentPath, fileContent, 'utf-8');
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncAgentsToWorkspace(userId, userEmail, agentsPath).catch((err) => {
-    console.error(`[Subagents] Failed to sync after update: ${err.message}`);
-  });
+  // Upload to workspace (fire-and-forget)
+  putAgentToWorkspace(userId, userEmail, subagentName, fileContent).catch(
+    (err: Error) => {
+      console.error(
+        `[Subagents] Failed to upload after update: ${err.message}`
+      );
+    }
+  );
 
   return { name: subagentName, description, tools, model, content };
 }
@@ -226,10 +274,14 @@ export async function deleteSubagent(
   // Delete single file (not recursive like skills)
   fs.unlinkSync(subagentPath);
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncAgentsToWorkspace(userId, userEmail, agentsPath).catch((err) => {
-    console.error(`[Subagents] Failed to sync after delete: ${err.message}`);
-  });
+  // Delete from workspace (fire-and-forget)
+  deleteAgentFromWorkspace(userId, userEmail, subagentName).catch(
+    (err: Error) => {
+      console.error(
+        `[Subagents] Failed to delete from workspace: ${err.message}`
+      );
+    }
+  );
 }
 
 // List all preset subagents
@@ -305,12 +357,14 @@ export async function importPresetSubagent(
   );
   fs.writeFileSync(subagentPath, fileContent, 'utf-8');
 
-  // Sync to workspace via queue (fire-and-forget)
-  syncAgentsToWorkspace(userId, userEmail, agentsPath).catch((err) => {
-    console.error(
-      `[Preset Subagents] Failed to sync after import: ${err.message}`
-    );
-  });
+  // Upload to workspace (fire-and-forget)
+  putAgentToWorkspace(userId, userEmail, parsed.name, fileContent).catch(
+    (err: Error) => {
+      console.error(
+        `[Preset Subagents] Failed to upload after import: ${err.message}`
+      );
+    }
+  );
 
   return {
     name: parsed.name,

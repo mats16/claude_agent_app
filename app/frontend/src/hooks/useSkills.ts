@@ -383,27 +383,13 @@ export function useSkills() {
       setLoading(true);
       setError(null);
       try {
-        // Find skill in cached data
-        let skill = githubSkillsRef.current.find((s) => s.name === skillName);
-
-        // If not found in cache, fetch from GitHub
-        if (!skill) {
-          skill = (await fetchSkillContentFromGitHub(skillName)) ?? undefined;
-        }
-
-        if (!skill) {
-          throw new Error('GitHub skill not found');
-        }
-
-        // Use createSkill to save the skill
-        const response = await fetch('/api/v1/settings/skills', {
+        // Use backend endpoint to import GitHub skill (supports multi-file skills)
+        const response = await fetch('/api/v1/settings/skills/import-github', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: skill.name,
-            description: skill.description,
-            version: skill.version,
-            content: skill.content,
+            name: SKILLS_REPO,
+            path: `${SKILLS_PATH}/${skillName}`,
           }),
         });
 

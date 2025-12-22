@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
+import { randomUUID } from 'crypto';
 import { getOidcAccessToken } from '../agent/index.js';
 import { ensureWorkspaceDirectory } from '../utils/databricks.js';
 import {
@@ -37,6 +39,21 @@ function getSkillsPath(userEmail: string): string {
 // Get preset skills directory path
 function getPresetSkillsPath(): string {
   return path.join(__dirname, '../preset-settings/skills');
+}
+
+// Copy directory recursively
+function copyDirectoryRecursive(src: string, dest: string): void {
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
 }
 
 // Sync skills to workspace via queue (fire-and-forget)
@@ -256,37 +273,28 @@ export async function importPresetSkill(
   presetName: string
 ): Promise<Skill> {
   const presetSkillsPath = getPresetSkillsPath();
-  const presetFilePath = path.join(presetSkillsPath, presetName, 'SKILL.md');
+  const presetDirPath = path.join(presetSkillsPath, presetName);
+  const presetFilePath = path.join(presetDirPath, 'SKILL.md');
 
   // Check if preset exists
   if (!fs.existsSync(presetFilePath)) {
     throw new Error('Preset skill not found');
   }
 
-  // Read preset file
+  // Read preset file for metadata
   const presetContent = fs.readFileSync(presetFilePath, 'utf-8');
   const parsed = parseSkillContent(presetContent);
 
   const skillsPath = getSkillsPath(userEmail);
   const skillDirPath = path.join(skillsPath, parsed.name);
-  const skillPath = path.join(skillDirPath, 'SKILL.md');
 
   // If skill already exists, remove it first (overwrite)
   if (fs.existsSync(skillDirPath)) {
     fs.rmSync(skillDirPath, { recursive: true, force: true });
   }
 
-  // Create skill directory
-  fs.mkdirSync(skillDirPath, { recursive: true });
-
-  // Write skill file with YAML frontmatter
-  const fileContent = formatSkillContent(
-    parsed.name,
-    parsed.description,
-    parsed.version,
-    parsed.content
-  );
-  fs.writeFileSync(skillPath, fileContent, 'utf-8');
+  // Copy entire preset directory (includes SKILL.md and any additional files)
+  copyDirectoryRecursive(presetDirPath, skillDirPath);
 
   // Sync to workspace via queue (fire-and-forget)
   syncSkillsToWorkspace(userId, userEmail, skillsPath).catch((err) => {
@@ -306,4 +314,103 @@ export async function importPresetSkill(
 // Validate skill name format
 export function isValidSkillName(name: string): boolean {
   return /^[a-zA-Z0-9-]+$/.test(name);
+}
+
+// Fetch repository's default branch from GitHub API
+async function getDefaultBranch(repoName: string): Promise<string> {
+  const response = await fetch(`https://api.github.com/repos/${repoName}`, {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch repository info: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { default_branch: string };
+  return data.default_branch;
+}
+
+// Import a skill from GitHub repository
+// name: repository name (e.g., "anthropics/skills")
+// skillPath: path to skill directory (e.g., "skills/skill-creator")
+// branch: branch name (optional, defaults to repository's default branch)
+export async function importGitHubSkill(
+  userId: string,
+  userEmail: string,
+  repoName: string,
+  skillPath: string,
+  branch?: string
+): Promise<Skill> {
+  const repoUrl = `https://github.com/${repoName}.git`;
+  const skillName = skillPath.split('/').pop() || '';
+
+  if (!skillName) {
+    throw new Error('Invalid skill path');
+  }
+
+  // Get branch (use repository's default if not specified)
+  const targetBranch = branch || (await getDefaultBranch(repoName));
+
+  // Create temporary directory for clone
+  const tmpDir = path.join('/tmp', `skill-import-${randomUUID()}`);
+
+  try {
+    // Clone with depth 1 and sparse checkout for efficiency
+    execSync(
+      `git clone --depth 1 --filter=blob:none --sparse -b ${targetBranch} ${repoUrl} ${tmpDir}`,
+      { stdio: 'pipe' }
+    );
+
+    // Set up sparse checkout for the skill directory
+    execSync(`git -C ${tmpDir} sparse-checkout set ${skillPath}`, {
+      stdio: 'pipe',
+    });
+
+    const clonedSkillPath = path.join(tmpDir, skillPath);
+
+    // Check if skill directory exists
+    if (!fs.existsSync(clonedSkillPath)) {
+      throw new Error('Skill not found in repository');
+    }
+
+    // Check if SKILL.md exists
+    const skillMdPath = path.join(clonedSkillPath, 'SKILL.md');
+    if (!fs.existsSync(skillMdPath)) {
+      throw new Error('SKILL.md not found in skill directory');
+    }
+
+    // Read and parse SKILL.md for metadata
+    const skillMdContent = fs.readFileSync(skillMdPath, 'utf-8');
+    const parsed = parseSkillContent(skillMdContent);
+
+    const skillsPath = getSkillsPath(userEmail);
+    const skillDirPath = path.join(skillsPath, parsed.name || skillName);
+
+    // If skill already exists, remove it first (overwrite)
+    if (fs.existsSync(skillDirPath)) {
+      fs.rmSync(skillDirPath, { recursive: true, force: true });
+    }
+
+    // Copy skill directory
+    copyDirectoryRecursive(clonedSkillPath, skillDirPath);
+
+    // Sync to workspace via queue (fire-and-forget)
+    syncSkillsToWorkspace(userId, userEmail, skillsPath).catch((err) => {
+      console.error(
+        `[GitHub Skills] Failed to sync after import: ${err.message}`
+      );
+    });
+
+    return {
+      name: parsed.name || skillName,
+      description: parsed.description,
+      version: parsed.version,
+      content: parsed.content,
+    };
+  } finally {
+    // Clean up temporary directory
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  }
 }

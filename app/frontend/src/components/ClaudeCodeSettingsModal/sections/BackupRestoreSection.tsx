@@ -6,7 +6,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Button, Alert, Typography, Flex, Switch, Divider } from 'antd';
-import { SyncOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import {
+  SyncOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { colors, spacing } from '../../../styles/theme';
 
 const { Text, Title, Link } = Typography;

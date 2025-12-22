@@ -236,3 +236,55 @@ export async function importPresetSkillHandler(
     return reply.status(500).send({ error: error.message });
   }
 }
+
+// Import a skill from GitHub repository
+export async function importGitHubSkillHandler(
+  request: FastifyRequest<{
+    Body: { name: string; path: string; branch?: string };
+  }>,
+  reply: FastifyReply
+) {
+  let context;
+  try {
+    context = extractRequestContext(request);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+
+  const { name, path, branch } = request.body;
+
+  // Validate required fields
+  if (!name || typeof name !== 'string') {
+    return reply.status(400).send({ error: 'name is required' });
+  }
+
+  if (!path || typeof path !== 'string') {
+    return reply.status(400).send({ error: 'path is required' });
+  }
+
+  // Validate repository name format (owner/repo)
+  if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(name)) {
+    return reply.status(400).send({ error: 'Invalid repository name format' });
+  }
+
+  try {
+    const skill = await skillService.importGitHubSkill(
+      context.userId,
+      context.userEmail,
+      name,
+      path,
+      branch
+    );
+    return skill;
+  } catch (error: any) {
+    if (
+      error.message === 'Invalid skill path' ||
+      error.message === 'Skill not found in repository' ||
+      error.message === 'SKILL.md not found in skill directory'
+    ) {
+      return reply.status(404).send({ error: error.message });
+    }
+    console.error('Failed to import GitHub skill:', error);
+    return reply.status(500).send({ error: error.message });
+  }
+}

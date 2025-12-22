@@ -5,6 +5,7 @@ import {
   createSkillHandler,
   updateSkillHandler,
   deleteSkillHandler,
+  importGitHubSkillHandler,
 } from './handlers.js';
 
 const skillRoutes: FastifyPluginAsync = async (fastify) => {
@@ -19,6 +20,10 @@ const skillRoutes: FastifyPluginAsync = async (fastify) => {
   // Create new skill
   // POST /api/v1/settings/skills
   fastify.post('/', createSkillHandler);
+
+  // Import skill from GitHub repository
+  // POST /api/v1/settings/skills/import-github
+  fastify.post('/import-github', importGitHubSkillHandler);
 
   // Update existing skill
   // PATCH /api/v1/settings/skills/:skillName

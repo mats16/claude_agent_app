@@ -183,7 +183,8 @@
     "createSuccess": "Folder created successfully",
     "createFailed": "Failed to create folder",
     "nameRequired": "Folder name is required",
-    "invalidName": "Folder name contains invalid characters"
+    "invalidName": "Folder name contains invalid characters",
+    "showHiddenTooltip": "Show hidden directories"
   },
   "titleEditModal": {
     "title": "Session Settings",

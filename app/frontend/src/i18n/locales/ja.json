@@ -170,7 +170,7 @@
     "selectOrCreate": "サブエージェントを選択するか新しく作成してください"
   },
   "workspaceModal": {
-    "title": "ワークスペースディレクトリを選択",
+    "title": "ワークスペースパスを選択",
     "current": "現在:",
     "noSubdirectories": "サブディレクトリがありません",
     "noPermission": "アクセス権限がありません",
@@ -183,7 +183,8 @@
     "createSuccess": "フォルダを作成しました",
     "createFailed": "フォルダの作成に失敗しました",
     "nameRequired": "フォルダ名は必須です",
-    "invalidName": "フォルダ名に無効な文字が含まれています"
+    "invalidName": "フォルダ名に無効な文字が含まれています",
+    "showHiddenTooltip": "隠しディレクトリを表示"
   },
   "titleEditModal": {
     "title": "セッション設定",

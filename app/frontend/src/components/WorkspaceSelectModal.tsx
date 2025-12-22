@@ -9,17 +9,15 @@ import {
   Alert,
   Flex,
   Button,
-  Input,
-  message,
+  Tooltip,
 } from 'antd';
 import {
   FolderOutlined,
   FolderOpenOutlined,
   FileOutlined,
   BookOutlined,
-  FolderAddOutlined,
-  CheckOutlined,
-  CloseOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
 } from '@ant-design/icons';
 import { colors } from '../styles/theme';
 
@@ -48,17 +46,18 @@ export default function WorkspaceSelectModal({
   const [objects, setObjects] = useState<WorkspaceObject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
 
-  // Filter and sort objects: hide hidden files, directories first, then alphabetically
+  // Filter and sort objects: optionally hide hidden files, directories first, then alphabetically
   const sortedObjects = useMemo(() => {
     return [...objects]
       .filter((obj) => {
-        // Hide hidden files/folders (starting with '.')
-        const name = obj.path.split('/').pop() || '';
-        return !name.startsWith('.');
+        // Optionally hide hidden files/folders (starting with '.')
+        if (!showHidden) {
+          const name = obj.path.split('/').pop() || '';
+          if (name.startsWith('.')) return false;
+        }
+        return true;
       })
       .sort((a, b) => {
         const aIsDir = a.object_type === 'DIRECTORY';
@@ -73,21 +72,16 @@ export default function WorkspaceSelectModal({
         const bName = b.path.split('/').pop()?.toLowerCase() || '';
         return aName.localeCompare(bName);
       });
-  }, [objects]);
+  }, [objects, showHidden]);
 
   const fetchDirectories = async (path: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Convert /Workspace/Users/ to /users/ and /Workspace/Shared/ to /shared/
-      // Preserve original case for folder names
-      const apiPath = path
-        .replace(/^\/Workspace\/Users\//, '/users/')
-        .replace(/^\/Workspace\/Users$/, '/users')
-        .replace(/^\/Workspace\/Shared\//, '/shared/')
-        .replace(/^\/Workspace\/Shared$/, '/shared');
-      const res = await fetch(`/api/v1/workspace${apiPath}`);
+      // Remove /Workspace prefix and use /api/v1/Workspace
+      const apiPath = path.replace(/^\/Workspace/, '');
+      const res = await fetch(`/api/v1/Workspace${apiPath}`);
 
       if (res.status === 403) {
         setError(t('workspaceModal.noPermission'));
@@ -116,8 +110,6 @@ export default function WorkspaceSelectModal({
 
   useEffect(() => {
     if (isOpen) {
-      setIsCreating(false);
-      setNewFolderName('');
       if (initialPath) {
         setCurrentPath(initialPath);
         fetchDirectories(initialPath);
@@ -132,7 +124,7 @@ export default function WorkspaceSelectModal({
     setError(null);
 
     try {
-      const res = await fetch('/api/v1/workspace/users/me');
+      const res = await fetch('/api/v1/Workspace/Users/me');
 
       if (res.status === 403) {
         setError(t('workspaceModal.noPermission'));
@@ -158,8 +150,6 @@ export default function WorkspaceSelectModal({
   const handleDirectoryClick = (path: string) => {
     setCurrentPath(path);
     fetchDirectories(path);
-    setIsCreating(false);
-    setNewFolderName('');
   };
 
   const handleParentClick = () => {
@@ -168,73 +158,12 @@ export default function WorkspaceSelectModal({
       const parentPath = parts.slice(0, -1).join('/');
       setCurrentPath(parentPath);
       fetchDirectories(parentPath);
-      setIsCreating(false);
-      setNewFolderName('');
     }
   };
 
   const handleSelect = () => {
     onSelect(currentPath);
     onClose();
-  };
-
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) {
-      message.error(t('workspaceModal.nameRequired'));
-      return;
-    }
-
-    // Validate folder name (no slashes, etc.)
-    if (/[/\\:*?"<>|]/.test(newFolderName)) {
-      message.error(t('workspaceModal.invalidName'));
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const newPath = `${currentPath}/${newFolderName.trim()}`;
-      // Convert /Workspace/Users/ to /users/ and /Workspace/Shared/ to /shared/
-      // Preserve original case for folder names
-      const apiPath = newPath
-        .replace(/^\/Workspace\/Users\//, '/users/')
-        .replace(/^\/Workspace\/Users$/, '/users')
-        .replace(/^\/Workspace\/Shared\//, '/shared/')
-        .replace(/^\/Workspace\/Shared$/, '/shared');
-      const res = await fetch(`/api/v1/workspace${apiPath}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ object_type: 'DIRECTORY' }),
-      });
-
-      if (res.status === 403) {
-        message.error(t('workspaceModal.noPermission'));
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.error) {
-        message.error(data.error);
-        return;
-      }
-
-      message.success(t('workspaceModal.createSuccess'));
-      setIsCreating(false);
-      setNewFolderName('');
-
-      // Refresh the directory list
-      await fetchDirectories(currentPath);
-    } catch (e) {
-      console.error('Failed to create folder:', e);
-      message.error(t('workspaceModal.createFailed'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCancelCreate = () => {
-    setIsCreating(false);
-    setNewFolderName('');
   };
 
   const canGoUp = currentPath.split('/').length > 2;
@@ -260,60 +189,15 @@ export default function WorkspaceSelectModal({
     }
   };
 
-  // Custom footer with New Folder button on the left
-  const modalFooter = (
-    <Flex justify="space-between" align="center">
-      <div>
-        {isCreating ? (
-          <Flex align="center" gap={8}>
-            <Input
-              placeholder={t('workspaceModal.folderNamePlaceholder')}
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onPressEnter={handleCreateFolder}
-              style={{ width: 200 }}
-              autoFocus
-              disabled={isSubmitting}
-            />
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={handleCreateFolder}
-              loading={isSubmitting}
-            >
-              {t('workspaceModal.createFolder')}
-            </Button>
-            <Button
-              icon={<CloseOutlined />}
-              onClick={handleCancelCreate}
-              disabled={isSubmitting}
-            />
-          </Flex>
-        ) : (
-          <Button
-            icon={<FolderAddOutlined />}
-            onClick={() => setIsCreating(true)}
-            disabled={isLoading || !currentPath}
-          >
-            {t('workspaceModal.newFolder')}
-          </Button>
-        )}
-      </div>
-      <Flex gap={8}>
-        <Button onClick={onClose}>{t('common.cancel')}</Button>
-        <Button type="primary" onClick={handleSelect} disabled={!currentPath}>
-          {t('common.select')}
-        </Button>
-      </Flex>
-    </Flex>
-  );
-
   return (
     <Modal
       title={t('workspaceModal.title')}
       open={isOpen}
       onCancel={onClose}
-      footer={modalFooter}
+      okText={t('common.select')}
+      cancelText={t('common.cancel')}
+      onOk={handleSelect}
+      okButtonProps={{ disabled: !currentPath }}
       width={560}
     >
       <Flex
@@ -331,6 +215,17 @@ export default function WorkspaceSelectModal({
         <Text style={{ flex: 1, wordBreak: 'break-all' }}>
           {currentPath || '/'}
         </Text>
+        <Tooltip title={t('workspaceModal.showHiddenTooltip')}>
+          <Button
+            type="text"
+            size="small"
+            icon={showHidden ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+            onClick={() => setShowHidden(!showHidden)}
+            style={{
+              color: showHidden ? colors.brand : colors.textMuted,
+            }}
+          />
+        </Tooltip>
       </Flex>
 
       {error && (

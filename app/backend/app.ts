@@ -68,7 +68,7 @@ export async function buildApp() {
   await fastify.register(presetSettingsRoutes, {
     prefix: '/api/v1/preset-settings',
   });
-  await fastify.register(workspaceRoutes, { prefix: '/api/v1/workspace' });
+  await fastify.register(workspaceRoutes, { prefix: '/api/v1/Workspace' });
   await fastify.register(queueRoutes, { prefix: '/api/v1/queues' });
 
   return fastify;

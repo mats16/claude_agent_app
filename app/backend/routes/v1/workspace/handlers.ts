@@ -47,32 +47,35 @@ export async function listUserWorkspaceHandler(
   }
 }
 
-// Convert lowercase API path to Databricks workspace path
+// Convert API path to Databricks workspace path
+// Supports both lowercase and capitalized paths:
 // e.g., "users/foo@example.com/bar" -> "Users/foo@example.com/bar"
+//       "Users/foo@example.com/bar" -> "Users/foo@example.com/bar"
 //       "shared/project" -> "Shared/project"
+//       "Shared/project" -> "Shared/project"
 function convertToWorkspacePath(subpath: string, userEmail?: string): string {
-  // Handle users/me/... pattern - replace 'me' with actual email
-  if (subpath.startsWith('users/me/') && userEmail) {
+  // Handle users/me/... or Users/me/... pattern - replace 'me' with actual email
+  if (/^[Uu]sers\/me\//.test(subpath) && userEmail) {
     return `Users/${userEmail}/${subpath.slice(9)}`;
   }
-  if (subpath === 'users/me' && userEmail) {
+  if (/^[Uu]sers\/me$/.test(subpath) && userEmail) {
     return `Users/${userEmail}`;
   }
 
-  // Handle users/... pattern
-  if (subpath.startsWith('users/')) {
+  // Handle users/... or Users/... pattern
+  if (/^[Uu]sers\//.test(subpath)) {
     return `Users/${subpath.slice(6)}`;
   }
 
-  // Handle shared/... pattern
-  if (subpath.startsWith('shared/')) {
+  // Handle shared/... or Shared/... pattern
+  if (/^[Ss]hared\//.test(subpath)) {
     return `Shared/${subpath.slice(7)}`;
   }
-  if (subpath === 'shared') {
+  if (/^[Ss]hared$/.test(subpath)) {
     return 'Shared';
   }
 
-  // Return as-is for other paths (already capitalized or unknown)
+  // Return as-is for other paths
   return subpath;
 }
 
@@ -109,7 +112,7 @@ export async function listWorkspacePathHandler(
 }
 
 // Get workspace object status
-// GET /api/v1/workspace/status?path=users/me/.claude
+// GET /api/v1/Workspace/status?path=Users/me/.claude
 export async function getStatusHandler(
   request: FastifyRequest<{ Querystring: { path: string } }>,
   reply: FastifyReply
@@ -151,8 +154,8 @@ export async function getStatusHandler(
 }
 
 // Create a directory in workspace
-// POST /api/v1/workspace/*
-// Example: POST /api/v1/workspace/users/me/new-folder
+// POST /api/v1/Workspace/*
+// Example: POST /api/v1/Workspace/Users/me/new-folder
 // Body: { object_type: "DIRECTORY" }
 export async function createDirectoryHandler(
   request: FastifyRequest<{

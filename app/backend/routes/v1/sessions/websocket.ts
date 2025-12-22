@@ -229,19 +229,19 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
             message.type === 'control_request' &&
             message.request?.subtype === 'interrupt'
           ) {
-            const clientRequestId = message.request_id as string;
+            const clientRequestId = message.request_id;
             console.log(
               `[WebSocket] Interrupt request received for session: ${sessionId}, request_id: ${clientRequestId}`
             );
 
-            // Create and save the control_request message (use server-generated UUID)
-            const { message: controlRequest } = createControlRequest(
+            // 1. Save control_request to database
+            const { message: controlRequestMsg } = createControlRequest(
               sessionId,
               'interrupt'
             );
-            await saveMessage(controlRequest);
+            await saveMessage(controlRequestMsg);
 
-            // Send the control_response to the client (use client's request_id)
+            // 2. Send control_response to client
             const controlResponse = createControlResponse(
               clientRequestId,
               'success'
@@ -252,7 +252,19 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               console.error('Failed to send control response:', sendError);
             }
 
-            // Abort the stream to stop the agent
+            // 3. Create, save, and send the interrupt user message for rendering
+            const interruptContent: MessageContent[] = [
+              { type: 'text', text: '[Request interrupted by user]' },
+            ];
+            const interruptMsg = createUserMessage(sessionId, interruptContent);
+            await saveMessage(interruptMsg);
+            try {
+              socket.send(JSON.stringify(interruptMsg));
+            } catch (sendError) {
+              console.error('Failed to send interrupt message:', sendError);
+            }
+
+            // 4. Abort the stream to stop the agent
             const stream = sessionMessageStreams.get(sessionId);
             if (stream) {
               stream.abort();

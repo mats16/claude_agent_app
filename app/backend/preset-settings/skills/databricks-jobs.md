@@ -12,8 +12,13 @@ version: 0.0.1
 
 Skill for Databricks job status monitoring and debugging.
 
-**Real-time operations**: Databricks CLI (`databricks jobs`, `databricks runs`)
+**Real-time operations**: Databricks CLI (`databricks jobs`)
 **Historical analysis**: System Tables (`system.lakeflow.*`) via `mcp__databricks__run_sql`
+
+## CLI Reference
+
+Common commands are documented below. For advanced options (pagination, filtering, output formats):
+→ [Databricks Jobs CLI Reference](https://docs.databricks.com/aws/en/dev-tools/cli/reference/jobs-commands)
 
 ## Authentication
 

@@ -104,6 +104,22 @@ export function createControlResponse(
   };
 }
 
+// Create result message (for completion or interruption)
+export function createResultMessage(
+  sessionId: string,
+  subtype: 'success' | 'interrupted',
+  result: string = ''
+): SDKMessage {
+  return {
+    type: 'result',
+    session_id: sessionId,
+    uuid: crypto.randomUUID(),
+    subtype,
+    is_error: false,
+    result,
+  } as SDKMessage;
+}
+
 // Create SDKMessage for user message (supports text, image, and document content)
 export function createUserMessage(
   sessionId: string,

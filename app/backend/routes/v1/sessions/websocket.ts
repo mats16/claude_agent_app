@@ -14,6 +14,7 @@ import {
   createUserMessage,
   createControlRequest,
   createControlResponse,
+  createResultMessage,
 } from '../../../services/sessionState.js';
 
 const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
@@ -264,7 +265,16 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               console.error('Failed to send interrupt message:', sendError);
             }
 
-            // 4. Abort the stream to stop the agent
+            // 4. Create, save, and send the result message to mark session as complete
+            const resultMsg = createResultMessage(sessionId, 'interrupted');
+            await saveMessage(resultMsg);
+            try {
+              socket.send(JSON.stringify(resultMsg));
+            } catch (sendError) {
+              console.error('Failed to send result message:', sendError);
+            }
+
+            // 5. Abort the stream to stop the agent
             const stream = sessionMessageStreams.get(sessionId);
             if (stream) {
               stream.abort();

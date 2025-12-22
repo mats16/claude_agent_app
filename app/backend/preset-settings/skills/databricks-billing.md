@@ -71,11 +71,20 @@ Analyze Databricks billing data using the `system.billing` schema tables. Execut
 
 ## Cost Calculation Fundamentals
 
-### Time-Aware Price Join
+### Price Table with BROADCAST JOIN
 
-Prices change over time. Always join using `price_start_time` and `price_end_time`:
+Use a CTE to prepare the price table with `COALESCE` for `price_end_time`, then apply `BROADCAST` hint for efficient join:
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_date,
   u.sku_name,
@@ -83,11 +92,11 @@ SELECT
   p.pricing.default AS unit_price,
   u.usage_quantity * p.pricing.default AS cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
 ```
 
@@ -116,17 +125,26 @@ HAVING SUM(usage_quantity) != 0
 ### Monthly Cost by SKU
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   DATE_TRUNC('month', u.usage_date) AS month,
   u.sku_name,
   SUM(u.usage_quantity) AS total_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS total_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL 3 MONTHS
 GROUP BY ALL
 HAVING SUM(u.usage_quantity) != 0
@@ -136,16 +154,25 @@ ORDER BY month DESC, total_cost DESC
 ### Daily Cost Trend
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_date,
   SUM(u.usage_quantity) AS daily_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS daily_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
 GROUP BY u.usage_date
 ORDER BY u.usage_date
@@ -154,16 +181,25 @@ ORDER BY u.usage_date
 ### Workspace Cost Breakdown
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.workspace_id,
   SUM(u.usage_quantity) AS total_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS total_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
 GROUP BY u.workspace_id
 HAVING SUM(u.usage_quantity) != 0
@@ -173,6 +209,15 @@ ORDER BY total_cost DESC
 ### Job Cost Analysis
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_metadata.job_id,
   u.usage_metadata.job_name,
@@ -180,11 +225,11 @@ SELECT
   SUM(u.usage_quantity) AS total_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS total_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_metadata.job_id IS NOT NULL
   AND u.usage_date >= CURRENT_DATE - INTERVAL 7 DAYS
 GROUP BY ALL
@@ -196,6 +241,15 @@ LIMIT 20
 ### SQL Warehouse Cost Analysis
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_metadata.warehouse_id,
   w.name AS warehouse_name,
@@ -203,11 +257,11 @@ SELECT
   SUM(u.usage_quantity) AS total_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS total_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 LEFT JOIN system.compute.warehouses w
   ON u.usage_metadata.warehouse_id = w.warehouse_id
 WHERE u.usage_metadata.warehouse_id IS NOT NULL
@@ -220,6 +274,15 @@ ORDER BY total_cost DESC
 ### Cluster Cost Analysis
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_metadata.cluster_id,
   c.cluster_name,
@@ -227,11 +290,11 @@ SELECT
   SUM(u.usage_quantity) AS total_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS total_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 LEFT JOIN system.compute.clusters c
   ON u.usage_metadata.cluster_id = c.cluster_id
 WHERE u.usage_metadata.cluster_id IS NOT NULL
@@ -245,6 +308,15 @@ LIMIT 20
 ### Model Serving Cost
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_metadata.endpoint_name,
   u.usage_metadata.endpoint_id,
@@ -252,11 +324,11 @@ SELECT
   SUM(u.usage_quantity) AS total_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS total_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_metadata.endpoint_id IS NOT NULL
   AND u.usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
 GROUP BY ALL
@@ -267,16 +339,25 @@ ORDER BY total_cost DESC
 ### DLT Pipeline Cost
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_metadata.dlt_pipeline_id,
   SUM(u.usage_quantity) AS total_dbu,
   SUM(u.usage_quantity * p.pricing.default) AS total_cost
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_metadata.dlt_pipeline_id IS NOT NULL
   AND u.usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
 GROUP BY u.usage_metadata.dlt_pipeline_id
@@ -289,16 +370,25 @@ ORDER BY total_cost DESC
 ### Month-over-Month Comparison
 
 ```sql
-WITH monthly AS (
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+),
+monthly AS (
   SELECT
     DATE_TRUNC('month', u.usage_date) AS month,
     SUM(u.usage_quantity * p.pricing.default) AS total_cost
   FROM system.billing.usage u
-  LEFT JOIN system.billing.list_prices p
+  LEFT JOIN prices p /*+ BROADCAST(p) */
     ON u.sku_name = p.sku_name
-    AND u.cloud = p.cloud
-    AND u.usage_date >= DATE(p.price_start_time)
-    AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+    AND u.usage_unit = p.usage_unit
+    AND u.usage_date >= p.price_start_date
+    AND u.usage_date < p.price_end_date
   WHERE u.usage_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL 2 MONTHS
   GROUP BY month
 )
@@ -316,6 +406,15 @@ ORDER BY month
 ### Top Cost Contributors (Jobs)
 
 ```sql
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+)
 SELECT
   u.usage_metadata.job_id,
   u.usage_metadata.job_name,
@@ -323,11 +422,11 @@ SELECT
   ROUND(SUM(u.usage_quantity * p.pricing.default) * 100.0 /
     SUM(SUM(u.usage_quantity * p.pricing.default)) OVER (), 2) AS pct_of_total
 FROM system.billing.usage u
-LEFT JOIN system.billing.list_prices p
+LEFT JOIN prices p /*+ BROADCAST(p) */
   ON u.sku_name = p.sku_name
-  AND u.cloud = p.cloud
-  AND u.usage_date >= DATE(p.price_start_time)
-  AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+  AND u.usage_unit = p.usage_unit
+  AND u.usage_date >= p.price_start_date
+  AND u.usage_date < p.price_end_date
 WHERE u.usage_metadata.job_id IS NOT NULL
   AND u.usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
 GROUP BY ALL
@@ -339,16 +438,25 @@ LIMIT 10
 ### Cost Anomaly Detection (Daily Spike)
 
 ```sql
-WITH daily_costs AS (
+WITH prices AS (
+  SELECT
+    sku_name,
+    usage_unit,
+    pricing,
+    DATE(price_start_time) AS price_start_date,
+    DATE(COALESCE(price_end_time, '9999-12-31')) AS price_end_date
+  FROM system.billing.list_prices
+),
+daily_costs AS (
   SELECT
     u.usage_date,
     SUM(u.usage_quantity * p.pricing.default) AS daily_cost
   FROM system.billing.usage u
-  LEFT JOIN system.billing.list_prices p
+  LEFT JOIN prices p /*+ BROADCAST(p) */
     ON u.sku_name = p.sku_name
-    AND u.cloud = p.cloud
-    AND u.usage_date >= DATE(p.price_start_time)
-    AND (p.price_end_time IS NULL OR u.usage_date < DATE(p.price_end_time))
+    AND u.usage_unit = p.usage_unit
+    AND u.usage_date >= p.price_start_date
+    AND u.usage_date < p.price_end_date
   WHERE u.usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
   GROUP BY u.usage_date
 ),
@@ -374,12 +482,12 @@ ORDER BY d.usage_date DESC
 ```sql
 SELECT
   sku_name,
+  usage_unit,
   pricing.default AS price,
   price_start_time,
   price_end_time,
   currency_code
 FROM system.billing.list_prices
-WHERE cloud = 'AWS'  -- Adjust for your cloud
 ORDER BY sku_name, price_start_time DESC
 ```
 

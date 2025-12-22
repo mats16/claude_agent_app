@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import { getOidcAccessToken } from '../agent/index.js';
-import { ensureWorkspaceDirectory } from '../utils/databricks.js';
 import {
   parseSkillContent,
   formatSkillContent,
@@ -71,15 +70,14 @@ async function syncSkillsToWorkspace(
 
   const workspaceSkillsPath = `/Workspace/Users/${userEmail}/.claude/skills`;
 
-  // Ensure workspace directory exists
   const spToken = await getOidcAccessToken();
   if (!spToken) {
     console.error('[Skills] Workspace sync skipped (no SP token available)');
     return;
   }
-  await ensureWorkspaceDirectory(workspaceSkillsPath, spToken);
 
   // Enqueue push task (fire-and-forget via queue)
+  // Directory will be created automatically by WorkspaceClient.putObject
   enqueuePush({
     userId,
     token: spToken,

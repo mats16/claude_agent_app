@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getOidcAccessToken } from '../agent/index.js';
-import { ensureWorkspaceDirectory } from '../utils/databricks.js';
 import {
   parseSubagentContent,
   formatSubagentContent,
@@ -56,15 +55,14 @@ async function syncAgentsToWorkspace(
 
   const workspaceAgentsPath = `/Workspace/Users/${userEmail}/.claude/agents`;
 
-  // Ensure workspace directory exists
   const spToken = await getOidcAccessToken();
   if (!spToken) {
     console.error('[Subagents] Workspace sync skipped (no SP token available)');
     return;
   }
-  await ensureWorkspaceDirectory(workspaceAgentsPath, spToken);
 
   // Enqueue push task (fire-and-forget via queue)
+  // Directory will be created automatically by WorkspaceClient.putObject
   enqueuePush({
     userId,
     token: spToken,

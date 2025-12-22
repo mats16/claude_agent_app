@@ -8,9 +8,14 @@ import fs from 'fs';
 import path from 'path';
 import { enqueuePush } from '../services/workspaceQueueService.js';
 import {
-  claudeConfigSyncFlags,
-  workspaceSyncFlags,
-} from '../utils/databricks.js';
+  claudeConfigExcludePatterns,
+  workspaceExcludePatterns,
+} from '../utils/workspaceClient.js';
+
+// Convert exclude patterns to CLI flags format for backward compatibility
+function buildExcludeFlags(patterns: string[]): string {
+  return patterns.map((p) => `--exclude "${p}"`).join(' ');
+}
 import type { MessageContent } from '@app/shared';
 
 export type { SDKMessage };
@@ -388,7 +393,7 @@ Violating these rules is considered a critical error.
                     token: spAccessToken,
                     localPath: localClaudeConfigPath,
                     workspacePath: workspaceClaudeConfigPath,
-                    flags: claudeConfigSyncFlags,
+                    flags: buildExcludeFlags(claudeConfigExcludePatterns),
                   });
                 }
                 return { async: true };
@@ -411,7 +416,7 @@ Violating these rules is considered a critical error.
                     token: spAccessToken,
                     localPath: localWorkPath,
                     workspacePath,
-                    flags: workspaceSyncFlags,
+                    flags: buildExcludeFlags(workspaceExcludePatterns),
                   });
                 }
                 return { async: true };

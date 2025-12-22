@@ -18,7 +18,7 @@ import {
 import { getSettingsDirect } from '../../../db/settings.js';
 import { upsertUser } from '../../../db/users.js';
 import { enqueueDelete } from '../../../services/workspaceQueueService.js';
-import { workspacePull } from '../../../utils/databricks.js';
+import { WorkspaceClient } from '../../../utils/workspaceClient.js';
 import { extractRequestContext } from '../../../utils/headers.js';
 import {
   sessionMessageStreams,
@@ -121,7 +121,13 @@ export async function createSessionHandler(
     );
     const spToken = await getOidcAccessToken();
     // Start pull immediately, agent will wait for completion before processing
-    pullCompleted = workspacePull(workspacePath, localWorkPath, true, spToken);
+    const client = new WorkspaceClient({
+      host: process.env.DATABRICKS_HOST!,
+      getToken: async () => spToken!,
+    });
+    pullCompleted = client.sync(workspacePath, localWorkPath, {
+      overwrite: true,
+    }).then(() => undefined);
   }
 
   const startAgentProcessing = () => {

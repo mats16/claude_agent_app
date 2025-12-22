@@ -1,10 +1,10 @@
 import fastq from 'fastq';
 import type { queueAsPromised } from 'fastq';
+import { rm } from 'fs/promises';
 import {
-  workspacePull,
-  workspacePush,
-  deleteWorkDir,
-} from '../utils/databricks.js';
+  WorkspaceClient,
+  parseExcludeFlags,
+} from '../utils/workspaceClient.js';
 
 // Task types
 type WorkspaceSyncTaskType = 'pull' | 'push' | 'delete';
@@ -91,29 +91,43 @@ function calculateRetryDelay(retryCount: number): number {
   return Math.floor(delay + jitter);
 }
 
+// Get Databricks host from environment
+const getDatabricksHost = (): string => {
+  const host = process.env.DATABRICKS_HOST;
+  if (!host) {
+    throw new Error('DATABRICKS_HOST environment variable is not set');
+  }
+  return host;
+};
+
 // Worker function that processes tasks
 async function processTask(task: WorkspaceSyncTask): Promise<void> {
   try {
     switch (task.type) {
-      case 'pull':
-        await workspacePull(
-          task.workspacePath,
-          task.localPath,
-          task.overwrite,
-          task.token
-        );
+      case 'pull': {
+        const client = new WorkspaceClient({
+          host: getDatabricksHost(),
+          getToken: async () => task.token!,
+        });
+        await client.sync(task.workspacePath, task.localPath, {
+          overwrite: task.overwrite,
+        });
         break;
-      case 'push':
-        await workspacePush(
-          task.token,
-          task.localPath,
-          task.workspacePath,
-          task.flags,
-          task.replace
-        );
+      }
+      case 'push': {
+        const client = new WorkspaceClient({
+          host: getDatabricksHost(),
+          getToken: async () => task.token,
+        });
+        await client.sync(task.localPath, task.workspacePath, {
+          delete: task.replace,
+          exclude: parseExcludeFlags(task.flags),
+        });
         break;
+      }
       case 'delete':
-        await deleteWorkDir(task.localPath);
+        await rm(task.localPath, { recursive: true, force: true });
+        console.log(`[WorkspaceQueue] Deleted local directory: ${task.localPath}`);
         break;
     }
 

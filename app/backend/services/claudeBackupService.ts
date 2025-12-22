@@ -1,10 +1,12 @@
 import path from 'path';
 import { getOidcAccessToken } from '../agent/index.js';
-import {
-  ensureWorkspaceDirectory,
-  claudeConfigSyncFlags,
-} from '../utils/databricks.js';
+import { claudeConfigExcludePatterns } from '../utils/workspaceClient.js';
 import { enqueuePull, enqueuePush } from './workspaceQueueService.js';
+
+// Convert exclude patterns to CLI flags format for backward compatibility
+function buildExcludeFlags(patterns: string[]): string {
+  return patterns.map((p) => `--exclude "${p}"`).join(' ');
+}
 
 // Get base path for user's local storage
 function getLocalBasePath(): string {
@@ -59,19 +61,17 @@ export async function pushClaudeConfig(
     throw new Error('Failed to get SP access token for backup push');
   }
 
-  // Ensure workspace directory exists
-  await ensureWorkspaceDirectory(workspaceClaudeConfigPath, spAccessToken);
-
   console.log(
     `[Backup Push] Enqueueing claude config push from ${localClaudeConfigPath} to ${workspaceClaudeConfigPath}...`
   );
 
+  // Directory will be created automatically by WorkspaceClient.putObject
   const taskId = enqueuePush({
     userId,
     token: spAccessToken,
     localPath: localClaudeConfigPath,
     workspacePath: workspaceClaudeConfigPath,
-    flags: `${claudeConfigSyncFlags} --full`,
+    flags: `${buildExcludeFlags(claudeConfigExcludePatterns)} --full`,
     replace: true,
   });
 

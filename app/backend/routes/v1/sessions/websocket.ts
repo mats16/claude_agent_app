@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { MessageContent } from '@app/shared';
+import type { MessageContent, IncomingWSMessage } from '@app/shared';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { processAgentRequest, MessageStream } from '../../../agent/index.js';
 import { saveMessage } from '../../../db/events.js';
@@ -12,6 +12,8 @@ import {
   sessionWebSockets,
   userSessionListeners,
   createUserMessage,
+  createControlRequest,
+  createControlResponse,
 } from '../../../services/sessionState.js';
 
 const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
@@ -109,7 +111,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
       socket.on('message', async (messageBuffer: Buffer) => {
         try {
           const messageStr = messageBuffer.toString();
-          const message = JSON.parse(messageStr);
+          const message = JSON.parse(messageStr) as IncomingWSMessage;
 
           if (message.type === 'connect') {
             socket.send(JSON.stringify({ type: 'connected' }));
@@ -117,9 +119,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
             // Only send queued events if session is still being processed
             // Completed sessions should load history from REST API
             if (queue && !queue.completed) {
-              const lastEventUuid = message.last_event_uuid as
-                | string
-                | undefined;
+              const lastEventUuid = message.last_event_uuid;
               // If client provides last_event_uuid, only send events after that UUID
               // This prevents re-sending events on reconnection
               let startSending = !lastEventUuid;
@@ -225,23 +225,31 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
             }
           }
 
-          if (message.type === 'stop') {
+          if (
+            message.type === 'control_request' &&
+            message.request?.subtype === 'interrupt'
+          ) {
+            const clientRequestId = message.request_id as string;
             console.log(
-              `[WebSocket] Stop request received for session: ${sessionId}`
+              `[WebSocket] Interrupt request received for session: ${sessionId}, request_id: ${clientRequestId}`
             );
 
-            // Create and save the interrupt message as a user message
-            const interruptContent: MessageContent[] = [
-              { type: 'text', text: '[Request interrupted by user]' },
-            ];
-            const interruptMsg = createUserMessage(sessionId, interruptContent);
-            await saveMessage(interruptMsg);
+            // Create and save the control_request message (use server-generated UUID)
+            const { message: controlRequest } = createControlRequest(
+              sessionId,
+              'interrupt'
+            );
+            await saveMessage(controlRequest);
 
-            // Send the interrupt message to the client
+            // Send the control_response to the client (use client's request_id)
+            const controlResponse = createControlResponse(
+              clientRequestId,
+              'success'
+            );
             try {
-              socket.send(JSON.stringify(interruptMsg));
+              socket.send(JSON.stringify(controlResponse));
             } catch (sendError) {
-              console.error('Failed to send interrupt message:', sendError);
+              console.error('Failed to send control response:', sendError);
             }
 
             // Abort the stream to stop the agent

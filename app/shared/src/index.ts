@@ -56,6 +56,7 @@ export interface FileUploadResponse {
 
 export interface WSConnectMessage {
   type: 'connect';
+  last_event_uuid?: string;
 }
 
 export interface WSResumeMessage {
@@ -70,15 +71,19 @@ export interface WSUserMessage {
   sessionId?: string;
 }
 
-export interface WSStopMessage {
-  type: 'stop';
+export interface WSControlRequest {
+  type: 'control_request';
+  request_id: string;
+  request: {
+    subtype: 'interrupt';
+  };
 }
 
 export type IncomingWSMessage =
   | WSConnectMessage
   | WSResumeMessage
   | WSUserMessage
-  | WSStopMessage;
+  | WSControlRequest;
 
 // ============================================
 // WebSocket Message Types (Server -> Client)

@@ -3,6 +3,7 @@ import type {
   ImageContent,
   DocumentContent,
   MessageContent,
+  WSControlRequest,
 } from '@app/shared';
 import type {
   SDKMessage,
@@ -740,8 +741,19 @@ export function useAgent(options: UseAgentOptions = {}) {
       return;
     }
 
+    // Generate a short random request ID
+    const requestId = Math.random().toString(36).slice(2, 13);
+
+    const controlRequest: WSControlRequest = {
+      type: 'control_request',
+      request_id: requestId,
+      request: {
+        subtype: 'interrupt',
+      },
+    };
+
     console.log(`Sending stop request for session: ${sessionId}`);
-    wsRef.current.send(JSON.stringify({ type: 'stop' }));
+    wsRef.current.send(JSON.stringify(controlRequest));
 
     // Reset refs - the interrupt message will be received from the backend via WebSocket
     currentResponseRef.current = '';

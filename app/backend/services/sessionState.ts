@@ -67,6 +67,43 @@ export function markQueueCompleted(sessionId: string) {
   }
 }
 
+// Generate short random ID for control requests
+function generateRequestId(): string {
+  return Math.random().toString(36).slice(2, 13);
+}
+
+// Create control_request message (for interrupt, etc.)
+export function createControlRequest(
+  sessionId: string,
+  subtype: 'interrupt'
+): { message: SDKMessage; requestId: string } {
+  const requestId = generateRequestId();
+  const message = {
+    type: 'control_request',
+    session_id: sessionId,
+    uuid: crypto.randomUUID(),
+    request_id: requestId,
+    request: {
+      subtype,
+    },
+  } as unknown as SDKMessage;
+  return { message, requestId };
+}
+
+// Create control_response message
+export function createControlResponse(
+  requestId: string,
+  subtype: 'success' | 'error'
+): object {
+  return {
+    type: 'control_response',
+    response: {
+      request_id: requestId,
+      subtype,
+    },
+  };
+}
+
 // Create SDKMessage for user message (supports text, image, and document content)
 export function createUserMessage(
   sessionId: string,

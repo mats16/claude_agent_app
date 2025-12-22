@@ -226,22 +226,25 @@ export async function listPresetSkills(): Promise<PresetListResult> {
     return { presets: [] };
   }
 
-  // Read all .md files in the preset-skills directory
-  const files = fs.readdirSync(presetSkillsPath);
-  const presets = files
-    .filter((file) => file.endsWith('.md'))
-    .map((file) => {
-      const filePath = path.join(presetSkillsPath, file);
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      const parsed = parseSkillContent(fileContent);
-      return {
-        name: parsed.name,
-        description: parsed.description,
-        version: parsed.version,
-        content: parsed.content,
-      };
+  // Read all subdirectories containing SKILL.md
+  const entries = fs.readdirSync(presetSkillsPath, { withFileTypes: true });
+  const presets = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const skillFilePath = path.join(presetSkillsPath, entry.name, 'SKILL.md');
+      if (fs.existsSync(skillFilePath)) {
+        const fileContent = fs.readFileSync(skillFilePath, 'utf-8');
+        const parsed = parseSkillContent(fileContent);
+        return {
+          name: parsed.name,
+          description: parsed.description,
+          version: parsed.version,
+          content: parsed.content,
+        };
+      }
+      return null;
     })
-    .filter((preset): preset is Skill => !!preset.name);
+    .filter((preset): preset is Skill => preset !== null && !!preset.name);
 
   return { presets };
 }
@@ -253,7 +256,7 @@ export async function importPresetSkill(
   presetName: string
 ): Promise<Skill> {
   const presetSkillsPath = getPresetSkillsPath();
-  const presetFilePath = path.join(presetSkillsPath, `${presetName}.md`);
+  const presetFilePath = path.join(presetSkillsPath, presetName, 'SKILL.md');
 
   // Check if preset exists
   if (!fs.existsSync(presetFilePath)) {

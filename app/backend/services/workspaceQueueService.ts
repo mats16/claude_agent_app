@@ -1,13 +1,10 @@
 import fastq from 'fastq';
 import type { queueAsPromised } from 'fastq';
 import { rm } from 'fs/promises';
-import {
-  WorkspaceClient,
-  parseExcludeFlags,
-} from '../utils/workspaceClient.js';
+import { WorkspaceClient, type SyncOptions } from '../utils/workspaceClient.js';
 
 // Task types
-type WorkspaceSyncTaskType = 'pull' | 'push' | 'delete';
+type WorkspaceSyncTaskType = 'sync' | 'delete';
 
 interface BaseTask {
   id: string;
@@ -17,21 +14,12 @@ interface BaseTask {
   retryCount: number;
 }
 
-interface PullTask extends BaseTask {
-  type: 'pull';
-  workspacePath: string;
-  localPath: string;
-  overwrite: boolean;
-  token?: string;
-}
-
-interface PushTask extends BaseTask {
-  type: 'push';
+interface SyncTask extends BaseTask {
+  type: 'sync';
   token: string;
-  localPath: string;
-  workspacePath: string;
-  flags?: string;
-  replace?: boolean;
+  src: string;
+  dest: string;
+  options?: SyncOptions;
 }
 
 interface DeleteTask extends BaseTask {
@@ -39,7 +27,7 @@ interface DeleteTask extends BaseTask {
   localPath: string;
 }
 
-export type WorkspaceSyncTask = PullTask | PushTask | DeleteTask;
+export type WorkspaceSyncTask = SyncTask | DeleteTask;
 
 // Configuration
 interface QueueConfig {
@@ -104,25 +92,12 @@ const getDatabricksHost = (): string => {
 async function processTask(task: WorkspaceSyncTask): Promise<void> {
   try {
     switch (task.type) {
-      case 'pull': {
-        const client = new WorkspaceClient({
-          host: getDatabricksHost(),
-          getToken: async () => task.token!,
-        });
-        await client.sync(task.workspacePath, task.localPath, {
-          overwrite: task.overwrite,
-        });
-        break;
-      }
-      case 'push': {
+      case 'sync': {
         const client = new WorkspaceClient({
           host: getDatabricksHost(),
           getToken: async () => task.token,
         });
-        await client.sync(task.localPath, task.workspacePath, {
-          delete: task.replace,
-          exclude: parseExcludeFlags(task.flags),
-        });
+        await client.sync(task.src, task.dest, task.options);
         break;
       }
       case 'delete':
@@ -203,49 +178,23 @@ export function initQueue(customConfig?: Partial<QueueConfig>): void {
   );
 }
 
-// Enqueue pull task
-export function enqueuePull(params: {
-  userId: string;
-  workspacePath: string;
-  localPath: string;
-  overwrite?: boolean;
-  token?: string;
-}): string {
-  ensureQueueInitialized();
-  const task: PullTask = {
-    id: crypto.randomUUID(),
-    type: 'pull',
-    userId: params.userId,
-    workspacePath: params.workspacePath,
-    localPath: params.localPath,
-    overwrite: params.overwrite ?? false,
-    token: params.token,
-    createdAt: Date.now(),
-    retryCount: 0,
-  };
-  enqueueTask(task);
-  return task.id;
-}
-
-// Enqueue push task
-export function enqueuePush(params: {
+// Enqueue sync task (direction auto-detected by WorkspaceClient based on path prefixes)
+export function enqueueSync(params: {
   userId: string;
   token: string;
-  localPath: string;
-  workspacePath: string;
-  flags?: string;
-  replace?: boolean;
+  src: string;
+  dest: string;
+  options?: SyncOptions;
 }): string {
   ensureQueueInitialized();
-  const task: PushTask = {
+  const task: SyncTask = {
     id: crypto.randomUUID(),
-    type: 'push',
+    type: 'sync',
     userId: params.userId,
     token: params.token,
-    localPath: params.localPath,
-    workspacePath: params.workspacePath,
-    flags: params.flags,
-    replace: params.replace,
+    src: params.src,
+    dest: params.dest,
+    options: params.options,
     createdAt: Date.now(),
     retryCount: 0,
   };

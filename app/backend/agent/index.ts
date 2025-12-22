@@ -6,16 +6,11 @@ import type {
 import { createDatabricksMcpServer } from './mcp/databricks.js';
 import fs from 'fs';
 import path from 'path';
-import { enqueuePush } from '../services/workspaceQueueService.js';
+import { enqueueSync } from '../services/workspaceQueueService.js';
 import {
   claudeConfigExcludePatterns,
   workspaceExcludePatterns,
 } from '../utils/workspaceClient.js';
-
-// Convert exclude patterns to CLI flags format for backward compatibility
-function buildExcludeFlags(patterns: string[]): string {
-  return patterns.map((p) => `--exclude "${p}"`).join(' ');
-}
 import type { MessageContent } from '@app/shared';
 
 export type { SDKMessage };
@@ -388,12 +383,12 @@ Violating these rules is considered a critical error.
             hooks: [
               async (_input, _toolUseID, _options) => {
                 if (claudeConfigSync && spAccessToken && userId) {
-                  enqueuePush({
+                  enqueueSync({
                     userId,
                     token: spAccessToken,
-                    localPath: localClaudeConfigPath,
-                    workspacePath: workspaceClaudeConfigPath,
-                    flags: buildExcludeFlags(claudeConfigExcludePatterns),
+                    src: localClaudeConfigPath,
+                    dest: workspaceClaudeConfigPath,
+                    options: { exclude: claudeConfigExcludePatterns },
                   });
                 }
                 return { async: true };
@@ -411,12 +406,12 @@ Violating these rules is considered a critical error.
                   spAccessToken &&
                   userId
                 ) {
-                  enqueuePush({
+                  enqueueSync({
                     userId,
                     token: spAccessToken,
-                    localPath: localWorkPath,
-                    workspacePath,
-                    flags: buildExcludeFlags(workspaceExcludePatterns),
+                    src: localWorkPath,
+                    dest: workspacePath,
+                    options: { exclude: workspaceExcludePatterns },
                   });
                 }
                 return { async: true };

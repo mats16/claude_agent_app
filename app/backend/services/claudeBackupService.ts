@@ -1,12 +1,7 @@
 import path from 'path';
 import { getOidcAccessToken } from '../agent/index.js';
 import { claudeConfigExcludePatterns } from '../utils/workspaceClient.js';
-import { enqueuePull, enqueuePush } from './workspaceQueueService.js';
-
-// Convert exclude patterns to CLI flags format for backward compatibility
-function buildExcludeFlags(patterns: string[]): string {
-  return patterns.map((p) => `--exclude "${p}"`).join(' ');
-}
+import { enqueueSync } from './workspaceQueueService.js';
 
 // Get base path for user's local storage
 function getLocalBasePath(): string {
@@ -32,17 +27,20 @@ export async function pullClaudeConfig(
   const workspaceClaudeConfigPath = getWorkspaceClaudeConfigPath(userEmail);
 
   const spAccessToken = await getOidcAccessToken();
+  if (!spAccessToken) {
+    throw new Error('Failed to get SP access token for backup pull');
+  }
 
   console.log(
     `[Backup Pull] Enqueueing claude config pull from ${workspaceClaudeConfigPath} to ${localClaudeConfigPath}...`
   );
 
-  const taskId = enqueuePull({
+  const taskId = enqueueSync({
     userId,
-    workspacePath: workspaceClaudeConfigPath,
-    localPath: localClaudeConfigPath,
-    overwrite: true,
     token: spAccessToken,
+    src: workspaceClaudeConfigPath,
+    dest: localClaudeConfigPath,
+    options: { overwrite: true },
   });
 
   return taskId;
@@ -65,14 +63,16 @@ export async function pushClaudeConfig(
     `[Backup Push] Enqueueing claude config push from ${localClaudeConfigPath} to ${workspaceClaudeConfigPath}...`
   );
 
-  // Directory will be created automatically by WorkspaceClient.putObject
-  const taskId = enqueuePush({
+  const taskId = enqueueSync({
     userId,
     token: spAccessToken,
-    localPath: localClaudeConfigPath,
-    workspacePath: workspaceClaudeConfigPath,
-    flags: `${buildExcludeFlags(claudeConfigExcludePatterns)} --full`,
-    replace: true,
+    src: localClaudeConfigPath,
+    dest: workspaceClaudeConfigPath,
+    options: {
+      delete: true,
+      exclude: claudeConfigExcludePatterns,
+      full: true,
+    },
   });
 
   return taskId;
@@ -91,17 +91,20 @@ export async function manualPullClaudeConfig(
   const workspaceClaudeConfigPath = getWorkspaceClaudeConfigPath(userEmail);
 
   const spAccessToken = await getOidcAccessToken();
+  if (!spAccessToken) {
+    throw new Error('Failed to get SP access token for manual pull');
+  }
 
   console.log(
     `[Manual Pull] Enqueueing claude config pull from ${workspaceClaudeConfigPath} to ${localClaudeConfigPath}...`
   );
 
-  const taskId = enqueuePull({
+  const taskId = enqueueSync({
     userId,
-    workspacePath: workspaceClaudeConfigPath,
-    localPath: localClaudeConfigPath,
-    overwrite: true,
     token: spAccessToken,
+    src: workspaceClaudeConfigPath,
+    dest: localClaudeConfigPath,
+    options: { overwrite: true },
   });
 
   return taskId;

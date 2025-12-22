@@ -554,21 +554,6 @@ export class WorkspaceClient {
 // Utility Functions
 // ============================================================================
 
-/**
- * Parse CLI exclude flags to array of patterns
- * e.g., '--exclude ".bundle/*" --exclude "*.pyc"' → ['.bundle/*', '*.pyc']
- */
-export function parseExcludeFlags(flags?: string): string[] {
-  if (!flags) return [];
-  const patterns: string[] = [];
-  const regex = /--exclude\s+"([^"]+)"/g;
-  let match;
-  while ((match = regex.exec(flags)) !== null) {
-    patterns.push(match[1]);
-  }
-  return patterns;
-}
-
 // Exclude patterns for .claude directory sync
 export const claudeConfigExcludePatterns = [
   '.claude.json.corrupted.*',

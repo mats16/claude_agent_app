@@ -38,29 +38,29 @@ databricks jobs get <job_id> -o json
 
 ```bash
 # List runs for a specific job
-databricks runs list --job-id <job_id> -o json
+databricks jobs list-runs --job-id <job_id> -o json
 
 # Get run details (state, start/end time, parameters, etc.)
-databricks runs get <run_id> -o json
+databricks jobs get-run <run_id> -o json
 
 # List active runs
-databricks runs list --active-only -o json
+databricks jobs list-runs --job-id <job_id> --active-only -o json
 
 # List completed runs (recent)
-databricks runs list --completed-only -o json
+databricks jobs list-runs --job-id <job_id> --completed-only -o json
 ```
 
 ### Get Run Output and Logs
 
 ```bash
 # Get task output (notebook results, error messages, etc.)
-databricks runs get-output <run_id> -o json
+databricks jobs get-run-output <run_id> -o json
 
 # Extract error message from output
-databricks runs get-output <run_id> -o json | jq '.error, .error_trace'
+databricks jobs get-run-output <run_id> -o json | jq '.error, .error_trace'
 
 # Get notebook output
-databricks runs get-output <run_id> -o json | jq '.notebook_output'
+databricks jobs get-run-output <run_id> -o json | jq '.notebook_output'
 ```
 
 ### Run, Cancel, and Repair Jobs
@@ -73,13 +73,13 @@ databricks jobs run-now <job_id> -o json
 databricks jobs run-now <job_id> --notebook-params '{"param1": "value1"}' -o json
 
 # Cancel a run
-databricks runs cancel <run_id>
+databricks jobs cancel-run <run_id>
 
 # Repair failed tasks (re-run)
-databricks runs repair <run_id> --rerun-all-failed-tasks -o json
+databricks jobs repair-run <run_id> --rerun-all-failed-tasks -o json
 
 # Repair specific tasks only
-databricks runs repair <run_id> --rerun-tasks '["task_key1", "task_key2"]' -o json
+databricks jobs repair-run <run_id> --rerun-tasks '["task_key1", "task_key2"]' -o json
 ```
 
 ### Multi-task Job Task Inspection
@@ -89,10 +89,10 @@ databricks runs repair <run_id> --rerun-tasks '["task_key1", "task_key2"]' -o js
 databricks jobs get <job_id> -o json | jq '.settings.tasks[] | {task_key, description}'
 
 # Check task states in a run
-databricks runs get <run_id> -o json | jq '.tasks[] | {task_key, state, start_time, end_time}'
+databricks jobs get-run <run_id> -o json | jq '.tasks[] | {task_key, state, start_time, end_time}'
 
 # Extract failed tasks only
-databricks runs get <run_id> -o json | jq '.tasks[] | select(.state.result_state == "FAILED")'
+databricks jobs get-run <run_id> -o json | jq '.tasks[] | select(.state.result_state == "FAILED")'
 ```
 
 ## System Tables (Historical Analysis)
@@ -283,13 +283,13 @@ databricks runs repair <run_id> --rerun-all-failed-tasks -o json
 
 ```bash
 # Check run state
-databricks runs get <run_id> -o json | jq '{state: .state, start_time, run_page_url}'
+databricks jobs get-run <run_id> -o json | jq '{state: .state, start_time, run_page_url}'
 
 # Check task states
-databricks runs get <run_id> -o json | jq '.tasks[] | {task_key, state}'
+databricks jobs get-run <run_id> -o json | jq '.tasks[] | {task_key, state}'
 
 # Cancel if needed
-databricks runs cancel <run_id>
+databricks jobs cancel-run <run_id>
 ```
 
 ### 3. Analyze Past Failure Patterns

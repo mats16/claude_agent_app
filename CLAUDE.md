@@ -142,6 +142,16 @@ The frontend connects via WebSocket for real-time streaming. SDK messages flow:
 2. Server streams SDK events: `system` (init), `assistant` (text/tool_use), `user` (tool_result), `result` (completion)
 3. Frontend converts SDK messages to display format with tool_use_id matching for parallel tool execution
 
+### Session Interruption
+When a user interrupts a session via the stop button:
+1. Frontend sends `{ type: "control_request", request: { subtype: "interrupt" } }`
+2. Backend saves `control_request` event to database
+3. Backend saves interrupt user message `[Request interrupted by user]`
+4. Backend saves `result` event with `subtype: "interrupted"` to mark session as complete
+5. Backend aborts the MessageStream to stop agent processing
+
+The `result` event is essential for the frontend to correctly determine session state when reloading history. Without it, the UI would incorrectly show "Thinking..." for interrupted sessions.
+
 ### Agent Tools
 Configured in `app/backend/agent/index.ts`:
 - **Built-in**: Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
@@ -334,7 +344,15 @@ GitHub skills are fetched directly from the frontend without backend API:
 #### Sessions
 - `POST /api/v1/sessions` - Create session with initial message (workspacePath is optional)
 - `GET /api/v1/sessions` - List sessions (filtered by userId via RLS, supports `?filter=active|archived|all`)
-- `GET /api/v1/sessions/:id/events` - Get session history
+- `GET /api/v1/sessions/:id/events` - Get session history (paginated response format)
+  ```json
+  {
+    "data": [SDKMessage, ...],
+    "first_id": "uuid-of-first-event",
+    "last_id": "uuid-of-last-event",
+    "has_more": false
+  }
+  ```
 - `PATCH /api/v1/sessions/:id` - Update session (title, autoWorkspacePush, workspacePath)
 - `PATCH /api/v1/sessions/:id/archive` - Archive session (sets `is_archived=true`, deletes working directory)
 
@@ -397,7 +415,7 @@ app/backend/
 ### Key Files
 - `app/backend/agent/index.ts` - Claude Agent SDK configuration, MCP registration, Stop hooks for workspace push
 - `app/backend/agent/mcp/databricks.ts` - Databricks MCP server (SQL, warehouse management tools)
-- `app/backend/services/sessionState.ts` - In-memory state for session queues, WebSocket connections
+- `app/backend/services/sessionState.ts` - In-memory state for session queues, WebSocket connections, SDK message creators (`createUserMessage`, `createResultMessage`, `createControlRequest`)
 - `app/backend/services/workspaceQueueService.ts` - fastq-based async queue for workspace sync (pull, push, delete)
 - `app/backend/utils/databricks.ts` - Databricks CLI wrapper functions (`workspacePull`, `workspacePush`, `deleteWorkDir`)
 - `app/backend/utils/headers.ts` - Request header extraction (`extractRequestContext`)

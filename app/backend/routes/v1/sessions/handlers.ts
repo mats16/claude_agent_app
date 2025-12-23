@@ -27,7 +27,7 @@ import {
   markQueueCompleted,
   createUserMessage,
 } from '../../../services/sessionState.js';
-import { updateSessionTitle } from '../../../db/sessions.js';
+import { updateSessionFromStructuredOutput } from '../../../db/sessions.js';
 
 // Types
 interface CreateSessionBody {
@@ -226,23 +226,28 @@ export async function createSessionHandler(
                 | {
                     session_title?: string;
                     summary?: string;
-                    response?: string;
                   }
                 | undefined;
 
-              if (structuredOutput?.session_title) {
+              if (structuredOutput?.session_title || structuredOutput?.summary) {
                 try {
-                  await updateSessionTitle(
+                  // Update session: title only if null, summary always overwritten
+                  const titleUpdated = await updateSessionFromStructuredOutput(
                     sessionId,
-                    structuredOutput.session_title,
+                    {
+                      title: structuredOutput.session_title,
+                      summary: structuredOutput.summary,
+                    },
                     userId
                   );
-                  notifySessionUpdated(userId, {
-                    id: sessionId,
-                    title: structuredOutput.session_title,
-                  });
+                  if (titleUpdated) {
+                    notifySessionUpdated(userId, {
+                      id: sessionId,
+                      title: structuredOutput.session_title,
+                    });
+                  }
                 } catch (error) {
-                  console.error('Failed to update session title:', error);
+                  console.error('Failed to update session:', error);
                 }
               }
             }

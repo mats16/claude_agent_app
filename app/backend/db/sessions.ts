@@ -83,17 +83,57 @@ export async function getSessionsByUserId(
   });
 }
 
-// Update session title (with RLS)
+// Update session title only if currently null (with RLS)
+// Returns true if title was updated, false if title already exists
 export async function updateSessionTitle(
   id: string,
   title: string,
   userId: string
-): Promise<void> {
+): Promise<boolean> {
   return withUserContext(userId, async () => {
-    await db
+    const result = await db
       .update(sessions)
       .set({ title, updatedAt: new Date() })
-      .where(eq(sessions.id, id));
+      .where(and(eq(sessions.id, id), sql`${sessions.title} IS NULL`));
+
+    // Check if any row was updated
+    return (result as { rowCount?: number }).rowCount !== 0;
+  });
+}
+
+// Update session from structured output (with RLS)
+// - title: only updated if currently null (using COALESCE)
+// - summary: always overwritten
+// Returns true if title was updated (for notification purposes)
+export async function updateSessionFromStructuredOutput(
+  id: string,
+  data: { title?: string; summary?: string },
+  userId: string
+): Promise<boolean> {
+  return withUserContext(userId, async () => {
+    // Build set clause dynamically
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const setClause: Record<string, any> = {
+      updatedAt: new Date(),
+    };
+
+    if (data.summary !== undefined) {
+      setClause.summary = data.summary;
+    }
+
+    // Use COALESCE to keep existing title if not NULL
+    if (data.title !== undefined) {
+      setClause.title = sql`COALESCE(${sessions.title}, ${data.title})`;
+    }
+
+    const result = await db
+      .update(sessions)
+      .set(setClause)
+      .where(eq(sessions.id, id))
+      .returning({ title: sessions.title });
+
+    // Title was updated if it now equals our new title (was NULL before)
+    return data.title !== undefined && result[0]?.title === data.title;
   });
 }
 

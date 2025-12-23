@@ -6,17 +6,12 @@ export const sessionOutputSchema = z.object({
   session_title: z
     .string()
     .describe(
-      'A concise, descriptive title (max 50 chars) capturing the main topic or action of this session. Use sentence case without trailing punctuation. Use the same language as the user message.'
+      'A concise, descriptive title (max 50 chars) summarizing the overall goal or theme of the entire session across all conversation turns. Use sentence case without trailing punctuation. Use the same language as the user message.'
     ),
   summary: z
     .string()
     .describe(
-      'A brief summary (2-3 sentences) of what was accomplished in this session, including key actions taken, tools used, and outcomes achieved.'
-    ),
-  response: z
-    .string()
-    .describe(
-      "The complete response text to display to the user. This should be the full, natural language answer addressing the user's request, formatted with appropriate markdown when needed."
+      'A comprehensive summary (2-4 sentences) covering everything accomplished throughout the entire session from start to finish. Include all key actions taken, tools used, files created or modified, and final outcomes. This should capture the full scope of work done across all turns, not just the last response.'
     ),
 });
 

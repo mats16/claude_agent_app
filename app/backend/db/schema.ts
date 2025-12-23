@@ -25,6 +25,7 @@ export const sessions = pgTable('sessions', {
   id: text('id').primaryKey(),
   stub: text('stub').notNull(), // 8-char hex unique identifier for directories
   title: text('title'),
+  summary: text('summary'), // Auto-generated session summary from structured output
   model: text('model').notNull(),
   workspacePath: text('workspace_path'),
   userId: text('user_id')

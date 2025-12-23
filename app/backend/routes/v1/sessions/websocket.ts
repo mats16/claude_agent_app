@@ -3,7 +3,7 @@ import type { MessageContent, IncomingWSMessage } from '@app/shared';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { processAgentRequest, MessageStream } from '../../../agent/index.js';
 import { saveMessage } from '../../../db/events.js';
-import { getSessionById, updateSessionTitle } from '../../../db/sessions.js';
+import { getSessionById, updateSessionFromStructuredOutput } from '../../../db/sessions.js';
 import { getSettingsDirect } from '../../../db/settings.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContextFromHeaders } from '../../../utils/headers.js';
@@ -244,23 +244,28 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                       | {
                           session_title?: string;
                           summary?: string;
-                          response?: string;
                         }
                       | undefined;
 
-                    if (structuredOutput?.session_title) {
+                    if (structuredOutput?.session_title || structuredOutput?.summary) {
                       try {
-                        await updateSessionTitle(
+                        // Update session: title only if null, summary always overwritten
+                        const titleUpdated = await updateSessionFromStructuredOutput(
                           sessionId,
-                          structuredOutput.session_title,
+                          {
+                            title: structuredOutput.session_title,
+                            summary: structuredOutput.summary,
+                          },
                           userId
                         );
-                        notifySessionUpdated(userId, {
-                          id: sessionId,
-                          title: structuredOutput.session_title,
-                        });
+                        if (titleUpdated) {
+                          notifySessionUpdated(userId, {
+                            id: sessionId,
+                            title: structuredOutput.session_title,
+                          });
+                        }
                       } catch (error) {
-                        console.error('Failed to update session title:', error);
+                        console.error('Failed to update session:', error);
                       }
                     }
                   }

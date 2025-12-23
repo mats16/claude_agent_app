@@ -131,6 +131,11 @@ export function convertSDKMessagesToChat(
   const toolNameMap = new Map<string, string>(); // tool_use_id -> tool_name
 
   for (const msg of sdkMessages) {
+    // Skip synthetic messages (system-generated, should not be displayed)
+    if (msg.isSynthetic) {
+      continue;
+    }
+
     if (msg.type === 'user') {
       const userMsg = msg as SDKUserMessage;
       const content = userMsg.message.content;
@@ -162,6 +167,10 @@ export function convertSDKMessagesToChat(
                 .join('');
             }
             if (resultText) {
+              // Skip StructuredOutput tool results
+              if (resultText === 'Structured output provided successfully') {
+                continue;
+              }
               const toolName = toolNameMap.get(block.tool_use_id);
               currentAgentContent = insertToolResult(
                 currentAgentContent,
@@ -211,6 +220,10 @@ export function convertSDKMessagesToChat(
         if (block.type === 'text' && block.text) {
           currentAgentContent += block.text;
         } else if (block.type === 'tool_use' && block.name) {
+          // Skip StructuredOutput tool (used for session title generation)
+          if (block.name === 'StructuredOutput') {
+            continue;
+          }
           const toolInput = block.input ? formatToolInput(block.input) : '';
           const toolId = block.id || `tool-${Date.now()}`;
           // Store tool name for later use when processing tool results

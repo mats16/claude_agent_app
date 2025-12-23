@@ -10,6 +10,7 @@ export interface SDKMessageBase {
   type: string;
   session_id: string;
   uuid?: string;
+  isSynthetic?: boolean; // Synthetic messages should be hidden from UI
 }
 
 // Content block within messages

@@ -121,6 +121,15 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
               return [newSession, ...prev];
             });
           }
+
+          // Handle session updates (e.g., auto-generated title)
+          if (data.type === 'session_updated' && data.session) {
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.id === data.session.id ? { ...s, ...data.session } : s
+              )
+            );
+          }
         } catch (err) {
           console.error('Failed to parse session list WebSocket message:', err);
         }

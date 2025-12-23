@@ -30,7 +30,8 @@
     "fastq": "^1.17.1",
     "gray-matter": "^4.0.3",
     "postgres": "^3.4.7",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",

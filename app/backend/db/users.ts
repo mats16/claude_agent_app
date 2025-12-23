@@ -1,6 +1,12 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from './index.js';
-import { users, settings, type User, type NewUser, type NewSettings } from './schema.js';
+import {
+  users,
+  settings,
+  type User,
+  type NewUser,
+  type NewSettings,
+} from './schema.js';
 
 // Create or update a user (upsert)
 export async function upsertUser(id: string, email: string): Promise<User> {

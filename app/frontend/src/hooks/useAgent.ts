@@ -220,6 +220,10 @@ export function useAgent(options: UseAgentOptions = {}) {
                   if (block.type === 'text' && block.text) {
                     currentResponseRef.current += block.text;
                   } else if (block.type === 'tool_use' && block.name) {
+                    // Skip StructuredOutput tool (used for session title generation)
+                    if (block.name === 'StructuredOutput') {
+                      continue;
+                    }
                     const toolInput = block.input
                       ? formatToolInput(block.input)
                       : '';
@@ -399,6 +403,10 @@ export function useAgent(options: UseAgentOptions = {}) {
             if (block.type === 'text' && block.text) {
               currentResponseRef.current += block.text;
             } else if (block.type === 'tool_use' && block.name) {
+              // Skip StructuredOutput tool (used for session title generation)
+              if (block.name === 'StructuredOutput') {
+                continue;
+              }
               const toolInput = block.input ? formatToolInput(block.input) : '';
               const toolId = block.id || `tool-${Date.now()}`;
               // Add tool use with ID marker for later result insertion
@@ -441,6 +449,11 @@ export function useAgent(options: UseAgentOptions = {}) {
 
         // Handle user message (both regular and with tool results)
         if (message.type === 'user' && 'message' in message) {
+          // Skip synthetic messages (system-generated, should not be displayed)
+          if (message.isSynthetic) {
+            return;
+          }
+
           const userMsg = message as SDKUserMessage;
           const content = userMsg.message.content;
 
@@ -491,6 +504,13 @@ export function useAgent(options: UseAgentOptions = {}) {
                 }
 
                 if (resultText) {
+                  // Skip StructuredOutput tool results
+                  if (
+                    resultText === 'Structured output provided successfully'
+                  ) {
+                    continue;
+                  }
+
                   // Find the tool name from pending tool uses
                   const pendingTool = pendingToolUsesRef.current.find(
                     (t) => t.id === block.tool_use_id

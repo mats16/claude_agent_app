@@ -21,7 +21,7 @@ export function notifySessionCreated(
   userId: string,
   session: {
     id: string;
-    title: string;
+    title: string | null;
     workspacePath: string | null;
     workspaceAutoPush: boolean;
     appAutoDeploy: boolean;
@@ -41,6 +41,28 @@ export function notifySessionCreated(
       ws.send(message);
     } catch (error) {
       console.error('Failed to send session_created notification:', error);
+    }
+  }
+}
+
+// Notify user's session list listeners about session update
+export function notifySessionUpdated(
+  userId: string,
+  session: { id: string; title?: string }
+) {
+  const listeners = userSessionListeners.get(userId);
+  if (!listeners) return;
+
+  const message = JSON.stringify({
+    type: 'session_updated',
+    session,
+  });
+
+  for (const ws of listeners) {
+    try {
+      ws.send(message);
+    } catch (error) {
+      console.error('Failed to send session_updated notification:', error);
     }
   }
 }

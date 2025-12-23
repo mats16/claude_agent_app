@@ -11,8 +11,8 @@ import {
 
 // Users table
 export const users = pgTable('users', {
-  id: text('id').primaryKey(),
-  email: text('email').unique(),
+  id: text('id').primaryKey(), // primary key is implicitly NOT NULL
+  email: text('email').notNull().unique(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -23,14 +23,16 @@ export type NewUser = typeof users.$inferInsert;
 // Sessions table
 export const sessions = pgTable('sessions', {
   id: text('id').primaryKey(),
-  stub: text('stub'), // 8-char alphanumeric unique identifier for directories
+  stub: text('stub').notNull(), // 8-char hex unique identifier for directories
   title: text('title'),
   model: text('model').notNull(),
   workspacePath: text('workspace_path'),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   workspaceAutoPush: boolean('workspace_auto_push').default(false).notNull(),
   appAutoDeploy: boolean('app_auto_deploy').default(false).notNull(),
-  cwd: text('cwd'),
+  cwd: text('cwd').notNull(), // working directory path
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

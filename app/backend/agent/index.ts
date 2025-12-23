@@ -80,6 +80,7 @@ export interface ProcessAgentRequestOptions {
   cwd?: string; // working directory path (created before agent starts)
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
   appAutoDeploy?: boolean; // Flag to enable auto-deploy to Databricks Apps via hooks
+  sessionStub: string; // 8-char hex session identifier (required for SESSION_APP_NAME, GIT_BRANCH)
 }
 
 // MessageStream: Manages message queue for streaming input
@@ -239,17 +240,16 @@ function buildPrompt(
 // Returns SDKMessage directly without transformation
 export async function* processAgentRequest(
   message: MessageContent[],
-  model: string = 'databricks-claude-sonnet-4-5',
+  model: string,
+  options: ProcessAgentRequestOptions,
   sessionId?: string,
   userEmail?: string,
-  workspacePath: string = '/Workspace/Users/me',
-  options: ProcessAgentRequestOptions = {},
+  workspacePath?: string,
   messageStream?: MessageStream,
   userAccessToken?: string,
   _userId?: string,
   userPersonalAccessToken?: string,
-  userName?: string,
-  sessionStub?: string
+  userName?: string
 ): AsyncGenerator<SDKMessage> {
   const {
     workspaceAutoPush = false,
@@ -257,6 +257,7 @@ export async function* processAgentRequest(
     cwd,
     waitForReady,
     appAutoDeploy = false,
+    sessionStub,
   } = options;
   // Determine base directory based on environment
   // Local development: $HOME/u, Production: /home/app/u

@@ -1,12 +1,22 @@
--- Initial schema migration (idempotent)
--- This migration is safe to run multiple times
+-- Initial schema migration
+-- WARNING: This migration drops all existing tables and recreates them
+-- All data will be lost
+
+-- ============================================
+-- Drop existing tables (in reverse dependency order)
+-- ============================================
+DROP TABLE IF EXISTS oauth_tokens CASCADE;
+DROP TABLE IF EXISTS settings CASCADE;
+DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS sessions CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- ============================================
 -- Users table
 -- ============================================
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
   id TEXT PRIMARY KEY,
-  email TEXT UNIQUE,
+  email TEXT NOT NULL UNIQUE,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
@@ -14,28 +24,27 @@ CREATE TABLE IF NOT EXISTS users (
 -- ============================================
 -- Sessions table
 -- ============================================
-CREATE TABLE IF NOT EXISTS sessions (
+CREATE TABLE sessions (
   id TEXT PRIMARY KEY,
-  stub TEXT,
+  stub TEXT NOT NULL UNIQUE,
   title TEXT,
   model TEXT NOT NULL,
   workspace_path TEXT,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   workspace_auto_push BOOLEAN DEFAULT FALSE NOT NULL,
   app_auto_deploy BOOLEAN DEFAULT FALSE NOT NULL,
-  cwd TEXT,
+  cwd TEXT NOT NULL,
   is_archived BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
--- Unique index for stub (partial, allows NULL)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_stub ON sessions (stub) WHERE stub IS NOT NULL;
+CREATE INDEX idx_sessions_user_id ON sessions (user_id);
 
 -- ============================================
 -- Events table
 -- ============================================
-CREATE TABLE IF NOT EXISTS events (
+CREATE TABLE events (
   uuid TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   seq INTEGER NOT NULL,
@@ -45,13 +54,13 @@ CREATE TABLE IF NOT EXISTS events (
   created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_events_session_id ON events (session_id);
-CREATE INDEX IF NOT EXISTS idx_events_session_seq ON events (session_id, seq);
+CREATE INDEX idx_events_session_id ON events (session_id);
+CREATE INDEX idx_events_session_seq ON events (session_id, seq);
 
 -- ============================================
 -- Settings table
 -- ============================================
-CREATE TABLE IF NOT EXISTS settings (
+CREATE TABLE settings (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   claude_config_auto_push BOOLEAN DEFAULT TRUE NOT NULL,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
@@ -61,7 +70,7 @@ CREATE TABLE IF NOT EXISTS settings (
 -- ============================================
 -- OAuth Tokens table
 -- ============================================
-CREATE TABLE IF NOT EXISTS oauth_tokens (
+CREATE TABLE oauth_tokens (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   auth_type TEXT NOT NULL,
   provider TEXT NOT NULL,
@@ -72,24 +81,12 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
   PRIMARY KEY (user_id, provider)
 );
 
--- Add expires_at column if it doesn't exist (for existing databases)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'oauth_tokens' AND column_name = 'expires_at'
-  ) THEN
-    ALTER TABLE oauth_tokens ADD COLUMN expires_at TIMESTAMP;
-  END IF;
-END $$;
-
 -- ============================================
 -- Row Level Security (RLS)
 -- ============================================
 
 -- Sessions RLS
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS sessions_user_policy ON sessions;
 CREATE POLICY sessions_user_policy ON sessions
   FOR ALL
   USING (user_id = current_setting('app.current_user_id', true))
@@ -97,7 +94,6 @@ CREATE POLICY sessions_user_policy ON sessions
 
 -- Settings RLS
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS settings_user_policy ON settings;
 CREATE POLICY settings_user_policy ON settings
   FOR ALL
   USING (user_id = current_setting('app.current_user_id', true))
@@ -105,7 +101,6 @@ CREATE POLICY settings_user_policy ON settings
 
 -- OAuth Tokens RLS
 ALTER TABLE oauth_tokens ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS oauth_tokens_user_policy ON oauth_tokens;
 CREATE POLICY oauth_tokens_user_policy ON oauth_tokens
   FOR ALL
   USING (user_id = current_setting('app.current_user_id', true))

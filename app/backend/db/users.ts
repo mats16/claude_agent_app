@@ -3,7 +3,7 @@ import { db } from './index.js';
 import { users, type User, type NewUser } from './schema.js';
 
 // Create or update a user (upsert)
-export async function upsertUser(id: string, email?: string): Promise<User> {
+export async function upsertUser(id: string, email: string): Promise<User> {
   const existing = await db
     .select()
     .from(users)
@@ -11,8 +11,8 @@ export async function upsertUser(id: string, email?: string): Promise<User> {
     .limit(1);
 
   if (existing.length > 0) {
-    // Update email if provided and different
-    if (email && existing[0].email !== email) {
+    // Update email if different
+    if (existing[0].email !== email) {
       await db
         .update(users)
         .set({ email, updatedAt: new Date() })
@@ -25,7 +25,7 @@ export async function upsertUser(id: string, email?: string): Promise<User> {
   // Create new user
   const newUser: NewUser = {
     id,
-    email: email ?? null,
+    email,
   };
   await db.insert(users).values(newUser);
 

@@ -144,7 +144,6 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
           if (message.type === 'user_message') {
             // message.content is now MessageContent[] from frontend
             const userMessageContent = message.content as MessageContent[];
-            const model = message.model || 'databricks-claude-sonnet-4-5';
 
             // Check if session already has a MessageStream (agent is running)
             const existingStream = sessionMessageStreams.get(sessionId);
@@ -170,20 +169,16 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
 
               // Fetch session to get workspacePath, workspaceAutoPush, cwd, appAutoDeploy, stub, and model for resume
               const session = await getSessionById(sessionId, userId);
-              const workspacePath = session?.workspacePath ?? undefined;
-              const workspaceAutoPush = session?.workspaceAutoPush ?? false;
-              const appAutoDeploy = session?.appAutoDeploy ?? false;
-              const sessionCwd = session?.cwd;
-              const sessionStub = session?.stub ?? undefined;
-              // Use session's saved model on resume (prioritize over WebSocket message)
-              const sessionModel = session?.model ?? model;
-
-              // Validate that cwd exists (required for resume)
-              if (!sessionCwd) {
-                throw new Error(
-                  'Session working directory not found. Cannot resume session.'
-                );
+              if (!session) {
+                throw new Error('Session not found. Cannot resume session.');
               }
+              const workspacePath = session.workspacePath ?? undefined;
+              const workspaceAutoPush = session.workspaceAutoPush;
+              const appAutoDeploy = session.appAutoDeploy;
+              const sessionCwd = session.cwd;
+              const sessionStub = session.stub;
+              // Use session's saved model on resume (prioritize over WebSocket message)
+              const sessionModel = session.model;
 
               // Get user settings for claudeConfigAutoPush
               const userSettings = await getSettingsDirect(userId);
@@ -207,21 +202,21 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                 for await (const sdkMessage of processAgentRequest(
                   userMessageContent,
                   sessionModel,
-                  sessionId,
-                  userEmail,
-                  workspacePath,
                   {
                     workspaceAutoPush,
                     claudeConfigAutoPush,
                     cwd: sessionCwd,
                     appAutoDeploy,
+                    sessionStub,
                   },
+                  sessionId,
+                  userEmail,
+                  workspacePath,
                   stream,
                   accessToken,
                   userId,
                   userPersonalAccessToken,
-                  userName,
-                  sessionStub
+                  userName
                 )) {
                   // Save message to database (always execute regardless of WebSocket state)
                   await saveMessage(sdkMessage);

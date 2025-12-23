@@ -131,21 +131,21 @@ export async function createSessionHandler(
     const agentIterator = processAgentRequest(
       messageContent,
       model,
-      undefined,
-      userEmail,
-      workspacePath,
       {
         workspaceAutoPush,
         claudeConfigAutoPush,
         cwd: localWorkPath,
         appAutoDeploy,
+        sessionStub,
       },
+      undefined,
+      userEmail,
+      workspacePath,
       stream,
       accessToken,
       userId,
       userPersonalAccessToken,
-      userName,
-      sessionStub
+      userName
     );
 
     // Process events in background

@@ -111,7 +111,7 @@ Tables defined in `app/backend/db/schema.ts`:
 - `sessions` - Chat sessions with foreign key to users (includes `stub` for 8-char identifier, `cwd` for working directory, `is_archived` for archive status)
 - `events` - Session messages/events (SDKMessage stored as JSONB in `message` column)
 - `settings` - User settings (claudeConfigAutoPush)
-- `oauth_tokens` - Encrypted tokens storage (composite PK: `user_id` + `provider`), used for PAT storage
+- `oauth_tokens` - Encrypted tokens storage (composite PK: `user_id` + `provider`), used for PAT storage, includes `expires_at` for token expiration
 
 ### Row Level Security (RLS)
 `sessions`, `settings`, and `oauth_tokens` tables have RLS enabled. Queries use `withUserContext()` helper to set `app.current_user_id`:
@@ -356,6 +356,8 @@ Apply the path to `app/frontend/public/favicon.svg`:
 #### Personal Access Token (PAT)
 - `GET /api/v1/settings/pat` - Get PAT status (`{ hasPat: boolean, encryptionAvailable: boolean }`)
 - `POST /api/v1/settings/pat` - Set PAT (body: `{ pat: string }`)
+  - Fetches token info from Databricks `/api/2.0/token/list` to get expiration
+  - Response: `{ success: boolean, expiresAt: string | null, comment: string | null }`
 - `DELETE /api/v1/settings/pat` - Clear PAT
 
 #### Skills

@@ -56,7 +56,7 @@ export async function createSessionHandler(
     return reply.status(400).send({ error: error.message });
   }
 
-  const { userId, userEmail, accessToken } = context;
+  const { userId, userEmail, userName, accessToken } = context;
 
   // Extract first user message
   const userEvent = events.find((e) => e.type === 'user');
@@ -133,7 +133,8 @@ export async function createSessionHandler(
       stream,
       accessToken,
       userId,
-      userPersonalAccessToken
+      userPersonalAccessToken,
+      userName
     );
 
     // Process events in background

@@ -7,7 +7,7 @@ interface HookCommand {
 }
 
 interface HookEntry {
-  source?: 'startup' | 'resume' | 'clear' | 'compact';
+  matcher?: string;
   hooks: HookCommand[];
 }
 
@@ -27,12 +27,21 @@ export function generateClaudeSettings(): ClaudeSettings {
       SessionStart: [
         // Pull workspace directory (workspace -> local)
         {
-          source: 'startup',
+          matcher: 'startup',
           hooks: [
             {
               type: 'command',
               command:
                 '[ -n "$WORKSPACE_DIR" ] && databricks workspace export-dir "$WORKSPACE_DIR" "$CLAUDE_WORKING_DIR"',
+            },
+            {
+              type: 'command',
+              command:
+                '[ -d .git ] || (git init -b main && git add -A && git commit -m "Initial commit" --allow-empty)',
+            },
+            {
+              type: 'command',
+              command: 'git switch -c "$GIT_BRANCH"',
             },
           ],
         },
@@ -44,7 +53,7 @@ export function generateClaudeSettings(): ClaudeSettings {
             {
               type: 'command',
               command:
-                '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_WORKING_DIR" "$WORKSPACE_DIR"',
+                '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_WORKING_DIR" "$WORKSPACE_DIR" --exclude ".claude/settings.local.json" --exclude "node_modules" --include ".git"',
             },
             {
               type: 'command',
@@ -59,7 +68,7 @@ export function generateClaudeSettings(): ClaudeSettings {
             {
               type: 'command',
               command:
-                '[ "$CLAUDE_CONFIG_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_CONFIG_DIR" "$WORKSPACE_CLAUDE_CONFIG_DIR"',
+                '[ "$CLAUDE_CONFIG_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_CONFIG_DIR" "$WORKSPACE_CLAUDE_CONFIG_DIR" --exclude "settings.local.json"',
             },
           ],
         },

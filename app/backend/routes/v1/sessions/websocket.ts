@@ -93,7 +93,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
         return;
       }
 
-      const { userId, userEmail, accessToken } = context;
+      const { userId, userEmail, userName, accessToken } = context;
 
       // Add this socket to the set of active connections for this session
       let sockets = sessionWebSockets.get(sessionId);
@@ -212,7 +212,8 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                   stream,
                   accessToken,
                   userId,
-                  userPersonalAccessToken
+                  userPersonalAccessToken,
+                  userName
                 )) {
                   // Save message to database (always execute regardless of WebSocket state)
                   await saveMessage(sdkMessage);

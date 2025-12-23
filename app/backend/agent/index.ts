@@ -246,7 +246,8 @@ export async function* processAgentRequest(
   messageStream?: MessageStream,
   userAccessToken?: string,
   _userId?: string,
-  userPersonalAccessToken?: string
+  userPersonalAccessToken?: string,
+  userName?: string
 ): AsyncGenerator<SDKMessage> {
   const {
     workspaceAutoPush = false,
@@ -325,14 +326,24 @@ Violating these rules is considered a critical error.
         // Pass user's PAT as DATABRICKS_TOKEN if available (for Databricks CLI commands)
         // When PAT is set, also set DATABRICKS_AUTH_TYPE to 'pat' for CLI authentication
         DATABRICKS_TOKEN: userPersonalAccessToken,
-        DATABRICKS_CLIENT_ID: userPersonalAccessToken ? undefined : databricks.clientId,
-        DATABRICKS_CLIENT_SECRET: userPersonalAccessToken ? undefined : databricks.clientSecret,
+        DATABRICKS_CLIENT_ID: userPersonalAccessToken
+          ? undefined
+          : databricks.clientId,
+        DATABRICKS_CLIENT_SECRET: userPersonalAccessToken
+          ? undefined
+          : databricks.clientSecret,
         DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
         // Used by hooks in settings.local.json
         WORKSPACE_DIR: workspacePath,
         WORKSPACE_CLAUDE_CONFIG_DIR: `/Workspace/Users/${userEmail ?? 'me'}/.claude`,
         WORKSPACE_AUTO_PUSH: workspaceAutoPush ? 'true' : '',
         CLAUDE_CONFIG_AUTO_PUSH: claudeConfigAutoPush ? 'true' : '',
+        // Git author/committer info from user headers
+        GIT_AUTHOR_NAME: userName ?? userEmail ?? 'Claude Agent',
+        GIT_AUTHOR_EMAIL: userEmail ?? 'agent@databricks.com',
+        GIT_COMMITTER_NAME: userName ?? userEmail ?? 'Claude Agent',
+        GIT_COMMITTER_EMAIL: userEmail ?? 'agent@databricks.com',
+        GIT_BRANCH: `claude/session-${path.basename(cwd ?? 'temp')}`,
       },
       maxTurns: 100,
       tools: {

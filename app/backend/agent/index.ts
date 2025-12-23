@@ -79,6 +79,7 @@ export interface ProcessAgentRequestOptions {
   claudeConfigAutoPush?: boolean; // claude config pull/push
   cwd?: string; // working directory path (created before agent starts)
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
+  appAutoDeploy?: boolean; // Flag to enable auto-deploy to Databricks Apps via hooks
 }
 
 // MessageStream: Manages message queue for streaming input
@@ -254,6 +255,7 @@ export async function* processAgentRequest(
     claudeConfigAutoPush = true,
     cwd,
     waitForReady,
+    appAutoDeploy = false,
   } = options;
   // Determine base directory based on environment
   // Local development: $HOME/u, Production: /home/app/u
@@ -338,6 +340,8 @@ Violating these rules is considered a critical error.
         WORKSPACE_CLAUDE_CONFIG_DIR: `/Workspace/Users/${userEmail ?? 'me'}/.claude`,
         WORKSPACE_AUTO_PUSH: workspaceAutoPush ? 'true' : '',
         CLAUDE_CONFIG_AUTO_PUSH: claudeConfigAutoPush ? 'true' : '',
+        SESSION_APP_NAME: `app-by-claude-${path.basename(cwd ?? 'temp')}`,
+        APP_AUTO_DEPLOY: appAutoDeploy ? 'true' : '',
         // Git author/committer info from user headers
         GIT_AUTHOR_NAME: userName ?? userEmail ?? 'Claude Agent',
         GIT_AUTHOR_EMAIL: userEmail ?? 'agent@databricks.com',

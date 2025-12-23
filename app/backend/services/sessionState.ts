@@ -24,6 +24,7 @@ export function notifySessionCreated(
     title: string;
     workspacePath: string | null;
     workspaceAutoPush: boolean;
+    appAutoDeploy: boolean;
     updatedAt: string;
   }
 ) {

@@ -15,6 +15,20 @@
       "when": 1766462853502,
       "tag": "0001_wandering_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1766478148469,
+      "tag": "0002_stiff_betty_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1766546400000,
+      "tag": "0003_rename_session_app_name_to_app_auto_deploy",
+      "breakpoints": true
     }
   ]
 }

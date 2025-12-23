@@ -21,7 +21,10 @@ import {
 import SessionList from './SessionList';
 import AccountMenu from './AccountMenu';
 import WorkspaceSelectModal from './WorkspaceSelectModal';
-import WorkspacePathSelector from './WorkspacePathSelector';
+import WorkspacePathSelector, {
+  type SyncMode,
+  syncModeToFlags,
+} from './WorkspacePathSelector';
 import AppSettingsModal from './AppSettingsModal';
 import type { AttachedImage } from './ImageUpload';
 import { useUser } from '../contexts/UserContext';
@@ -71,7 +74,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
   const [workspacePath, setWorkspacePath] = useState('');
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [workspaceAutoPush, setAutoWorkspacePush] = useState(false);
+  const [syncMode, setSyncMode] = useState<SyncMode>('manual');
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -277,7 +280,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
           session_context: {
             model: selectedModel,
             workspacePath: workspacePath.trim() || undefined,
-            workspaceAutoPush,
+            ...syncModeToFlags(syncMode),
           },
         }),
       });
@@ -317,10 +320,14 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
     setShowPermissionModal(false);
   };
 
-  // Handle workspace path change: enable auto sync when path is set, disable when cleared
+  // Handle workspace path change: set auto_push mode when path is set, manual when cleared
   const handleWorkspacePathChange = (path: string) => {
     setWorkspacePath(path);
-    setAutoWorkspacePush(path.trim().length > 0);
+    if (path.trim().length > 0 && syncMode === 'manual') {
+      setSyncMode('auto_push');
+    } else if (!path.trim()) {
+      setSyncMode('manual');
+    }
   };
 
   // Handle model change: save to localStorage
@@ -532,7 +539,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
               size="small"
               variant="borderless"
               popupMatchSelectWidth={240}
-              placement="bottomRight"
+              placement="bottomLeft"
               suffixIcon={<CaretDownOutlined />}
               optionRender={(option) => (
                 <div>
@@ -580,8 +587,8 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
           <WorkspacePathSelector
             workspacePath={workspacePath}
             onPathChange={handleWorkspacePathChange}
-            workspaceAutoPush={workspaceAutoPush}
-            onAutoWorkspacePushChange={setAutoWorkspacePush}
+            syncMode={syncMode}
+            onSyncModeChange={setSyncMode}
             onOpenModal={() => setIsWorkspaceModalOpen(true)}
             disabled={isSubmitting}
           />

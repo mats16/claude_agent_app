@@ -20,6 +20,14 @@
     "autoSyncTooltip": "Automatically sync changes back to Workspace on task completion",
     "permissionRequired": "No access to workspace. Please grant permissions in Settings."
   },
+  "syncMode": {
+    "manual": "Manual",
+    "manualDescription": "No automatic sync",
+    "autoPush": "Auto Push",
+    "autoPushDescription": "Sync to Workspace on completion",
+    "autoDeploy": "Auto Deploy",
+    "autoDeployDescription": "Sync + Deploy to Databricks App"
+  },
   "models": {
     "opus": "Opus 4.5",
     "opusDescription": "Most capable for complex work",
@@ -214,7 +222,9 @@
     "workspacePath": "Workspace Path",
     "noWorkspacePath": "No workspace path set",
     "workspacePathHint": "Optional: Select workspace directory to sync files",
-    "autoSyncHint": "Automatically sync changes back to Databricks Workspace on task completion"
+    "autoSyncHint": "Automatically sync changes back to Databricks Workspace on task completion",
+    "appAutoDeploy": "Auto Deploy",
+    "appAutoDeployHint": "Automatically deploy to Databricks App when session stops"
   },
   "sessionList": {
     "loadingSessions": "Loading sessions...",

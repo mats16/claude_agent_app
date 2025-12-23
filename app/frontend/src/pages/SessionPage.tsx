@@ -7,10 +7,12 @@ import {
   LinkOutlined,
   CloudSyncOutlined,
   CloudServerOutlined,
+  RocketOutlined,
   FolderOutlined,
   RobotOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
+import { flagsToSyncMode } from '../components/WorkspacePathSelector';
 import { useAgent } from '../hooks/useAgent';
 import { useImageUpload } from '../hooks/useImageUpload';
 import { useFileUpload } from '../hooks/useFileUpload';
@@ -122,12 +124,18 @@ export default function SessionPage() {
   const sessionTitle = session?.title ?? null;
   const sessionAutoWorkspacePush = session?.workspaceAutoPush ?? false;
   const sessionWorkspacePath = session?.workspacePath ?? null;
+  const sessionAppAutoDeploy = session?.appAutoDeploy ?? false;
+  const sessionSyncMode = flagsToSyncMode(
+    sessionAutoWorkspacePush,
+    sessionAppAutoDeploy
+  );
 
   const handleSaveSettings = useCallback(
     async (
       newTitle: string,
       workspaceAutoPush: boolean,
-      workspacePath: string | null
+      workspacePath: string | null,
+      appAutoDeploy: boolean
     ) => {
       if (!sessionId) return;
 
@@ -138,6 +146,7 @@ export default function SessionPage() {
           title: newTitle,
           workspaceAutoPush,
           workspacePath,
+          appAutoDeploy,
         }),
       });
 
@@ -146,6 +155,7 @@ export default function SessionPage() {
           title: newTitle,
           workspaceAutoPush,
           workspacePath,
+          appAutoDeploy,
         });
       } else {
         throw new Error('Failed to update session settings');
@@ -392,12 +402,16 @@ export default function SessionPage() {
         <Flex align="center" gap={spacing.sm} style={{ minWidth: 0, flex: 1 }}>
           <Tooltip
             title={
-              sessionAutoWorkspacePush
-                ? t('sidebar.autoSync')
-                : t('sessionPage.autoSyncDisabled')
+              sessionSyncMode === 'manual'
+                ? t('sessionPage.autoSyncDisabled')
+                : sessionSyncMode === 'auto_deploy'
+                  ? t('syncMode.autoDeploy')
+                  : t('syncMode.autoPush')
             }
           >
-            {sessionAutoWorkspacePush ? (
+            {sessionSyncMode === 'auto_deploy' ? (
+              <RocketOutlined style={{ fontSize: 22, color: colors.success }} />
+            ) : sessionSyncMode === 'auto_push' ? (
               <CloudSyncOutlined
                 style={{ fontSize: 22, color: colors.success }}
               />
@@ -486,6 +500,7 @@ export default function SessionPage() {
         currentTitle={sessionTitle || ''}
         currentAutoWorkspacePush={sessionAutoWorkspacePush}
         currentWorkspacePath={sessionWorkspacePath}
+        currentAppAutoDeploy={sessionAppAutoDeploy}
         onSave={handleSaveSettings}
         onClose={() => setIsModalOpen(false)}
       />

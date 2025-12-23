@@ -20,6 +20,14 @@
     "autoSyncTooltip": "タスク完了時に Workspace へ自動的に変更を同期",
     "permissionRequired": "ワークスペースへのアクセス権限がありません。設定から権限を付与してください。"
   },
+  "syncMode": {
+    "manual": "手動",
+    "manualDescription": "自動同期なし",
+    "autoPush": "自動プッシュ",
+    "autoPushDescription": "完了時に Workspace へ同期",
+    "autoDeploy": "自動デプロイ",
+    "autoDeployDescription": "同期 + Databricks App へデプロイ"
+  },
   "models": {
     "opus": "Opus 4.5",
     "opusDescription": "複雑な作業に最も優れた性能",
@@ -214,7 +222,9 @@
     "workspacePath": "ワークスペースパス",
     "noWorkspacePath": "ワークスペースパス未設定",
     "workspacePathHint": "任意: ファイルを同期するワークスペースディレクトリを選択",
-    "autoSyncHint": "タスク完了時に Databricks Workspace へ自動的に変更を同期"
+    "autoSyncHint": "タスク完了時に Databricks Workspace へ自動的に変更を同期",
+    "appAutoDeploy": "自動デプロイ",
+    "appAutoDeployHint": "セッション終了時に Databricks App へ自動デプロイ"
   },
   "sessionList": {
     "loadingSessions": "セッションを読み込み中...",

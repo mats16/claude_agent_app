@@ -38,6 +38,7 @@ interface CreateSessionBody {
     model: string;
     workspacePath?: string;
     workspaceAutoPush?: boolean;
+    appAutoDeploy?: boolean;
   };
 }
 
@@ -72,6 +73,7 @@ export async function createSessionHandler(
     workspacePath && workspacePath.trim()
       ? (session_context.workspaceAutoPush ?? false)
       : false;
+  const appAutoDeploy = session_context.appAutoDeploy ?? false;
 
   // Get user settings for claudeConfigAutoPush (still needed for agent hook)
   const userSettings = await getSettingsDirect(userId);
@@ -129,7 +131,12 @@ export async function createSessionHandler(
       undefined,
       userEmail,
       workspacePath,
-      { workspaceAutoPush, claudeConfigAutoPush, cwd: localWorkPath },
+      {
+        workspaceAutoPush,
+        claudeConfigAutoPush,
+        cwd: localWorkPath,
+        appAutoDeploy,
+      },
       stream,
       accessToken,
       userId,
@@ -168,6 +175,7 @@ export async function createSessionHandler(
                 workspacePath,
                 userId,
                 workspaceAutoPush,
+                appAutoDeploy,
                 cwd: localWorkPath,
               },
               userId
@@ -179,6 +187,7 @@ export async function createSessionHandler(
               title: sessionTitle,
               workspacePath: workspacePath ?? null,
               workspaceAutoPush,
+              appAutoDeploy,
               updatedAt: new Date().toISOString(),
             });
 
@@ -282,12 +291,14 @@ export async function updateSessionHandler(
       title?: string;
       workspaceAutoPush?: boolean;
       workspacePath?: string | null;
+      appAutoDeploy?: boolean;
     };
   }>,
   reply: FastifyReply
 ) {
   const { sessionId } = request.params;
-  const { title, workspaceAutoPush, workspacePath } = request.body;
+  const { title, workspaceAutoPush, workspacePath, appAutoDeploy } =
+    request.body;
 
   let context;
   try {
@@ -302,10 +313,12 @@ export async function updateSessionHandler(
   if (
     title === undefined &&
     workspaceAutoPush === undefined &&
-    workspacePath === undefined
+    workspacePath === undefined &&
+    appAutoDeploy === undefined
   ) {
     return reply.status(400).send({
-      error: 'title, workspaceAutoPush, or workspacePath is required',
+      error:
+        'title, workspaceAutoPush, workspacePath, or appAutoDeploy is required',
     });
   }
 
@@ -313,8 +326,10 @@ export async function updateSessionHandler(
     title?: string;
     workspaceAutoPush?: boolean;
     workspacePath?: string | null;
+    appAutoDeploy?: boolean;
   } = {};
   if (title !== undefined) updates.title = title;
+  if (appAutoDeploy !== undefined) updates.appAutoDeploy = appAutoDeploy;
   if (workspacePath !== undefined) {
     updates.workspacePath = workspacePath || null;
     // Force workspaceAutoPush to false when workspacePath is cleared

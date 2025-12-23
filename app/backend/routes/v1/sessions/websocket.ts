@@ -168,10 +168,11 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                 `[WebSocket] Starting agent for session: ${sessionId}`
               );
 
-              // Fetch session to get workspacePath, workspaceAutoPush, cwd, and model for resume
+              // Fetch session to get workspacePath, workspaceAutoPush, cwd, appAutoDeploy, and model for resume
               const session = await getSessionById(sessionId, userId);
               const workspacePath = session?.workspacePath ?? undefined;
               const workspaceAutoPush = session?.workspaceAutoPush ?? false;
+              const appAutoDeploy = session?.appAutoDeploy ?? false;
               const sessionCwd = session?.cwd;
               // Use session's saved model on resume (prioritize over WebSocket message)
               const sessionModel = session?.model ?? model;
@@ -208,7 +209,12 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                   sessionId,
                   userEmail,
                   workspacePath,
-                  { workspaceAutoPush, claudeConfigAutoPush, cwd: sessionCwd },
+                  {
+                    workspaceAutoPush,
+                    claudeConfigAutoPush,
+                    cwd: sessionCwd,
+                    appAutoDeploy,
+                  },
                   stream,
                   accessToken,
                   userId,

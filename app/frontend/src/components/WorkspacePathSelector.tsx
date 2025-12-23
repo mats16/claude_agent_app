@@ -1,40 +1,67 @@
 /**
- * Workspace path selector with auto-sync toggle
- * Reusable component for selecting workspace directory
+ * Workspace path selector with sync mode dropdown
+ * Reusable component for selecting workspace directory and sync behavior
  */
 
 import { useTranslation } from 'react-i18next';
-import { Button, Checkbox, Tooltip, Typography, Flex } from 'antd';
-import { FolderOutlined, SyncOutlined, CloseOutlined } from '@ant-design/icons';
-import { colors } from '../styles/theme';
+import { Button, Select, Tooltip, Flex, Typography } from 'antd';
+import { FolderOutlined, CloseOutlined } from '@ant-design/icons';
+import { colors, typography } from '../styles/theme';
 
 const { Text } = Typography;
+
+// Sync mode type: determines how workspace is synced and whether to deploy
+export type SyncMode = 'manual' | 'auto_push' | 'auto_deploy';
+
+// Helper functions to convert between SyncMode and DB flags
+export function syncModeToFlags(mode: SyncMode): {
+  workspaceAutoPush: boolean;
+  appAutoDeploy: boolean;
+} {
+  switch (mode) {
+    case 'manual':
+      return { workspaceAutoPush: false, appAutoDeploy: false };
+    case 'auto_push':
+      return { workspaceAutoPush: true, appAutoDeploy: false };
+    case 'auto_deploy':
+      return { workspaceAutoPush: true, appAutoDeploy: true };
+  }
+}
+
+export function flagsToSyncMode(
+  workspaceAutoPush: boolean,
+  appAutoDeploy: boolean
+): SyncMode {
+  if (appAutoDeploy) return 'auto_deploy';
+  if (workspaceAutoPush) return 'auto_push';
+  return 'manual';
+}
 
 interface WorkspacePathSelectorProps {
   /** Current workspace path */
   workspacePath: string;
   /** Callback when path changes */
   onPathChange: (path: string) => void;
-  /** Whether auto workspace push is enabled */
-  workspaceAutoPush: boolean;
-  /** Callback when auto push toggle changes */
-  onAutoWorkspacePushChange: (enabled: boolean) => void;
+  /** Current sync mode */
+  syncMode: SyncMode;
+  /** Callback when sync mode changes */
+  onSyncModeChange: (mode: SyncMode) => void;
   /** Callback to open workspace selection modal */
   onOpenModal: () => void;
   /** Whether the selector is disabled */
   disabled?: boolean;
-  /** Whether to show the auto sync checkbox */
-  showAutoSync?: boolean;
+  /** Whether to show the sync mode dropdown */
+  showSyncMode?: boolean;
 }
 
 export default function WorkspacePathSelector({
   workspacePath,
   onPathChange,
-  workspaceAutoPush,
-  onAutoWorkspacePushChange,
+  syncMode,
+  onSyncModeChange,
   onOpenModal,
   disabled = false,
-  showAutoSync = true,
+  showSyncMode = true,
 }: WorkspacePathSelectorProps) {
   const { t } = useTranslation();
 
@@ -46,11 +73,52 @@ export default function WorkspacePathSelector({
     }
   };
 
+  const syncModeOptions = [
+    {
+      value: 'manual' as SyncMode,
+      label: (
+        <Flex vertical gap={0}>
+          <Text strong style={{ fontSize: typography.fontSizeBase }}>
+            {t('syncMode.manual')}
+          </Text>
+          <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
+            {t('syncMode.manualDescription')}
+          </Text>
+        </Flex>
+      ),
+    },
+    {
+      value: 'auto_push' as SyncMode,
+      label: (
+        <Flex vertical gap={0}>
+          <Text strong style={{ fontSize: typography.fontSizeBase }}>
+            {t('syncMode.autoPush')}
+          </Text>
+          <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
+            {t('syncMode.autoPushDescription')}
+          </Text>
+        </Flex>
+      ),
+    },
+    {
+      value: 'auto_deploy' as SyncMode,
+      label: (
+        <Flex vertical gap={0}>
+          <Text strong style={{ fontSize: typography.fontSizeBase }}>
+            {t('syncMode.autoDeploy')}
+          </Text>
+          <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
+            {t('syncMode.autoDeployDescription')}
+          </Text>
+        </Flex>
+      ),
+    },
+  ];
+
   return (
     <Flex align="center" gap={8} wrap="wrap">
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <Button
-          size="small"
           icon={<FolderOutlined />}
           onClick={onOpenModal}
           disabled={disabled}
@@ -91,24 +159,27 @@ export default function WorkspacePathSelector({
           />
         )}
       </div>
-      {showAutoSync && (
-        <Tooltip
-          title={t('sidebar.autoSyncTooltip')}
-          placement="bottomRight"
-          arrow={{ pointAtCenter: true }}
-          overlayStyle={{ maxWidth: 'none', whiteSpace: 'nowrap' }}
-        >
-          <Checkbox
-            checked={workspaceAutoPush}
-            onChange={(e) => onAutoWorkspacePushChange(e.target.checked)}
-            disabled={disabled}
-          >
-            <Text style={{ fontSize: 12 }}>
-              <SyncOutlined style={{ marginRight: 4 }} />
-              {t('sidebar.autoSync')}
-            </Text>
-          </Checkbox>
-        </Tooltip>
+      {showSyncMode && (
+        <Select
+          value={syncMode}
+          onChange={onSyncModeChange}
+          disabled={disabled}
+          style={{ minWidth: 200 }}
+          popupMatchSelectWidth={false}
+          options={syncModeOptions}
+          labelRender={({ value }) => {
+            switch (value) {
+              case 'manual':
+                return t('syncMode.manual');
+              case 'auto_push':
+                return t('syncMode.autoPush');
+              case 'auto_deploy':
+                return t('syncMode.autoDeploy');
+              default:
+                return '';
+            }
+          }}
+        />
       )}
     </Flex>
   );

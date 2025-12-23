@@ -16,6 +16,7 @@ export interface Session {
   workspacePath: string | null;
   userEmail: string | null;
   workspaceAutoPush: boolean;
+  appAutoDeploy: boolean;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -109,9 +110,16 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
               model: '',
               userEmail: null,
               workspaceAutoPush: data.session.workspaceAutoPush ?? false,
+              appAutoDeploy: data.session.appAutoDeploy ?? false,
               isArchived: false, // New sessions are always active
             };
-            setSessions((prev) => [newSession, ...prev]);
+            setSessions((prev) => {
+              // 重複チェック: 既に存在する場合は追加しない
+              if (prev.some((s) => s.id === newSession.id)) {
+                return prev;
+              }
+              return [newSession, ...prev];
+            });
           }
         } catch (err) {
           console.error('Failed to parse session list WebSocket message:', err);

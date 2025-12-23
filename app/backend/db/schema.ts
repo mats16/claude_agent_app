@@ -28,6 +28,7 @@ export const sessions = pgTable('sessions', {
   workspacePath: text('workspace_path'),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
   workspaceAutoPush: boolean('auto_workspace_push').default(false).notNull(),
+  appAutoDeploy: boolean('app_auto_deploy').default(false).notNull(),
   cwd: text('cwd'),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

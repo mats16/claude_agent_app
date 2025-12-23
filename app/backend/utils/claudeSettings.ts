@@ -43,6 +43,11 @@ export function generateClaudeSettings(): ClaudeSettings {
             //  type: 'command',
             //  command: 'git switch -c "$GIT_BRANCH"',
             //},
+            {
+              type: 'command',
+              command:
+                '[ "$APP_AUTO_DEPLOY" = "true" ] && databricks apps create "$SESSION_APP_NAME" --no-wait',
+            },
           ],
         },
       ],
@@ -58,7 +63,7 @@ export function generateClaudeSettings(): ClaudeSettings {
             {
               type: 'command',
               command:
-                '[ -n "$SESSION_APP_NAME" ] && databricks apps deploy "$SESSION_APP_NAME" --source-code-path "$WORKSPACE_DIR"',
+                '[ "$APP_AUTO_DEPLOY" = "true" ] && databricks apps deploy "$SESSION_APP_NAME" --source-code-path "$WORKSPACE_DIR" --no-wait',
             },
           ],
         },

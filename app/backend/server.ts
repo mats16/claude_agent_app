@@ -1,7 +1,11 @@
 import { buildApp } from './app.js';
 import { drainQueue } from './services/workspaceQueueService.js';
+import { initializeEncryption } from './utils/encryption.js';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8000;
+
+// Initialize encryption for PAT storage
+initializeEncryption();
 
 const app = await buildApp();
 

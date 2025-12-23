@@ -48,6 +48,27 @@
     "backupRestore": "Backup",
     "mcpPlaceholder": "MCP configuration coming soon"
   },
+  "patSection": {
+    "title": "Personal Access Token",
+    "scopeWarning": "Why use a Personal Access Token?",
+    "scopeWarningDesc": "The on-behalf-of-user authorization provided by Databricks Apps has limited scopes. A Personal Access Token (PAT) allows the Claude Agent to perform Databricks CLI operations with full access to your workspace.",
+    "status": "Status",
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "setPat": "Set Personal Access Token",
+    "updatePat": "Update Personal Access Token",
+    "placeholder": "dapi...",
+    "hint": "Your PAT is encrypted and stored securely. It will be used for Databricks CLI operations within the agent.",
+    "patRequired": "Personal Access Token is required",
+    "saveSuccess": "Personal Access Token saved successfully",
+    "saveFailed": "Failed to save Personal Access Token",
+    "removePat": "Remove Personal Access Token",
+    "deleteButton": "Remove Token",
+    "deleteSuccess": "Personal Access Token removed",
+    "deleteFailed": "Failed to remove Personal Access Token",
+    "encryptionUnavailable": "PAT Storage Unavailable",
+    "encryptionUnavailableDesc": "The server is not configured to store encrypted tokens. Contact your administrator to enable this feature."
+  },
   "appSettingsModal": {
     "title": "Application Settings",
     "initialTitle": "Workspace Access Permission",

@@ -48,6 +48,27 @@
     "backupRestore": "バックアップ",
     "mcpPlaceholder": "MCP の設定は近日公開予定です"
   },
+  "patSection": {
+    "title": "Personal Access Token",
+    "scopeWarning": "Personal Access Token を使用する理由",
+    "scopeWarningDesc": "Databricks Apps が提供するユーザー代理認可 (OBO) はスコープが制限されています。Personal Access Token (PAT) を使用すると、Claude Agent がワークスペースへのフルアクセスで Databricks CLI 操作を実行できます。",
+    "status": "ステータス",
+    "configured": "設定済み",
+    "notConfigured": "未設定",
+    "setPat": "Personal Access Token を設定",
+    "updatePat": "Personal Access Token を更新",
+    "placeholder": "dapi...",
+    "hint": "PAT は暗号化されて安全に保存されます。エージェント内の Databricks CLI 操作に使用されます。",
+    "patRequired": "Personal Access Token は必須です",
+    "saveSuccess": "Personal Access Token を保存しました",
+    "saveFailed": "Personal Access Token の保存に失敗しました",
+    "removePat": "Personal Access Token を削除",
+    "deleteButton": "トークンを削除",
+    "deleteSuccess": "Personal Access Token を削除しました",
+    "deleteFailed": "Personal Access Token の削除に失敗しました",
+    "encryptionUnavailable": "PAT ストレージが利用できません",
+    "encryptionUnavailableDesc": "サーバーが暗号化トークンを保存するよう設定されていません。この機能を有効にするには管理者に連絡してください。"
+  },
   "appSettingsModal": {
     "title": "アプリケーション設定",
     "initialTitle": "ワークスペースへのアクセス許可",

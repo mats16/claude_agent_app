@@ -95,6 +95,9 @@ Backend always expects these headers and does not use fallback values, ensuring 
 
 ### Optional
 - `PORT` - Backend port (default: 8000)
+- `ENCRYPTION_KEY` - 64 hex character key for AES-256-GCM encryption (required for PAT storage)
+  - Generate with: `openssl rand -hex 32`
+  - If not set, PAT storage feature is disabled (graceful degradation)
 
 ### SQL Warehouse (MCP Tools)
 - `WAREHOUSE_ID_2XS` - 2X-Small SQL Warehouse ID (default for `run_sql`)
@@ -107,7 +110,7 @@ Tables defined in `app/backend/db/schema.ts`:
 - `users` - User records (id, email)
 - `sessions` - Chat sessions with foreign key to users (includes `cwd` for working directory, `is_archived` for archive status)
 - `events` - Session messages/events (SDKMessage stored as JSONB in `message` column)
-- `settings` - User settings (config sync)
+- `settings` - User settings (config sync, encrypted PAT for Databricks CLI)
 
 ### Row Level Security (RLS)
 `sessions` and `settings` tables have RLS enabled. Queries use `withUserContext()` helper to set `app.current_user_id`:
@@ -323,6 +326,11 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `POST /api/v1/settings/claude-backup/pull` - Pull (restore) Claude config from workspace
 - `POST /api/v1/settings/claude-backup/push` - Push (backup) Claude config to workspace
 - `GET /api/v1/settings/sp-permission` - Get service principal info
+
+#### Personal Access Token (PAT)
+- `GET /api/v1/settings/pat` - Get PAT status (`{ hasPat: boolean, encryptionAvailable: boolean }`)
+- `POST /api/v1/settings/pat` - Set PAT (body: `{ pat: string }`)
+- `DELETE /api/v1/settings/pat` - Clear PAT
 
 #### Skills
 - `GET /api/v1/settings/skills` - List skills

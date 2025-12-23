@@ -21,3 +21,13 @@ CREATE POLICY settings_user_policy ON settings
   FOR ALL
   USING (user_id = current_setting('app.current_user_id', true))
   WITH CHECK (user_id = current_setting('app.current_user_id', true));
+
+-- Enable RLS on oauth_tokens
+ALTER TABLE oauth_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if exists, then create
+DROP POLICY IF EXISTS oauth_tokens_user_policy ON oauth_tokens;
+CREATE POLICY oauth_tokens_user_policy ON oauth_tokens
+  FOR ALL
+  USING (user_id = current_setting('app.current_user_id', true))
+  WITH CHECK (user_id = current_setting('app.current_user_id', true));

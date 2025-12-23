@@ -5,6 +5,7 @@ import { processAgentRequest, MessageStream } from '../../../agent/index.js';
 import { saveMessage } from '../../../db/events.js';
 import { getSessionById } from '../../../db/sessions.js';
 import { getSettingsDirect } from '../../../db/settings.js';
+import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContextFromHeaders } from '../../../utils/headers.js';
 import {
   sessionQueues,
@@ -187,6 +188,10 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               const claudeConfigAutoPush =
                 userSettings?.claudeConfigAutoPush ?? true;
 
+              // Get user's PAT if configured (for Databricks CLI operations)
+              const userPersonalAccessToken =
+                await getUserPersonalAccessToken(userId);
+
               // Create MessageStream for this session
               const stream = new MessageStream(userMessageContent);
               sessionMessageStreams.set(sessionId, stream);
@@ -205,7 +210,9 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                   workspacePath,
                   { workspaceAutoPush, claudeConfigAutoPush, cwd: sessionCwd },
                   stream,
-                  accessToken
+                  accessToken,
+                  userId,
+                  userPersonalAccessToken
                 )) {
                   // Save message to database (always execute regardless of WebSocket state)
                   await saveMessage(sdkMessage);

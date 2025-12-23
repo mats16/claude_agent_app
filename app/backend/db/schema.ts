@@ -6,6 +6,7 @@ import {
   index,
   integer,
   boolean,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 
 // Users table
@@ -71,3 +72,23 @@ export const settings = pgTable('settings', {
 
 export type Settings = typeof settings.$inferSelect;
 export type NewSettings = typeof settings.$inferInsert;
+
+// OAuth tokens table for storing encrypted access tokens
+// Primary key is composite (user_id, provider) to allow one token per provider per user
+export const oauthTokens = pgTable(
+  'oauth_tokens',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    authType: text('auth_type').notNull(), // 'pat' for personal access token
+    provider: text('provider').notNull(), // 'databricks'
+    accessToken: text('access_token').notNull(), // Encrypted token value
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.provider] })]
+);
+
+export type OAuthToken = typeof oauthTokens.$inferSelect;
+export type NewOAuthToken = typeof oauthTokens.$inferInsert;

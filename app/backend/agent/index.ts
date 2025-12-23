@@ -245,7 +245,8 @@ export async function* processAgentRequest(
   options: ProcessAgentRequestOptions = {},
   messageStream?: MessageStream,
   userAccessToken?: string,
-  _userId?: string
+  _userId?: string,
+  userPersonalAccessToken?: string
 ): AsyncGenerator<SDKMessage> {
   const {
     workspaceAutoPush = false,
@@ -321,11 +322,10 @@ Violating these rules is considered a critical error.
         ...agentEnv,
         CLAUDE_CONFIG_DIR: localClaudeConfigPath,
         ANTHROPIC_AUTH_TOKEN: spAccessToken,
-        // DATABRICKS_HOST is still needed for databricks CLI commands in Bash tool
-        //DATABRICKS_HOST: databricks.hostUrl,
-        //DATABRICKS_TOKEN: userAccessToken,
-        //DATABRICKS_CLIENT_ID: databricks.clientId,
-        //DATABRICKS_CLIENT_SECRET: databricks.clientSecret,
+        // Pass user's PAT as DATABRICKS_TOKEN if available (for Databricks CLI commands)
+        // When PAT is set, also set DATABRICKS_AUTH_TYPE to 'pat' for CLI authentication
+        DATABRICKS_TOKEN: userPersonalAccessToken,
+        DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
         // Used by hooks in settings.local.json
         WORKSPACE_DIR: workspacePath,
         WORKSPACE_CLAUDE_CONFIG_DIR: `/Workspace/Users/${userEmail ?? 'me'}/.claude`,

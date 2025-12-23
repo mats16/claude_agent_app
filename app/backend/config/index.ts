@@ -34,6 +34,9 @@ export const database = {
   url: process.env.DB_URL,
 };
 
+// Encryption configuration
+export const encryptionKey = process.env.ENCRYPTION_KEY;
+
 // Agent environment configuration (uppercase keys for direct env spread)
 export const agentEnv = {
   HOME: process.env.HOME,

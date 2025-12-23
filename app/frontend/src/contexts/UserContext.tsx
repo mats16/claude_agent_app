@@ -18,6 +18,8 @@ export interface UserInfo {
 export interface UserSettings {
   userId: string;
   claudeConfigAutoPush: boolean;
+  hasDatabricksPat: boolean;
+  encryptionAvailable: boolean;
 }
 
 interface UserContextType {
@@ -60,11 +62,31 @@ export function UserProvider({ children }: UserProviderProps) {
 
   const fetchUserSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/settings');
-      if (res.ok) {
-        const data = await res.json();
-        setUserSettings(data);
+      // Fetch both settings and PAT status in parallel
+      const [settingsRes, patRes] = await Promise.all([
+        fetch('/api/v1/settings'),
+        fetch('/api/v1/settings/pat'),
+      ]);
+
+      let settings = {
+        userId: '',
+        claudeConfigAutoPush: true,
+        hasDatabricksPat: false,
+        encryptionAvailable: false,
+      };
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        settings = { ...settings, ...settingsData };
       }
+
+      if (patRes.ok) {
+        const patData = await patRes.json();
+        settings.hasDatabricksPat = patData.hasPat ?? false;
+        settings.encryptionAvailable = patData.encryptionAvailable ?? false;
+      }
+
+      setUserSettings(settings);
     } catch (e) {
       console.error('Failed to fetch user settings:', e);
     }

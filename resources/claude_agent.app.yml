@@ -5,11 +5,17 @@ resources:
       description: Claude Code on Databricks
       source_code_path: ../app
       resources:
+        - name: encryption-key-secret
+          description: Encryption key
+          secret:
+            scope: claude-agent
+            key: encryption-key
+            permission: READ
         - name: db-url-secret
           description: Database connection string
           secret:
-            scope: claude_agent
-            key: db_url
+            scope: claude-agent
+            key: db-url
             permission: READ
         - name: warehouse-2xs
           sql_warehouse:

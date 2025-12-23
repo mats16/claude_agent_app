@@ -16,6 +16,7 @@ import claudeBackupRoutes from './routes/v1/settings/claude-backup/index.js';
 import skillRoutes from './routes/v1/settings/skills/index.js';
 import agentRoutes from './routes/v1/settings/agents/index.js';
 import spPermissionRoutes from './routes/v1/settings/sp-permission/index.js';
+import patRoutes from './routes/v1/settings/pat/index.js';
 import presetSettingsRoutes from './routes/v1/preset-settings/index.js';
 import workspaceRoutes from './routes/v1/workspace/index.js';
 import queueRoutes from './routes/v1/queues/index.js';
@@ -65,6 +66,7 @@ export async function buildApp() {
   await fastify.register(spPermissionRoutes, {
     prefix: '/api/v1/settings/sp-permission',
   });
+  await fastify.register(patRoutes, { prefix: '/api/v1/settings/pat' });
   await fastify.register(presetSettingsRoutes, {
     prefix: '/api/v1/preset-settings',
   });

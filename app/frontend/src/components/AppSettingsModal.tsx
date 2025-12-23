@@ -1,14 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Button, Alert, Typography, Flex, Spin } from 'antd';
+import {
+  Modal,
+  Button,
+  Alert,
+  Typography,
+  Flex,
+  Spin,
+  Divider,
+  Input,
+  Space,
+} from 'antd';
 import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   ReloadOutlined,
   SettingOutlined,
+  KeyOutlined,
+  SaveOutlined,
+  DeleteOutlined,
+  CloseCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useUser } from '../contexts/UserContext';
-import { colors } from '../styles/theme';
+import { colors, spacing } from '../styles/theme';
 
 const { Text, Link } = Typography;
 
@@ -32,12 +47,38 @@ export default function AppSettingsModal({
   onPermissionGranted,
 }: AppSettingsModalProps) {
   const { t, i18n } = useTranslation();
-  const { userInfo, isLoading: isUserLoading, refetchUserInfo } = useUser();
+  const {
+    userInfo,
+    userSettings,
+    isLoading: isUserLoading,
+    refetchUserInfo,
+    refetchUserSettings,
+  } = useUser();
   const [spInfo, setSpInfo] = useState<ServicePrincipalInfo | null>(null);
   const [isCheckingPermission, setIsCheckingPermission] = useState(false);
 
+  // PAT state
+  const [patValue, setPatValue] = useState('');
+  const [isSavingPat, setIsSavingPat] = useState(false);
+  const [isDeletingPat, setIsDeletingPat] = useState(false);
+  const [patMessage, setPatMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  const hasPat = userSettings?.hasDatabricksPat ?? false;
+  const encryptionAvailable = userSettings?.encryptionAvailable ?? false;
+
   const hasPermission = userInfo?.hasWorkspacePermission ?? null;
   const isLoading = isUserLoading || isCheckingPermission;
+
+  // Clear PAT input when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setPatValue('');
+      setPatMessage(null);
+    }
+  }, [isOpen]);
 
   // Fetch SP info if no permission
   const fetchSpInfo = useCallback(async () => {
@@ -74,6 +115,58 @@ export default function AppSettingsModal({
       setIsCheckingPermission(false);
     }
   }, [refetchUserInfo]);
+
+  const handleSavePat = async () => {
+    if (!patValue.trim()) {
+      setPatMessage({ type: 'error', text: t('patSection.patRequired') });
+      return;
+    }
+
+    setIsSavingPat(true);
+    setPatMessage(null);
+
+    try {
+      const response = await fetch('/api/v1/settings/pat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pat: patValue }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save PAT');
+      }
+
+      setPatValue('');
+      setPatMessage({ type: 'success', text: t('patSection.saveSuccess') });
+      await refetchUserSettings();
+    } catch {
+      setPatMessage({ type: 'error', text: t('patSection.saveFailed') });
+    } finally {
+      setIsSavingPat(false);
+    }
+  };
+
+  const handleDeletePat = async () => {
+    setIsDeletingPat(true);
+    setPatMessage(null);
+
+    try {
+      const response = await fetch('/api/v1/settings/pat', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete PAT');
+      }
+
+      setPatMessage({ type: 'success', text: t('patSection.deleteSuccess') });
+      await refetchUserSettings();
+    } catch {
+      setPatMessage({ type: 'error', text: t('patSection.deleteFailed') });
+    } finally {
+      setIsDeletingPat(false);
+    }
+  };
 
   const renderPermissionInstructions = () => (
     <div>
@@ -147,6 +240,111 @@ export default function AppSettingsModal({
     </div>
   );
 
+  const renderPatSection = () => {
+    if (!encryptionAvailable) {
+      return (
+        <Alert
+          type="warning"
+          icon={<WarningOutlined />}
+          message={t('patSection.encryptionUnavailable')}
+          description={t('patSection.encryptionUnavailableDesc')}
+          showIcon
+        />
+      );
+    }
+
+    return (
+      <div>
+        {/* Warning about user delegation limitations */}
+        <Alert
+          type="info"
+          message={t('patSection.scopeWarning')}
+          description={t('patSection.scopeWarningDesc')}
+          showIcon
+          style={{ marginBottom: spacing.lg }}
+        />
+
+        {/* Current status */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <Text
+            type="secondary"
+            style={{ display: 'block', marginBottom: spacing.sm }}
+          >
+            {t('patSection.status')}:{' '}
+            {hasPat ? (
+              <Text strong style={{ color: colors.success }}>
+                <CheckCircleOutlined style={{ marginRight: spacing.xs }} />
+                {t('patSection.configured')}
+              </Text>
+            ) : (
+              <Text strong style={{ color: colors.textMuted }}>
+                <CloseCircleOutlined style={{ marginRight: spacing.xs }} />
+                {t('patSection.notConfigured')}
+              </Text>
+            )}
+          </Text>
+        </div>
+
+        {/* PAT Input */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
+            {hasPat ? t('patSection.updatePat') : t('patSection.setPat')}
+          </Text>
+
+          <Space.Compact style={{ width: '100%', marginBottom: spacing.md }}>
+            <Input.Password
+              value={patValue}
+              onChange={(e) => setPatValue(e.target.value)}
+              placeholder={t('patSection.placeholder')}
+              style={{ flex: 1 }}
+            />
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={handleSavePat}
+              loading={isSavingPat}
+              disabled={isDeletingPat || !patValue.trim()}
+            >
+              {t('common.save')}
+            </Button>
+          </Space.Compact>
+
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {t('patSection.hint')}
+          </Text>
+        </div>
+
+        {/* Delete PAT */}
+        {hasPat && (
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
+              {t('patSection.removePat')}
+            </Text>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={handleDeletePat}
+              loading={isDeletingPat}
+              disabled={isSavingPat}
+            >
+              {t('patSection.deleteButton')}
+            </Button>
+          </div>
+        )}
+
+        {/* Message */}
+        {patMessage && (
+          <Alert
+            type={patMessage.type}
+            message={patMessage.text}
+            showIcon
+            style={{ marginTop: spacing.lg }}
+          />
+        )}
+      </div>
+    );
+  };
+
   const renderSettings = () => (
     <div>
       {isInitialSetup && (
@@ -162,6 +360,22 @@ export default function AppSettingsModal({
       <Text type="secondary">
         ワークスペースへのアクセス権限が確認されています。
       </Text>
+
+      <Divider />
+
+      {/* PAT Section */}
+      <Flex
+        align="center"
+        gap={spacing.sm}
+        style={{ marginBottom: spacing.md }}
+      >
+        <KeyOutlined style={{ color: colors.brand }} />
+        <Text strong style={{ fontSize: 16 }}>
+          {t('patSection.title')}
+        </Text>
+      </Flex>
+
+      {renderPatSection()}
     </div>
   );
 

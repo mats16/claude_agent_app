@@ -14,6 +14,7 @@ import {
 import { getSettingsDirect } from '../../../db/settings.js';
 import { upsertUser } from '../../../db/users.js';
 import { enqueueDelete } from '../../../services/workspaceQueueService.js';
+import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { writeClaudeSettings } from '../../../utils/claudeSettings.js';
 import {
@@ -113,10 +114,13 @@ export async function createSessionHandler(
     writeClaudeSettings(localWorkPath);
   }
 
-  const startAgentProcessing = () => {
+  const startAgentProcessing = async () => {
     // Create MessageStream for this session
     // Note: workspace sync is now handled by settings.local.json hooks
     const stream = new MessageStream(messageContent);
+
+    // Get user's PAT if configured (for Databricks CLI operations)
+    const userPersonalAccessToken = await getUserPersonalAccessToken(userId);
 
     // Start processing in background
     const agentIterator = processAgentRequest(
@@ -128,7 +132,8 @@ export async function createSessionHandler(
       { workspaceAutoPush, claudeConfigAutoPush, cwd: localWorkPath },
       stream,
       accessToken,
-      userId
+      userId,
+      userPersonalAccessToken
     );
 
     // Process events in background
@@ -205,7 +210,7 @@ export async function createSessionHandler(
             );
             // Small delay before retry
             await new Promise((r) => setTimeout(r, 1000));
-            startAgentProcessing();
+            void startAgentProcessing();
           } else {
             rejectInit?.(
               new Error(
@@ -225,7 +230,7 @@ export async function createSessionHandler(
   };
 
   // Start initial processing
-  startAgentProcessing();
+  void startAgentProcessing();
 
   // Wait for init message with timeout
   const timeoutMs = 30000; // 30 seconds timeout

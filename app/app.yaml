@@ -1,6 +1,8 @@
 command: ["npm", "run", "start", "--workspace=backend"]
 
 env:
+  - name: ENCRYPTION_KEY
+    valueFrom: encryption-key-secret
   - name: DB_URL
     valueFrom: db-url-secret
   - name: WAREHOUSE_ID_2XS

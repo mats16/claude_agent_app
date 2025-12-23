@@ -1,7 +1,18 @@
 import { getAccessToken } from '../agent/index.js';
 import { databricks } from '../config/index.js';
 import { getSettings, upsertSettings } from '../db/settings.js';
+import {
+  getEncryptedDatabricksPat,
+  hasDatabricksPat as hasPatInDb,
+  setDatabricksPat as setPatInDb,
+  deleteDatabricksPat,
+} from '../db/oauthTokens.js';
 import { upsertUser } from '../db/users.js';
+import {
+  encrypt,
+  decrypt,
+  isEncryptionAvailable,
+} from '../utils/encryption.js';
 
 export interface UserInfo {
   userId: string;
@@ -111,4 +122,49 @@ export async function updateUserSettings(
 ): Promise<void> {
   await ensureUser(userId, userEmail);
   await upsertSettings(userId, settings);
+}
+
+// Check if PAT is configured for user
+export async function hasDatabricksPat(userId: string): Promise<boolean> {
+  if (!isEncryptionAvailable()) return false;
+  return hasPatInDb(userId);
+}
+
+// Get decrypted PAT for agent use (internal only)
+// Uses Direct (non-RLS) query since user context is already verified by caller
+// Returns undefined when not set (allows direct spread in env config)
+export async function getUserPersonalAccessToken(
+  userId: string
+): Promise<string | undefined> {
+  if (!isEncryptionAvailable()) return undefined;
+
+  const encrypted = await getEncryptedDatabricksPat(userId);
+  if (!encrypted) return undefined;
+
+  try {
+    return decrypt(encrypted);
+  } catch (error) {
+    console.error('Failed to decrypt PAT for user:', userId);
+    return undefined;
+  }
+}
+
+// Set PAT (encrypts before storing)
+export async function setDatabricksPat(
+  userId: string,
+  userEmail: string,
+  pat: string
+): Promise<void> {
+  if (!isEncryptionAvailable()) {
+    throw new Error('Encryption not available. Cannot store PAT.');
+  }
+
+  await ensureUser(userId, userEmail);
+  const encrypted = encrypt(pat);
+  await setPatInDb(userId, encrypted);
+}
+
+// Clear PAT
+export async function clearDatabricksPat(userId: string): Promise<void> {
+  await deleteDatabricksPat(userId);
 }

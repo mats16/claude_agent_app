@@ -325,6 +325,8 @@ Violating these rules is considered a critical error.
         // Pass user's PAT as DATABRICKS_TOKEN if available (for Databricks CLI commands)
         // When PAT is set, also set DATABRICKS_AUTH_TYPE to 'pat' for CLI authentication
         DATABRICKS_TOKEN: userPersonalAccessToken,
+        DATABRICKS_CLIENT_ID: userPersonalAccessToken ? undefined : databricks.clientId,
+        DATABRICKS_CLIENT_SECRET: userPersonalAccessToken ? undefined : databricks.clientSecret,
         DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
         // Used by hooks in settings.local.json
         WORKSPACE_DIR: workspacePath,

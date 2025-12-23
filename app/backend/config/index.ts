@@ -45,8 +45,8 @@ export const agentEnv = {
   DATABRICKS_APP_NAME: databricks.appName,
   // Databricks CLI
   DATABRICKS_HOST: databricks.hostUrl,
-  DATABRICKS_CLIENT_ID: databricks.clientId,
-  DATABRICKS_CLIENT_SECRET: databricks.clientSecret,
+  //DATABRICKS_CLIENT_ID: databricks.clientId,
+  //DATABRICKS_CLIENT_SECRET: databricks.clientSecret,
   // Claude Code
   ANTHROPIC_BASE_URL: `${databricks.hostUrl}/serving-endpoints/anthropic`,
   ANTHROPIC_DEFAULT_OPUS_MODEL: 'databricks-claude-opus-4-5',

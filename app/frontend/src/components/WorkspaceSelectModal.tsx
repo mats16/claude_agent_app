@@ -16,6 +16,7 @@ import {
   FolderOpenOutlined,
   FileOutlined,
   BookOutlined,
+  BranchesOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
 } from '@ant-design/icons';
@@ -60,10 +61,12 @@ export default function WorkspaceSelectModal({
         return true;
       })
       .sort((a, b) => {
-        const aIsDir = a.object_type === 'DIRECTORY';
-        const bIsDir = b.object_type === 'DIRECTORY';
+        const aIsDir =
+          a.object_type === 'DIRECTORY' || a.object_type === 'REPO';
+        const bIsDir =
+          b.object_type === 'DIRECTORY' || b.object_type === 'REPO';
 
-        // Directories come first
+        // Directories and repos come first
         if (aIsDir && !bIsDir) return -1;
         if (!aIsDir && bIsDir) return 1;
 
@@ -178,6 +181,10 @@ export default function WorkspaceSelectModal({
     switch (objectType) {
       case 'DIRECTORY':
         return <FolderOutlined style={{ color: colors.brand, fontSize: 16 }} />;
+      case 'REPO':
+        return (
+          <BranchesOutlined style={{ color: colors.brand, fontSize: 16 }} />
+        );
       case 'NOTEBOOK':
         return (
           <BookOutlined style={{ color: colors.textMuted, fontSize: 16 }} />
@@ -270,7 +277,8 @@ export default function WorkspaceSelectModal({
               ),
             }}
             renderItem={(item) => {
-              const isDirectory = item.object_type === 'DIRECTORY';
+              const isDirectory =
+                item.object_type === 'DIRECTORY' || item.object_type === 'REPO';
               const isClickable = item.isParent || isDirectory;
 
               return (

@@ -170,6 +170,12 @@ Environment variables set in `processAgentRequest()`:
 ```typescript
 DATABRICKS_TOKEN: userPersonalAccessToken,  // undefined if not set
 DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
+// Git author/committer info from user headers
+GIT_AUTHOR_NAME: userName ?? userEmail ?? 'Claude Agent',
+GIT_AUTHOR_EMAIL: userEmail ?? 'agent@databricks.com',
+GIT_COMMITTER_NAME: userName ?? userEmail ?? 'Claude Agent',
+GIT_COMMITTER_EMAIL: userEmail ?? 'agent@databricks.com',
+GIT_BRANCH: `claude/session-${sessionUuid}`,
 ```
 
 ### MCP Servers
@@ -218,6 +224,11 @@ Set in `agent/index.ts` env configuration:
 | `CLAUDE_CONFIG_AUTO_PUSH` | `claudeConfigSync` option | `'true'` or `''` |
 | `CLAUDE_WORKING_DIR` | Claude Code built-in | Session working directory (cwd) |
 | `CLAUDE_CONFIG_DIR` | Set in env | Local `.claude` config path |
+| `GIT_AUTHOR_NAME` | `X-Forwarded-Preferred-Username` header | Git commit author name (fallback: email) |
+| `GIT_AUTHOR_EMAIL` | `X-Forwarded-Email` header | Git commit author email |
+| `GIT_COMMITTER_NAME` | `X-Forwarded-Preferred-Username` header | Git commit committer name (fallback: email) |
+| `GIT_COMMITTER_EMAIL` | `X-Forwarded-Email` header | Git commit committer email |
+| `GIT_BRANCH` | Computed from `cwd` | Default git branch name (`claude/session-{uuid}`)
 
 #### Path Structure
 - Local base: `$HOME/u` (e.g., `/Users/me/u` or `/home/app/u`)

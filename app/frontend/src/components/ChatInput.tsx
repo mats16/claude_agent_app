@@ -5,7 +5,7 @@
 
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Flex, message, Select } from 'antd';
+import { Button, Input, Flex, message, Select, Tooltip } from 'antd';
 import {
   SendOutlined,
   PaperClipOutlined,
@@ -406,42 +406,47 @@ export default function ChatInput({
           <div style={{ flex: 1 }} />
           {/* Model selector */}
           {selectedModel && onModelChange && (
-            <Select
-              value={selectedModel}
-              onChange={onModelChange}
-              disabled={modelDisabled || isAgentProcessing}
-              style={{ width: 'auto', minWidth: 100 }}
-              size="small"
-              variant="borderless"
-              popupMatchSelectWidth={240}
-              placement="topLeft"
-              suffixIcon={<CaretDownOutlined />}
-              optionRender={(option) => (
-                <div>
-                  <div style={{ fontWeight: 500 }}>{option.label}</div>
-                  <div style={{ fontSize: 12, color: colors.textSecondary }}>
-                    {option.data.description}
+            <Tooltip
+              title={modelDisabled ? t('models.cannotChangeDuringSession') : ''}
+              styles={{ root: { maxWidth: 400 } }}
+            >
+              <Select
+                value={selectedModel}
+                onChange={onModelChange}
+                disabled={modelDisabled || isAgentProcessing}
+                style={{ width: 'auto', minWidth: 100, background: 'transparent' }}
+                size="small"
+                variant="borderless"
+                popupMatchSelectWidth={240}
+                placement="topLeft"
+                suffixIcon={<CaretDownOutlined />}
+                optionRender={(option) => (
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{option.label}</div>
+                    <div style={{ fontSize: 12, color: colors.textSecondary }}>
+                      {option.data.description}
+                    </div>
                   </div>
-                </div>
-              )}
-              options={[
-                {
-                  value: 'databricks-claude-opus-4-5',
-                  label: t('models.opus'),
-                  description: t('models.opusDescription'),
-                },
-                {
-                  value: 'databricks-claude-sonnet-4-5',
-                  label: t('models.sonnet'),
-                  description: t('models.sonnetDescription'),
-                },
-                {
-                  value: 'databricks-claude-haiku-4-5',
-                  label: t('models.haiku'),
-                  description: t('models.haikuDescription'),
-                },
-              ]}
-            />
+                )}
+                options={[
+                  {
+                    value: 'databricks-claude-opus-4-5',
+                    label: t('models.opus'),
+                    description: t('models.opusDescription'),
+                  },
+                  {
+                    value: 'databricks-claude-sonnet-4-5',
+                    label: t('models.sonnet'),
+                    description: t('models.sonnetDescription'),
+                  },
+                  {
+                    value: 'databricks-claude-haiku-4-5',
+                    label: t('models.haiku'),
+                    description: t('models.haikuDescription'),
+                  },
+                ]}
+              />
+            </Tooltip>
           )}
           {showStopButton ? (
             <Button

@@ -35,7 +35,8 @@
     "sonnetDescription": "Best for everyday tasks",
     "haiku": "Haiku 4.5",
     "haikuDescription": "Fastest for quick answers",
-    "comingSoon": "Coming soon"
+    "comingSoon": "Coming soon",
+    "cannotChangeDuringSession": "Model cannot be changed during an active session"
   },
   "accountMenu": {
     "accountSettings": "Account settings",

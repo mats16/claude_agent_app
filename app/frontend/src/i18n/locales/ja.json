@@ -35,7 +35,8 @@
     "sonnetDescription": "日常的なタスクに最適",
     "haiku": "Haiku 4.5",
     "haikuDescription": "素早い回答に最速のモデルです",
-    "comingSoon": "近日公開"
+    "comingSoon": "近日公開",
+    "cannotChangeDuringSession": "セッション中はモデルを変更できません"
   },
   "accountMenu": {
     "accountSettings": "アカウント設定",

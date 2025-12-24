@@ -255,8 +255,6 @@ export async function listWorkspaceHandler(
 ) {
   const { path: rawPath } = request.query;
 
-  console.log('[listWorkspaceHandler] rawPath:', rawPath);
-
   if (!rawPath) {
     return reply
       .status(400)
@@ -266,26 +264,17 @@ export async function listWorkspaceHandler(
   // Decode path if URL-encoded (Fastify should auto-decode but ensure it)
   let workspacePath = decodeURIComponent(rawPath);
 
-  console.log('[listWorkspaceHandler] decoded workspacePath:', workspacePath);
-
   // Resolve 'me' in path to actual user email
   if (workspacePath.includes('/me')) {
     try {
       const context = extractRequestContext(request);
       workspacePath = workspacePath.replace(/\/Users\/me(\/|$)/, `/Users/${context.userEmail}$1`);
-      console.log('[listWorkspaceHandler] resolved workspacePath:', workspacePath);
     } catch {
       // Ignore - keep original path
     }
   }
 
-  console.log('[listWorkspaceHandler] final workspacePath:', workspacePath);
-
   const result = await workspaceService.listWorkspaceRaw(workspacePath);
-
-  console.log('[listWorkspaceHandler] result status:', result.status);
-  console.log('[listWorkspaceHandler] result body:', JSON.stringify(result.body));
-
   return reply.status(result.status).send(result.body);
 }
 

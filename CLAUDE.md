@@ -438,6 +438,13 @@ Apply the path to `app/frontend/public/favicon.svg`:
 - `GET /api/v1/workspace/*` - List any workspace path (path converted to Databricks format internally)
 - `POST /api/v1/workspace/*` - Create a directory (body: `{ object_type: "DIRECTORY" }`)
 
+**Databricks API Wrappers** (returns original Databricks response and status code):
+- `GET /api/v1/workspace/get?path=<workspace_path>` - Wrapper for `/api/2.0/workspace/get-status`
+- `GET /api/v1/workspace/list?path=<workspace_path>` - Wrapper for `/api/2.0/workspace/list`
+- `POST /api/v1/workspace/mkdirs` (body: `{ path: "..." }`) - Wrapper for `/api/2.0/workspace/mkdirs`
+  - All endpoints support `Users/me` alias resolution (converts `me` to actual user email)
+  - Path should start with `/Workspace` (e.g., `/Workspace/Users/me/.claude`)
+
 #### Queues
 - `GET /api/v1/queues/status` - Get workspace sync queue status (userPendingCount, userTasks, totalPendingCount, queueStats)
 

@@ -437,6 +437,32 @@ export async function archiveSessionHandler(
     });
   }
 
+  // Delete Databricks App if appAutoDeploy was enabled
+  if (session.appAutoDeploy && session.stub) {
+    const appName = `app-by-claude-${session.stub}`;
+    try {
+      const userPat = await getUserPersonalAccessToken(userId);
+      const accessToken = userPat ?? (await getAccessToken());
+
+      const response = await fetch(
+        `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      if (response.ok || response.status === 404) {
+        console.log(`[Archive] Deleted app: ${appName}`);
+      } else {
+        const data = await response.json();
+        console.error(`[Archive] Failed to delete app ${appName}:`, data);
+      }
+    } catch (error) {
+      console.error(`[Archive] Error deleting app ${appName}:`, error);
+    }
+  }
+
   return { success: true };
 }
 

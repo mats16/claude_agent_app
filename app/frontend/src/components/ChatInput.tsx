@@ -72,6 +72,8 @@ interface ChatInputProps {
   selectedModel?: string;
   /** Callback when model changes */
   onModelChange?: (model: string) => void;
+  /** Whether the model selector is disabled */
+  modelDisabled?: boolean;
 }
 
 export default function ChatInput({
@@ -92,6 +94,7 @@ export default function ChatInput({
   maxFiles = 10,
   selectedModel,
   onModelChange,
+  modelDisabled = false,
 }: ChatInputProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -406,7 +409,7 @@ export default function ChatInput({
             <Select
               value={selectedModel}
               onChange={onModelChange}
-              disabled={isAgentProcessing}
+              disabled={modelDisabled || isAgentProcessing}
               style={{ width: 'auto', minWidth: 100 }}
               size="small"
               variant="borderless"
@@ -423,17 +426,17 @@ export default function ChatInput({
               )}
               options={[
                 {
-                  value: 'opus',
+                  value: 'databricks-claude-opus-4-5',
                   label: t('models.opus'),
                   description: t('models.opusDescription'),
                 },
                 {
-                  value: 'sonnet',
+                  value: 'databricks-claude-sonnet-4-5',
                   label: t('models.sonnet'),
                   description: t('models.sonnetDescription'),
                 },
                 {
-                  value: 'haiku',
+                  value: 'databricks-claude-haiku-4-5',
                   label: t('models.haiku'),
                   description: t('models.haikuDescription'),
                 },

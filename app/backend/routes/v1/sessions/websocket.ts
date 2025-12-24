@@ -6,6 +6,7 @@ import { saveMessage } from '../../../db/events.js';
 import {
   getSessionById,
   updateSessionFromStructuredOutput,
+  updateSession,
 } from '../../../db/sessions.js';
 import { getSettingsDirect } from '../../../db/settings.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
@@ -148,6 +149,8 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
           if (message.type === 'user_message') {
             // message.content is now MessageContent[] from frontend
             const userMessageContent = message.content as MessageContent[];
+            // Get model from WebSocket message (user can change model during session)
+            const messageModel = message.model;
 
             // Check if session already has a MessageStream (agent is running)
             const existingStream = sessionMessageStreams.get(sessionId);
@@ -181,8 +184,18 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               const appAutoDeploy = session.appAutoDeploy;
               const sessionAgentLocalPath = session.agentLocalPath;
               const sessionStub = session.stub;
-              // Use session's saved model on resume (prioritize over WebSocket message)
-              const sessionModel = session.model;
+              // Use model from WebSocket message (frontend always sends the selected model)
+              // Fallback to 'databricks-claude-sonnet-4-5' for edge cases (should not happen with current frontend)
+              const sessionModel = messageModel || 'databricks-claude-sonnet-4-5';
+
+              // Update session model in DB if different from saved model
+              if (messageModel && messageModel !== session.model) {
+                await updateSession(
+                  sessionId,
+                  { model: messageModel },
+                  userId
+                );
+              }
 
               // Get user settings for claudeConfigAutoPush
               const userSettings = await getSettingsDirect(userId);

@@ -430,6 +430,10 @@ Apply the path to `app/frontend/public/favicon.svg`:
   ```
 - `PATCH /api/v1/sessions/:id` - Update session (snake_case request body: `title`, `workspace_auto_push`, `workspace_path`, `app_auto_deploy`)
 - `PATCH /api/v1/sessions/:id/archive` - Archive session (sets `is_archived=true`, deletes working directory)
+- `GET /api/v1/sessions/:id/app/live-status` - Get app live status (formatted response with app_status, deployment_status)
+- `GET /api/v1/sessions/:id/app` - Proxy to `GET /api/2.0/apps/{app_name}` (raw Databricks response)
+- `GET /api/v1/sessions/:id/app/deployments` - Proxy to `GET /api/2.0/apps/{app_name}/deployments` (list deployments)
+- `POST /api/v1/sessions/:id/app/deployments` - Proxy to `POST /api/2.0/apps/{app_name}/deployments` (create deployment)
 
 #### Workspace
 - `GET /api/v1/workspace` - List root workspace

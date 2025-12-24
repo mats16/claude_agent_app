@@ -69,7 +69,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
   const { userInfo, isLoading } = useUser();
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState(() => {
-    return localStorage.getItem('selectedModel') || 'sonnet';
+    return localStorage.getItem('selectedModel') || 'databricks-claude-sonnet-4-5';
   });
   const [workspacePath, setWorkspacePath] = useState('');
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
@@ -551,17 +551,17 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
               )}
               options={[
                 {
-                  value: 'opus',
+                  value: 'databricks-claude-opus-4-5',
                   label: t('models.opus'),
                   description: t('models.opusDescription'),
                 },
                 {
-                  value: 'sonnet',
+                  value: 'databricks-claude-sonnet-4-5',
                   label: t('models.sonnet'),
                   description: t('models.sonnetDescription'),
                 },
                 {
-                  value: 'haiku',
+                  value: 'databricks-claude-haiku-4-5',
                   label: t('models.haiku'),
                   description: t('models.haikuDescription'),
                 },

@@ -670,6 +670,7 @@ export default function SessionPage() {
             isAgentProcessing={isProcessing}
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
+            modelDisabled={true}
           />
         )}
       </div>

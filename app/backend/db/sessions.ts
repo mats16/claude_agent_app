@@ -137,7 +137,7 @@ export async function updateSessionFromStructuredOutput(
   });
 }
 
-// Update session settings (title, workspaceAutoPush, workspacePath, appAutoDeploy) with RLS
+// Update session settings (title, workspaceAutoPush, workspacePath, appAutoDeploy, model) with RLS
 export async function updateSession(
   id: string,
   updates: {
@@ -145,6 +145,7 @@ export async function updateSession(
     workspaceAutoPush?: boolean;
     workspacePath?: string | null;
     appAutoDeploy?: boolean;
+    model?: string;
   },
   userId: string
 ): Promise<void> {

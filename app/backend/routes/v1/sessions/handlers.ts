@@ -829,6 +829,7 @@ export async function getSessionHandler(
     app_auto_deploy: session.appAutoDeploy,
     local_path: session.agentLocalPath,
     is_archived: session.isArchived,
+    model: session.model,
     created_at: session.createdAt.toISOString(),
     updated_at: session.updatedAt.toISOString(),
   };

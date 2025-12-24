@@ -36,11 +36,15 @@ export function useAgent(options: UseAgentOptions = {}) {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [sessionNotFound, setSessionNotFound] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState(
-    model || 'databricks-claude-sonnet-4-5'
-  );
+  const [selectedModel, setSelectedModelState] = useState(model || 'databricks-claude-sonnet-4-5');
   // Track if model was explicitly set by user (not from props)
   const modelSetByUserRef = useRef(false);
+
+  // Wrapper to track user-initiated model changes
+  const setSelectedModel = useCallback((newModel: string) => {
+    modelSetByUserRef.current = true;
+    setSelectedModelState(newModel);
+  }, []);
   const wsRef = useRef<WebSocket | null>(null);
   const currentResponseRef = useRef<string>('');
   const currentMessageIdRef = useRef<string>('');
@@ -130,8 +134,8 @@ export function useAgent(options: UseAgentOptions = {}) {
 
   // Update selectedModel when model prop changes (e.g., session data loaded async)
   useEffect(() => {
-    if (model && !modelSetByUserRef.current) {
-      setSelectedModel(model);
+    if (!modelSetByUserRef.current) {
+      setSelectedModelState(model || 'databricks-claude-sonnet-4-5');
     }
   }, [model]);
 

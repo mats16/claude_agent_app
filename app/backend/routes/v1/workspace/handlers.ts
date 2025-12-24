@@ -97,10 +97,19 @@ export async function listWorkspacePathHandler(
 
   // Convert lowercase API path to Databricks workspace path
   const workspacePath = convertToWorkspacePath(subpath, userEmail);
+  const fullWorkspacePath = `/Workspace/${workspacePath}`;
 
   try {
-    const result = await workspaceService.listWorkspacePath(workspacePath);
-    return result;
+    // Fetch list and status in parallel to get browse_url
+    const [listResult, statusResult] = await Promise.all([
+      workspaceService.listWorkspacePath(workspacePath),
+      workspaceService.getStatus(fullWorkspacePath).catch(() => null),
+    ]);
+
+    return {
+      ...listResult,
+      browse_url: statusResult?.browse_url ?? null,
+    };
   } catch (error: any) {
     if (error instanceof workspaceService.WorkspaceError) {
       if (error.code === 'PERMISSION_DENIED') {

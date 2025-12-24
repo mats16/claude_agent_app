@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Button, Typography, Flex, Tooltip, Spin } from 'antd';
 import {
   EditOutlined,
-  LinkOutlined,
   CloudSyncOutlined,
   CloudServerOutlined,
   RocketOutlined,
@@ -175,11 +174,7 @@ export default function SessionPage() {
     if (!sessionWorkspacePath) return;
 
     try {
-      const response = await fetch('/api/v1/workspace/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: sessionWorkspacePath }),
-      });
+      const response = await fetch(`/api/v1${sessionWorkspacePath}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -465,36 +460,23 @@ export default function SessionPage() {
               }}
             />
           </Button>
-          {sessionWorkspacePath && (
-            <Flex
-              align="center"
-              gap={spacing.xs}
-              style={{ marginLeft: spacing.sm }}
-            >
-              <FolderOutlined
-                style={{
-                  fontSize: typography.fontSizeSmall,
-                  color: colors.textSecondary,
-                }}
-              />
-              <Text
-                style={{
-                  fontSize: typography.fontSizeSmall,
-                  color: colors.textSecondary,
-                }}
-              >
-                {sessionWorkspacePath}
-              </Text>
-              <Button
-                type="text"
-                size="small"
-                icon={<LinkOutlined />}
-                onClick={handleWorkspacePathClick}
-                title={t('sessionPage.openInDatabricks')}
-              />
-            </Flex>
-          )}
         </Flex>
+        {sessionWorkspacePath && (
+          <Button
+            type="text"
+            size="small"
+            icon={<FolderOutlined />}
+            onClick={handleWorkspacePathClick}
+            title={sessionWorkspacePath}
+            style={{
+              marginRight: spacing.sm,
+              color: colors.textSecondary,
+              fontSize: typography.fontSizeSmall,
+            }}
+          >
+            Open workspace
+          </Button>
+        )}
         <Tooltip title={getStatusText()} placement="left">
           <div
             style={{

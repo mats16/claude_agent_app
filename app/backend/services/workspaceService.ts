@@ -8,6 +8,7 @@ export interface WorkspaceObject {
 
 export interface WorkspaceListResult {
   objects: WorkspaceObject[];
+  browse_url?: string | null;
 }
 
 export interface WorkspaceStatus {

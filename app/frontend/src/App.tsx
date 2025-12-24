@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, Typography, Flex } from 'antd';
@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import Layout from './components/Layout';
 import SessionPage from './pages/SessionPage';
+import QuickstartAppsModal from './components/QuickstartAppsModal';
 import { colors, borderRadius, typography } from './styles/theme';
 import './App.css';
 
@@ -16,6 +17,7 @@ const { Title, Text } = Typography;
 
 function WelcomePage() {
   const { t } = useTranslation();
+  const [isAppTemplateModalOpen, setIsAppTemplateModalOpen] = useState(false);
 
   const actionCards = useMemo(
     () => [
@@ -36,10 +38,17 @@ function WelcomePage() {
         icon: <RocketOutlined style={{ fontSize: 24, color: colors.brand }} />,
         title: t('welcome.appsTitle'),
         description: t('welcome.appsDescription'),
+        onClick: () => setIsAppTemplateModalOpen(true),
       },
     ],
     [t]
   );
+
+  const handleCardClick = (card: (typeof actionCards)[0]) => {
+    if (card.onClick) {
+      card.onClick();
+    }
+  };
 
   return (
     <Flex
@@ -101,8 +110,10 @@ function WelcomePage() {
                 borderRadius: borderRadius.lg,
                 border: `1px solid ${colors.border}`,
                 boxShadow: 'none',
+                cursor: card.onClick ? 'pointer' : 'default',
               }}
-              hoverable
+              hoverable={!!card.onClick}
+              onClick={() => handleCardClick(card)}
             >
               <Flex justify="space-between" align="center">
                 <div style={{ flex: 1 }}>
@@ -135,6 +146,11 @@ function WelcomePage() {
           ))}
         </Flex>
       </Flex>
+
+      <QuickstartAppsModal
+        isOpen={isAppTemplateModalOpen}
+        onClose={() => setIsAppTemplateModalOpen(false)}
+      />
     </Flex>
   );
 }

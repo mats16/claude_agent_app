@@ -265,7 +265,8 @@
     "openDatabricksConsole": "Open Databricks Console",
     "confirmDeploy": "Are you sure you want to deploy?",
     "deployStarted": "Deployment started",
-    "deployFailed": "Failed to start deployment"
+    "deployFailed": "Failed to start deployment",
+    "initialDeployStarted": "Initial deployment started"
   },
   "welcome": {
     "exploreTitle": "Explore workspace files",
@@ -304,5 +305,22 @@
     "pdfNoPreview": "PDF preview is not available",
     "download": "Download",
     "downloadError": "Failed to download file"
+  },
+  "quickstartApps": {
+    "title": "Quickstart: Databricks Apps",
+    "selectTemplate": "Select a template to get started",
+    "loading": "Loading templates...",
+    "noTemplates": "No templates available",
+    "rateLimitError": "GitHub API rate limit exceeded. Please try again later.",
+    "networkError": "Failed to connect to GitHub. Please check your connection.",
+    "cachedData": "(cached)",
+    "workspacePath": "Destination folder",
+    "workspacePathHint": "The template will be cloned to this location",
+    "browse": "Browse...",
+    "create": "Create",
+    "creating": "Creating...",
+    "createSuccess": "App created successfully",
+    "createFailed": "Failed to create app",
+    "alreadyExists": "A folder with this name already exists"
   }
 }

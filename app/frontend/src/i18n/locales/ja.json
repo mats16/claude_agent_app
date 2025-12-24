@@ -265,7 +265,8 @@
     "openDatabricksConsole": "Databricks Console を開く",
     "confirmDeploy": "デプロイを実行しますか？",
     "deployStarted": "デプロイを開始しました",
-    "deployFailed": "デプロイの開始に失敗しました"
+    "deployFailed": "デプロイの開始に失敗しました",
+    "initialDeployStarted": "初回デプロイを開始しました"
   },
   "welcome": {
     "exploreTitle": "ワークスペースファイルを探索",
@@ -304,5 +305,22 @@
     "pdfNoPreview": "PDFのプレビューは利用できません",
     "download": "ダウンロード",
     "downloadError": "ファイルのダウンロードに失敗しました"
+  },
+  "quickstartApps": {
+    "title": "Quickstart: Databricks Apps",
+    "selectTemplate": "テンプレートを選択してください",
+    "loading": "テンプレートを読み込み中...",
+    "noTemplates": "利用可能なテンプレートがありません",
+    "rateLimitError": "GitHub API のレート制限を超えました。しばらくしてから再試行してください。",
+    "networkError": "GitHub への接続に失敗しました。接続を確認してください。",
+    "cachedData": "(キャッシュ)",
+    "workspacePath": "作成先フォルダ",
+    "workspacePathHint": "テンプレートがクローンされる場所",
+    "browse": "参照...",
+    "create": "作成",
+    "creating": "作成中...",
+    "createSuccess": "App を作成しました",
+    "createFailed": "App の作成に失敗しました",
+    "alreadyExists": "指定したパスは既に存在します"
   }
 }

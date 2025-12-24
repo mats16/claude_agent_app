@@ -20,6 +20,7 @@ import patRoutes from './routes/v1/settings/pat/index.js';
 import presetSettingsRoutes from './routes/v1/preset-settings/index.js';
 import workspaceRoutes from './routes/v1/workspace/index.js';
 import queueRoutes from './routes/v1/queues/index.js';
+import reposRoutes from './routes/v1/repos/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,7 @@ export async function buildApp() {
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/Workspace' });
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/workspace' });
   await fastify.register(queueRoutes, { prefix: '/api/v1/queues' });
+  await fastify.register(reposRoutes, { prefix: '/api/v1/repos' });
 
   return fastify;
 }

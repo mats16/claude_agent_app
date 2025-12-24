@@ -25,6 +25,7 @@ export interface UseAppLiveStatusResult {
   error: string | null;
   isDeploying: boolean;
   isUnavailable: boolean;
+  isReadyForInitialDeploy: boolean;
 }
 
 export function useAppLiveStatus(
@@ -50,6 +51,14 @@ export function useAppLiveStatus(
     (status?.app_status?.state &&
       UNAVAILABLE_APP_STATES.includes(status.app_status.state)) ||
     false;
+
+  // Calculate isReadyForInitialDeploy: App is created but not yet deployed
+  // Detects when app_status.message contains "deployed" (case-insensitive)
+  // and deployment_status is null (no deployment has been made)
+  const isReadyForInitialDeploy =
+    status?.app_status?.state === 'UNAVAILABLE' &&
+    !!status?.app_status?.message?.toLowerCase().includes('deployed') &&
+    status?.deployment_status === null;
 
   const fetchStatus = useCallback(async () => {
     if (!sessionId || !isMountedRef.current) return;
@@ -125,5 +134,6 @@ export function useAppLiveStatus(
     error,
     isDeploying,
     isUnavailable,
+    isReadyForInitialDeploy,
   };
 }

@@ -151,7 +151,54 @@ export default function SessionPage() {
     status: appStatus,
     isDeploying: appIsDeploying,
     isUnavailable: appIsUnavailable,
+    isReadyForInitialDeploy,
   } = useAppLiveStatus(sessionId, sessionAppAutoDeploy);
+
+  // Track if initial deploy has been attempted for this session
+  const initialDeployAttemptedRef = useRef(false);
+
+  // Reset initial deploy flag when session changes
+  useEffect(() => {
+    initialDeployAttemptedRef.current = false;
+  }, [sessionId]);
+
+  // Auto-trigger initial deploy when app is ready
+  useEffect(() => {
+    if (
+      !sessionId ||
+      !isReadyForInitialDeploy ||
+      initialDeployAttemptedRef.current
+    ) {
+      return;
+    }
+
+    initialDeployAttemptedRef.current = true;
+
+    const triggerInitialDeploy = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/sessions/${sessionId}/app/deployments`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          }
+        );
+
+        if (response.ok) {
+          message.info(t('sessionPage.initialDeployStarted'));
+        } else {
+          const data = await response.json();
+          message.error(data.error || t('sessionPage.deployFailed'));
+        }
+      } catch (error) {
+        console.error('Failed to trigger initial deploy:', error);
+        message.error(t('sessionPage.deployFailed'));
+      }
+    };
+
+    triggerInitialDeploy();
+  }, [sessionId, isReadyForInitialDeploy, t]);
 
   // Fetch session details (including workspace_url, app_name, console_url) when session page loads
   useEffect(() => {

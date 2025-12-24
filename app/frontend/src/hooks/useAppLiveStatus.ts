@@ -106,8 +106,8 @@ export function useAppLiveStatus(
     setIsLoading(true);
     fetchStatus();
 
-    // Set up polling (every 3 seconds)
-    intervalRef.current = setInterval(fetchStatus, 3000);
+    // Set up polling (every 5 seconds)
+    intervalRef.current = setInterval(fetchStatus, 5000);
 
     // Cleanup
     return () => {

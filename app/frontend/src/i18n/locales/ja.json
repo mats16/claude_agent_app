@@ -321,6 +321,7 @@
     "creating": "作成中...",
     "createSuccess": "App を作成しました",
     "createFailed": "App の作成に失敗しました",
-    "alreadyExists": "指定したパスは既に存在します"
+    "alreadyExists": "指定したパスは既に存在します",
+    "initialMessage": "「{{templateName}}」テンプレートをクローンしました。このアプリの開発を手伝ってください。まずプロジェクト構成を確認し、このテンプレートの機能を説明してから、カスタマイズと実行を手伝ってください。"
   }
 }

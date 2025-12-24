@@ -139,7 +139,9 @@ export default function QuickstartAppsModal({
               type: 'user',
               message: {
                 role: 'user',
-                content: `I've cloned the "${selectedTemplate.name}" template from databricks/app-templates to ${templateWorkspacePath}. Please help me get started with this app. First, explore the project structure and explain what this template provides, then help me customize and run it.`,
+                content: t('quickstartApps.initialMessage', {
+                  templateName: selectedTemplate.name,
+                }),
               },
             },
           ],

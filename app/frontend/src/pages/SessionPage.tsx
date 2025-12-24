@@ -6,14 +6,11 @@ import {
   EditOutlined,
   CloudSyncOutlined,
   CloudServerOutlined,
-  RocketOutlined,
   FolderOutlined,
   RobotOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { flagsToSyncMode } from '../components/WorkspacePathSelector';
 import { useAgent } from '../hooks/useAgent';
-import { useAppLiveStatus } from '../hooks/useAppLiveStatus';
 import { useImageUpload } from '../hooks/useImageUpload';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { useSessions } from '../contexts/SessionsContext';
@@ -126,10 +123,6 @@ export default function SessionPage() {
   const sessionWorkspacePath = session?.workspacePath ?? null;
   const sessionWorkspaceUrl = session?.workspaceUrl ?? null;
   const sessionAppAutoDeploy = session?.appAutoDeploy ?? false;
-  const sessionSyncMode = flagsToSyncMode(
-    sessionAutoWorkspacePush,
-    sessionAppAutoDeploy
-  );
 
   // Fetch session details (including workspace_url) when session page loads
   useEffect(() => {
@@ -160,12 +153,6 @@ export default function SessionPage() {
     sessionWorkspaceUrl,
     updateSessionLocally,
   ]);
-
-  // App live status polling (only when appAutoDeploy is enabled)
-  const { isDeploying, isUnavailable } = useAppLiveStatus(
-    sessionId,
-    sessionAppAutoDeploy
-  );
 
   const handleSaveSettings = useCallback(
     async (
@@ -423,24 +410,12 @@ export default function SessionPage() {
         <Flex align="center" gap={spacing.sm} style={{ minWidth: 0, flex: 1 }}>
           <Tooltip
             title={
-              sessionSyncMode === 'manual'
-                ? t('sessionPage.autoSyncDisabled')
-                : sessionSyncMode === 'auto_deploy'
-                  ? isDeploying
-                    ? t('sessionPage.deploying')
-                    : t('syncMode.autoDeploy')
-                  : t('syncMode.autoPush')
+              sessionAutoWorkspacePush
+                ? t('syncMode.autoPush')
+                : t('sessionPage.autoSyncDisabled')
             }
           >
-            {sessionSyncMode === 'auto_deploy' ? (
-              <RocketOutlined
-                spin={isDeploying || isUnavailable}
-                style={{
-                  fontSize: 22,
-                  color: isUnavailable ? colors.error : colors.success,
-                }}
-              />
-            ) : sessionSyncMode === 'auto_push' ? (
+            {sessionAutoWorkspacePush ? (
               <CloudSyncOutlined
                 style={{ fontSize: 22, color: colors.success }}
               />

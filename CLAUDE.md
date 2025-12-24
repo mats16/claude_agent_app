@@ -108,7 +108,7 @@ Backend always expects these headers and does not use fallback values, ensuring 
 
 Tables defined in `app/backend/db/schema.ts`:
 - `users` - User records (id, email)
-- `sessions` - Chat sessions with foreign key to users (includes `stub` for 8-char identifier, `cwd` for working directory, `is_archived` for archive status)
+- `sessions` - Chat sessions with foreign key to users (includes `stub` for 8-char identifier, `agentLocalPath` for working directory, `is_archived` for archive status)
 - `events` - Session messages/events (SDKMessage stored as JSONB in `message` column)
 - `settings` - User settings (claudeConfigAutoPush)
 - `oauth_tokens` - Encrypted tokens storage (composite PK: `user_id` + `provider`), used for PAT storage, includes `expires_at` for token expiration
@@ -230,14 +230,14 @@ Set in `agent/index.ts` env configuration:
 | `GIT_AUTHOR_EMAIL` | `X-Forwarded-Email` header | Git commit author email |
 | `GIT_COMMITTER_NAME` | `X-Forwarded-Preferred-Username` header | Git commit committer name (fallback: email) |
 | `GIT_COMMITTER_EMAIL` | `X-Forwarded-Email` header | Git commit committer email |
-| `GIT_BRANCH` | Computed from `cwd` | Default git branch name (`claude/session-{stub}`)
+| `GIT_BRANCH` | Computed from `stub` | Default git branch name (`claude/session-{stub}`)
 
 #### Path Structure
 - Local base: `$HOME/u` (e.g., `/Users/me/u` or `/home/app/u`)
 - Claude config: `/Workspace/Users/{email}/.claude` → Local: `$HOME/u/{email}/.claude`
-- Working directory: Each session gets unique isolated directory at `$HOME/u/{email}/w/{stub}`
+- Working directory: Each session gets unique isolated directory at `$HOME/u/{email}/s/{stub}`
   - `stub` is an 8-character hex identifier (generated via `crypto.randomBytes(4).toString('hex')`)
-  - Stub is stored in `sessions.stub` column, path in `sessions.cwd`
+  - Stub is stored in `sessions.stub` column, path in `sessions.agentLocalPath`
   - Created API-side before processAgentRequest() call
   - Used for `SESSION_APP_NAME` (`app-by-claude-{stub}`) to fit Databricks Apps 30-char limit
 
@@ -266,7 +266,7 @@ Sessions can be archived to hide them from the active session list without perma
 **Archive Process**:
 1. User triggers archive via UI (InboxOutlined icon on hover in session list)
 2. `PATCH /api/v1/sessions/:id/archive` sets `is_archived=true` in database
-3. Working directory (`sessions.cwd`) is enqueued for deletion via `enqueueDelete()` in workspaceQueueService
+3. Working directory (`sessions.agentLocalPath`) is enqueued for deletion via `enqueueDelete()` in workspaceQueueService
 4. If the archived session is currently displayed, UI automatically navigates to home page
 
 **UI Behavior**:
@@ -401,6 +401,24 @@ Apply the path to `app/frontend/public/favicon.svg`:
 #### Sessions
 - `POST /api/v1/sessions` - Create session with initial message (workspacePath is optional)
 - `GET /api/v1/sessions` - List sessions (filtered by userId via RLS, supports `?filter=active|archived|all`)
+- `GET /api/v1/sessions/:id` - Get session details (snake_case response)
+  ```json
+  {
+    "id": "uuid",
+    "stub": "8-char-hex",
+    "title": "string | null",
+    "summary": "string | null",
+    "workspace_path": "string | null",
+    "workspace_url": "string | null",
+    "workspace_auto_push": boolean,
+    "app_auto_deploy": boolean,
+    "local_path": "string",
+    "is_archived": boolean,
+    "created_at": "ISO timestamp",
+    "updated_at": "ISO timestamp",
+    "app_name": "string"  // only when app_auto_deploy is true
+  }
+  ```
 - `GET /api/v1/sessions/:id/events` - Get session history (paginated response format)
   ```json
   {
@@ -410,7 +428,7 @@ Apply the path to `app/frontend/public/favicon.svg`:
     "has_more": false
   }
   ```
-- `PATCH /api/v1/sessions/:id` - Update session (title, workspaceAutoPush, workspacePath)
+- `PATCH /api/v1/sessions/:id` - Update session (snake_case request body: `title`, `workspace_auto_push`, `workspace_path`, `app_auto_deploy`)
 - `PATCH /api/v1/sessions/:id/archive` - Archive session (sets `is_archived=true`, deletes working directory)
 
 #### Workspace

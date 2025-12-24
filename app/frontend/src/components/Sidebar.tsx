@@ -299,6 +299,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
       navigate(`/sessions/${sessionId}`, {
         state: {
           initialMessage: input.trim(),
+          model: selectedModel,
         },
       });
     } catch (error) {

@@ -233,7 +233,7 @@ export default function SessionPage() {
   } = useAgent({
     sessionId,
     initialMessage,
-    model: session?.model || locationState?.model,
+    model: locationState?.model || session?.model,
   });
 
   // Image upload handling via custom hook

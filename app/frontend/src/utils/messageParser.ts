@@ -99,7 +99,7 @@ export function extractUserContent(content: string | SDKContentBlock[]): {
 /**
  * Type guard to check if tool_use_result is TodoWriteResult
  */
-function isTodoWriteResult(result: unknown): result is TodoWriteResult {
+export function isTodoWriteResult(result: unknown): result is TodoWriteResult {
   return (
     typeof result === 'object' &&
     result !== null &&
@@ -122,7 +122,7 @@ function hasStructuredPatch(
 /**
  * Format TodoWrite result for display
  */
-function formatTodoList(todos: TodoItem[]): string {
+export function formatTodoList(todos: TodoItem[]): string {
   return `[TodoList]\n${JSON.stringify(todos)}\n[/TodoList]`;
 }
 

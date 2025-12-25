@@ -18,6 +18,8 @@ import {
   formatToolInput,
   extractUserContent,
   convertSDKMessagesToChat,
+  formatTodoList,
+  isTodoWriteResult,
 } from '../utils/messageParser';
 import {
   RECONNECT_MAX_ATTEMPTS,
@@ -558,6 +560,35 @@ export function useAgent(options: UseAgentOptions = {}) {
                     (t) => t.id === block.tool_use_id
                   );
                   const toolName = pendingTool?.name;
+
+                  // Handle TodoWrite tool specially - use structured result for proper display
+                  if (
+                    toolName === 'TodoWrite' &&
+                    isTodoWriteResult(userMsg.tool_use_result)
+                  ) {
+                    const todoResultBlock = `[ToolResult]\n${formatTodoList(userMsg.tool_use_result.newTodos)}\n[/ToolResult]`;
+                    const todoToolIdPattern = new RegExp(
+                      `(\\[Tool: \\w+ id=${block.tool_use_id}\\][^\\n]*\\n)`,
+                      'g'
+                    );
+                    const todoMatch = todoToolIdPattern.exec(
+                      currentResponseRef.current
+                    );
+                    if (todoMatch) {
+                      const insertPos = todoMatch.index + todoMatch[0].length;
+                      currentResponseRef.current =
+                        currentResponseRef.current.slice(0, insertPos) +
+                        todoResultBlock +
+                        '\n' +
+                        currentResponseRef.current.slice(insertPos);
+                    }
+                    // Remove from pending and continue to next block
+                    pendingToolUsesRef.current =
+                      pendingToolUsesRef.current.filter(
+                        (t) => t.id !== block.tool_use_id
+                      );
+                    continue;
+                  }
 
                   // Skip displaying WebSearch results (keep them hidden)
                   if (toolName !== 'WebSearch') {

@@ -102,6 +102,7 @@ export default function QuickstartJobErrorsModal({
                 role: 'user',
                 content: t('quickstartJobs.initialMessage', {
                   jobName,
+                  jobId: job.job_id,
                   runId: job.run_id,
                 }),
               },

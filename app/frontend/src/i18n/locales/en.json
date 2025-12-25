@@ -361,6 +361,6 @@
     "loading": "Loading failed jobs...",
     "noFailedJobs": "No failed jobs",
     "investigate": "Investigate",
-    "initialMessage": "Job \"{{jobName}}\" (run_id: {{runId}}) has failed. Please investigate the error and help me understand what went wrong."
+    "initialMessage": "Job \"{{jobName}}\" (job_id: {{jobId}}, run_id: {{runId}}) has failed. Please investigate the error and help me understand what went wrong."
   }
 }

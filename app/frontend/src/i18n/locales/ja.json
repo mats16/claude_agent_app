@@ -361,6 +361,6 @@
     "loading": "失敗したジョブを読み込み中...",
     "noFailedJobs": "失敗したジョブはありません",
     "investigate": "調査",
-    "initialMessage": "ジョブ「{{jobName}}」(run_id: {{runId}}) が失敗しました。エラーを調査して、何が問題だったのか理解する手助けをしてください。"
+    "initialMessage": "ジョブ「{{jobName}}」(job_id: {{jobId}}, run_id: {{runId}}) が失敗しました。エラーを調査して、何が問題だったのか理解する手助けをしてください。"
   }
 }

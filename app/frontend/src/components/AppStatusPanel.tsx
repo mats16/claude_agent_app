@@ -125,7 +125,7 @@ const panelStyle: CSSProperties = {
   boxShadow: shadows.lg,
   margin: `0 auto ${spacing.md}px`,
   maxWidth: layout.maxContentWidth,
-  width: '100%',
+  width: 'calc(100% - 48px)',
 };
 
 const panelHeaderStyle: CSSProperties = {

@@ -328,6 +328,12 @@
     "download": "ダウンロード",
     "downloadError": "ファイルのダウンロードに失敗しました"
   },
+  "sqlQuery": {
+    "viewQuery": "クエリを表示",
+    "title": "Query",
+    "copy": "コピー",
+    "copied": "コピーしました"
+  },
   "quickstartApps": {
     "title": "Quickstart: Databricks Apps",
     "selectTemplate": "テンプレートを選択してください",

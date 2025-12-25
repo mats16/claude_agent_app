@@ -328,6 +328,12 @@
     "download": "Download",
     "downloadError": "Failed to download file"
   },
+  "sqlQuery": {
+    "viewQuery": "View query",
+    "title": "Query",
+    "copy": "Copy",
+    "copied": "Copied!"
+  },
   "quickstartApps": {
     "title": "Quickstart: Databricks Apps",
     "selectTemplate": "Select a template to get started",

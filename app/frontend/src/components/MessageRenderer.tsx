@@ -2,6 +2,7 @@ import { useState, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTranslation } from 'react-i18next';
+import { Modal, Typography } from 'antd';
 import {
   DownOutlined,
   UpOutlined,
@@ -71,6 +72,9 @@ function formatToolInput(toolName: string, input: string): string {
         const todos = parsed.todos as unknown[];
         return todos ? `${todos.length} items` : '';
       }
+      case 'mcp__databricks__run_sql':
+        // Return empty string - handled specially in component render
+        return '';
       default: {
         // For other tools, exclude large content fields and show a shortened version
         const sanitized = { ...parsed };
@@ -515,6 +519,70 @@ const EditPatch = memo(function EditPatch({
   );
 });
 
+const { Text } = Typography;
+
+// SqlQueryModal component for displaying SQL query in a modal
+const SqlQueryModal = memo(function SqlQueryModal({
+  isOpen,
+  onClose,
+  query,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  query: string;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Modal
+      open={isOpen}
+      onCancel={onClose}
+      title={t('sqlQuery.title')}
+      footer={null}
+      width={700}
+      styles={{
+        body: { padding: 0 },
+      }}
+    >
+      <div style={{ padding: 24 }}>
+        <div
+          style={{
+            position: 'relative',
+            background: colors.backgroundTertiary,
+            borderRadius: 8,
+            border: `1px solid ${colors.borderDark}`,
+          }}
+        >
+          <div style={{ position: 'absolute', top: 8, right: 8 }}>
+            <Text
+              copyable={{
+                text: query,
+                tooltips: [t('sqlQuery.copy'), t('sqlQuery.copied')],
+              }}
+            />
+          </div>
+          <pre
+            style={{
+              maxHeight: 400,
+              overflow: 'auto',
+              padding: 16,
+              paddingRight: 40,
+              margin: 0,
+              fontSize: 13,
+              lineHeight: 1.5,
+              fontFamily: 'monospace',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+            }}
+          >
+            {query}
+          </pre>
+        </div>
+      </div>
+    </Modal>
+  );
+});
+
 // TodoList component for displaying TodoWrite tool results
 const TodoList = memo(function TodoList({ items }: { items: TodoItem[] }) {
   const getStatusIcon = (status: TodoItem['status']) => {
@@ -703,6 +771,18 @@ export default memo(function MessageRenderer({
 }: MessageRendererProps) {
   const { t } = useTranslation();
   const [previewFile, setPreviewFile] = useState<string | null>(null);
+  const [sqlQueryModal, setSqlQueryModal] = useState<string | null>(null);
+
+  // Helper to extract SQL query from toolInput JSON
+  const extractSqlQuery = (toolInput: string | undefined): string => {
+    if (!toolInput) return '';
+    try {
+      const parsed = JSON.parse(toolInput.trim());
+      return parsed.query || '';
+    } catch {
+      return '';
+    }
+  };
 
   if (role === 'user') {
     // Parse content to extract file references and text
@@ -792,12 +872,24 @@ export default memo(function MessageRenderer({
             ? formatToolOutput(block.toolName || '', block.toolOutput, t)
             : null;
 
+          const isSqlTool = block.toolName === 'mcp__databricks__run_sql';
+
           return (
             <div key={idx} className="tool-block">
               <div className="tool-header">
                 <span className="tool-name">{block.toolName}</span>
-                {block.toolDisplayInput && (
-                  <code className="tool-input">{block.toolDisplayInput}</code>
+                {isSqlTool ? (
+                  <code
+                    className="tool-input"
+                    onClick={() => setSqlQueryModal(extractSqlQuery(block.toolInput))}
+                    style={{ cursor: 'pointer', color: colors.info }}
+                  >
+                    {t('sqlQuery.viewQuery')}
+                  </code>
+                ) : (
+                  block.toolDisplayInput && (
+                    <code className="tool-input">{block.toolDisplayInput}</code>
+                  )
                 )}
               </div>
               {block.editPatchLines && block.editPatchLines.length > 0 && (
@@ -829,6 +921,12 @@ export default memo(function MessageRenderer({
           );
         }
       })}
+      {/* SQL Query Modal */}
+      <SqlQueryModal
+        isOpen={!!sqlQueryModal}
+        onClose={() => setSqlQueryModal(null)}
+        query={sqlQueryModal || ''}
+      />
     </div>
   );
 });

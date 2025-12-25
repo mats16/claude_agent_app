@@ -17,6 +17,7 @@ import {
   CloseOutlined,
   FilePdfOutlined,
   CaretDownOutlined,
+  BugOutlined,
 } from '@ant-design/icons';
 import SessionList from './SessionList';
 import AccountMenu from './AccountMenu';
@@ -614,16 +615,34 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
       {/* Footer */}
       <Flex justify="space-between" align="center" style={footerStyle}>
         <AccountMenu />
-        {userInfo?.databricksAppUrl && (
-          <Tooltip title="Databricks Apps">
+        <Flex align="center" gap={spacing.xs}>
+          {userInfo?.databricksAppUrl && (
+            <Tooltip title="Databricks Apps">
+              <Button
+                type="text"
+                icon={<RocketOutlined />}
+                onClick={() =>
+                  window.open(userInfo.databricksAppUrl!, '_blank')
+                }
+                style={{ color: colors.textSecondary }}
+              />
+            </Tooltip>
+          )}
+          <Tooltip title={t('sidebar.reportBug')}>
             <Button
               type="text"
-              icon={<RocketOutlined />}
-              onClick={() => window.open(userInfo.databricksAppUrl!, '_blank')}
+              icon={<BugOutlined />}
+              onClick={() =>
+                window.open(
+                  import.meta.env.VITE_REPORT_ISSUE_URL ||
+                    'https://github.com/mats16/claude-agent-databricks/issues',
+                  '_blank'
+                )
+              }
               style={{ color: colors.textSecondary }}
             />
           </Tooltip>
-        )}
+        </Flex>
       </Flex>
 
       <WorkspaceSelectModal

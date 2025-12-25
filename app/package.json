@@ -1,7 +1,7 @@
 {
-  "name": "claude-agent-app",
+  "name": "claude-agent-databricks",
   "version": "1.0.0",
-  "description": "Monorepo with React frontend and Express backend",
+  "description": "Claude Code-like coding agent running on Databricks Apps",
   "private": true,
   "packageManager": "npm@10.0.0",
   "workspaces": [

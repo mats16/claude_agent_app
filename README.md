@@ -1,16 +1,17 @@
 # Claude Code on Databricks
 
-A web application that provides Claude Code-like coding agent capabilities running on Databricks Apps. Users interact with an AI assistant that can execute commands, read/write files, and search code within a Databricks Workspace.
+A web application that provides Claude Code-like coding agent capabilities running on Databricks Apps. Users interact with an AI assistant that can execute commands, read/write files, search code, and run SQL queries within a Databricks Workspace.
+
+[日本語版 README](README.ja.md)
 
 ## Features
 
-- **File Operations**: Read, write, and edit files
-- **Code Search**: Glob pattern search, regex search (grep)
-- **Command Execution**: Shell command execution within workspace
-- **Streaming Responses**: Real-time agent response display via WebSocket
-- **Workspace Sync**: Bidirectional sync between Databricks Workspace and local storage with async queue
-- **Retry Support**: Automatic retry with exponential backoff for workspace operations
-- **Multi-language Support**: English and Japanese UI
+- **AI Coding Agent**: Claude-powered assistant with file operations, code search, and command execution
+- **Databricks Integration**: SQL execution via MCP, workspace sync, and Databricks Apps deployment
+- **Personal Access Token**: Optional PAT configuration for user-level authentication
+- **Skills & Agents**: Customizable skills and subagents with GitHub import support
+- **Real-time Streaming**: WebSocket-based response streaming
+- **Multi-language UI**: English and Japanese support
 
 ## Architecture
 
@@ -19,14 +20,14 @@ A web application that provides Claude Code-like coding agent capabilities runni
 │      Frontend (React + Ant Design)      │
 │  - Chat UI with streaming responses     │
 │  - Session management                   │
-│  - Tool output rendering                │
+│  - Skills/Agents configuration          │
 └──────────────┬──────────────────────────┘
                │ WebSocket
 ┌──────────────▼──────────────────────────┐
 │      Backend (Node.js + Fastify)        │
 │  - REST API & WebSocket handlers        │
 │  - Claude Agent SDK integration         │
-│  - Workspace sync (fastq async queue)   │
+│  - MCP servers (Databricks SQL)         │
 └──────────────┬──────────────────────────┘
                │
 ┌──────────────▼──────────────────────────┐
@@ -46,39 +47,32 @@ A web application that provides Claude Code-like coding agent capabilities runni
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - PostgreSQL database (e.g., Neon)
 - Databricks Workspace with Service Principal
-- Anthropic API key (configured in Claude Agent SDK)
+- Anthropic API access (via Databricks Model Serving or API key)
 
-## Setup
+## Quick Start
 
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-cd claude_agent_app
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bash
 cd app
 npm install
 ```
 
-### 3. Configure environment variables
+### 2. Configure environment variables
 
-Create `app/.env` file:
+Create `app/.env`:
 
 ```bash
 # Required
 DATABRICKS_HOST=your-workspace.cloud.databricks.com
 DATABRICKS_CLIENT_ID=your-client-id
 DATABRICKS_CLIENT_SECRET=your-client-secret
-DB_URL=postgresql://user:password@host:5432/database
+DATABASE_URL=postgresql://user:password@host:5432/database
 
-# Required for local development (injected as headers by Vite proxy)
+# Local development (injected as headers by Vite proxy)
 DATABRICKS_TOKEN=your-personal-access-token
 DATABRICKS_USER_NAME=Your Name
 DATABRICKS_USER_ID=user-id-from-idp
@@ -86,67 +80,46 @@ DATABRICKS_USER_EMAIL=your-email@example.com
 
 # Optional
 PORT=8000
+ENCRYPTION_KEY=<64-hex-chars>  # For PAT storage (openssl rand -hex 32)
+
+# SQL Warehouse IDs (for MCP tools)
+WAREHOUSE_ID_2XS=your-2xs-warehouse-id
+WAREHOUSE_ID_XS=your-xs-warehouse-id
+WAREHOUSE_ID_S=your-s-warehouse-id
 ```
 
-> **Note**: In production, `DB_URL` is injected via Databricks Secrets (see [Configure Secrets](#configure-secrets-production)).
-
-### 4. Run database migration
+### 3. Start development server
 
 ```bash
-npm run db:migrate
-```
-
-## Development
-
-Start both frontend and backend in development mode:
-
-```bash
-cd app
 npm run dev
 ```
 
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000
 
-## Build & Deployment
+## Deployment
 
-### Build
-
-```bash
-cd app
-npm run build
-```
-
-### Configure Secrets (Production)
-
-DB_URL must be stored in Databricks Secrets for production deployment:
+### Configure Secrets
 
 ```bash
 # Create secret scope
-databricks secrets create-scope claude_agent
+databricks secrets create-scope claude-agent
 
-# Store DB_URL
-databricks secrets put-secret claude_agent db_url
+# Store DATABASE_URL
+databricks secrets put-secret claude-agent database-url
 ```
-
-The secret is referenced in:
-- `resources/claude_agent.app.yml` - DAB resource definition
-- `app/app.yaml` - App runtime configuration
 
 ### Deploy to Databricks Apps
 
 ```bash
-# Validate configuration
 databricks bundle validate
-
-# Deploy to development
-databricks bundle deploy -t dev
-
-# Deploy to production
-databricks bundle deploy -t prod
+databricks bundle deploy -t dev   # Development
+databricks bundle deploy -t prod  # Production
 ```
 
-## Available Agent Tools
+## Agent Tools
+
+### Built-in Tools
 
 | Tool | Description |
 |------|-------------|
@@ -159,28 +132,35 @@ databricks bundle deploy -t prod
 | `WebSearch` | Search the web |
 | `WebFetch` | Fetch web page contents |
 
+### MCP Tools (Databricks)
+
+| Tool | Description |
+|------|-------------|
+| `mcp__databricks__run_sql` | Execute SQL on Databricks SQL Warehouse |
+| `mcp__databricks__list_warehouses` | List available SQL warehouses |
+| `mcp__databricks__get_warehouse_info` | Get warehouse details |
+
 ## Project Structure
 
 ```
-claude_agent_app/
+claude-agent-databricks/
 ├── app/
 │   ├── frontend/          # React frontend
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   ├── contexts/
-│   │   │   ├── hooks/
-│   │   │   ├── i18n/
-│   │   │   └── pages/
-│   │   └── public/
+│   │   └── src/
+│   │       ├── components/
+│   │       ├── contexts/
+│   │       ├── hooks/
+│   │       └── pages/
 │   ├── backend/           # Node.js backend
-│   │   ├── agent/         # Claude Agent SDK integration
-│   │   ├── services/      # Business logic (queue, sync, etc.)
-│   │   └── db/            # Database (Drizzle ORM)
-│   ├── shared/            # Shared types
-│   ├── app.yaml           # Databricks Apps runtime config
-│   └── package.json       # Turborepo configuration
+│   │   ├── agent/         # Claude Agent SDK + MCP
+│   │   ├── db/            # Drizzle ORM
+│   │   ├── models/        # Domain models
+│   │   ├── routes/        # REST API + WebSocket
+│   │   └── services/      # Business logic
+│   ├── shared/            # Shared types (@app/shared)
+│   └── app.yaml           # Databricks Apps config
 ├── resources/
-│   └── claude_agent.app.yml  # DAB app resource definition
+│   └── claude_agent.app.yml  # DAB app resource
 ├── databricks.yml         # Databricks bundle config
 ├── CLAUDE.md              # Claude Code guidance
 └── README.md

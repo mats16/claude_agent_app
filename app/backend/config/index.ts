@@ -47,6 +47,13 @@ export const paths = {
   usersBase: path.join(homeDir, 'users'),
 };
 
+// MLflow configuration
+export const mlflow = {
+  trackingUri: process.env.MLFLOW_TRACKING_URI,
+  experimentName: process.env.MLFLOW_EXPERIMENT_NAME ?? 'claude-agent',
+  enabled: process.env.MLFLOW_TRACING_ENABLED === 'true',
+};
+
 // Agent environment configuration (uppercase keys for direct env spread)
 export const agentEnv = {
   HOME: process.env.HOME,

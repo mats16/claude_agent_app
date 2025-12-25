@@ -4,6 +4,7 @@ import type {
   SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk';
 import { createDatabricksMcpServer } from './mcp/databricks.js';
+import { traceAgentMessages } from './mlflowTracing.js';
 import fs from 'fs';
 import path from 'path';
 import type { MessageContent } from '@app/shared';
@@ -381,9 +382,20 @@ Violating these rules is considered a critical error.
     },
   });
 
+  // Get user ID for tracing
+  const userId = user?.email ?? 'anonymous';
+
+  // Wrap response with MLflow tracing (if enabled)
+  const tracedResponse = traceAgentMessages(
+    sessionId ?? 'new-session',
+    userId,
+    model,
+    response
+  );
+
   // Yield SDK messages directly without transformation
   try {
-    for await (const sdkMessage of response) {
+    for await (const sdkMessage of tracedResponse) {
       yield sdkMessage;
     }
   } finally {

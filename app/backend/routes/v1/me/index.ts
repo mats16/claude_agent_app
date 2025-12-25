@@ -15,7 +15,14 @@ const meRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const userInfo = await userService.getUserInfo(context.user);
-      return userInfo;
+      // Transform to snake_case
+      return {
+        user_id: userInfo.userId,
+        email: userInfo.email,
+        workspace_home: userInfo.workspaceHome,
+        has_workspace_permission: userInfo.hasWorkspacePermission,
+        databricks_app_url: userInfo.databricksAppUrl,
+      };
     } catch (error: any) {
       console.error('Failed to get user info:', error);
       return reply.status(500).send({ error: error.message });

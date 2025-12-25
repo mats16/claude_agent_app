@@ -31,9 +31,17 @@ export function notifySessionCreated(
   const listeners = userSessionListeners.get(userId);
   if (!listeners) return;
 
+  // Transform to snake_case for WebSocket message
   const message = JSON.stringify({
     type: 'session_created',
-    session,
+    session: {
+      id: session.id,
+      title: session.title,
+      workspace_path: session.workspacePath,
+      workspace_auto_push: session.workspaceAutoPush,
+      app_auto_deploy: session.appAutoDeploy,
+      updated_at: session.updatedAt,
+    },
   });
 
   for (const ws of listeners) {

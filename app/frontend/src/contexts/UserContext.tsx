@@ -49,7 +49,14 @@ export function UserProvider({ children }: UserProviderProps) {
       const res = await fetch('/api/v1/me');
       if (res.ok) {
         const data = await res.json();
-        setUserInfo(data);
+        // Transform snake_case API response to camelCase
+        setUserInfo({
+          userId: data.user_id,
+          email: data.email,
+          workspaceHome: data.workspace_home,
+          hasWorkspacePermission: data.has_workspace_permission,
+          databricksAppUrl: data.databricks_app_url,
+        });
         setError(null);
       } else {
         setError('Failed to fetch user info');
@@ -77,13 +84,17 @@ export function UserProvider({ children }: UserProviderProps) {
 
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
-        settings = { ...settings, ...settingsData };
+        // Transform snake_case API response to camelCase
+        settings.userId = settingsData.user_id ?? settings.userId;
+        settings.claudeConfigAutoPush =
+          settingsData.claude_config_auto_push ?? settings.claudeConfigAutoPush;
       }
 
       if (patRes.ok) {
         const patData = await patRes.json();
-        settings.hasDatabricksPat = patData.hasPat ?? false;
-        settings.encryptionAvailable = patData.encryptionAvailable ?? false;
+        // Transform snake_case API response to camelCase
+        settings.hasDatabricksPat = patData.has_pat ?? false;
+        settings.encryptionAvailable = patData.encryption_available ?? false;
       }
 
       setUserSettings(settings);

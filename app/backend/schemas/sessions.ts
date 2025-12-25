@@ -33,9 +33,9 @@ export const createSessionBodySchema = z.object({
   ),
   session_context: z.object({
     model: z.string().min(1),
-    workspacePath: z.string().optional(),
-    workspaceAutoPush: z.boolean().optional(),
-    appAutoDeploy: z.boolean().optional(),
+    workspace_path: z.string().optional(),
+    workspace_auto_push: z.boolean().optional(),
+    app_auto_deploy: z.boolean().optional(),
   }),
 });
 
@@ -64,12 +64,12 @@ export const sessionResponseSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   model: z.string().optional(),
-  workspacePath: z.string().nullable(),
-  workspaceAutoPush: z.boolean(),
-  appAutoDeploy: z.boolean(),
-  updatedAt: z.string().datetime(),
-  agentLocalPath: z.string().optional(),
-  isArchived: z.boolean(),
+  workspace_path: z.string().nullable(),
+  workspace_auto_push: z.boolean(),
+  app_auto_deploy: z.boolean(),
+  updated_at: z.string().datetime(),
+  local_path: z.string().optional(),
+  is_archived: z.boolean(),
 });
 
 // Session list response schema

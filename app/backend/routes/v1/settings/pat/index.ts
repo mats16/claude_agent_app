@@ -15,12 +15,12 @@ const patRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (!isEncryptionAvailable()) {
-      return { hasPat: false, encryptionAvailable: false };
+      return { has_pat: false, encryption_available: false };
     }
 
     try {
       const hasPat = await userService.hasDatabricksPat(context.user.sub);
-      return { hasPat, encryptionAvailable: true };
+      return { has_pat: hasPat, encryption_available: true };
     } catch (error: any) {
       console.error('Failed to check PAT status:', error);
       return reply.status(500).send({ error: error.message });
@@ -56,7 +56,7 @@ const patRoutes: FastifyPluginAsync = async (fastify) => {
       );
       return {
         success: true,
-        expiresAt: result.expiresAt?.toISOString() ?? null,
+        expires_at: result.expiresAt?.toISOString() ?? null,
         comment: result.comment,
       };
     } catch (error: any) {

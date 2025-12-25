@@ -15,7 +15,11 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const settings = await userService.getUserSettings(context.user.sub);
-      return settings;
+      // Transform to snake_case
+      return {
+        user_id: settings.userId,
+        claude_config_auto_push: settings.claudeConfigAutoPush,
+      };
     } catch (error: any) {
       console.error('Failed to get user settings:', error);
       return reply.status(500).send({ error: error.message });
@@ -24,7 +28,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Update current user settings
   // PATCH /api/v1/settings
-  fastify.patch<{ Body: { claudeConfigAutoPush?: boolean } }>(
+  fastify.patch<{ Body: { claude_config_auto_push?: boolean } }>(
     '/',
     async (request, reply) => {
       let context;
@@ -34,12 +38,12 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: error.message });
       }
 
-      const { claudeConfigAutoPush } = request.body;
+      const { claude_config_auto_push: claudeConfigAutoPush } = request.body;
 
       if (claudeConfigAutoPush === undefined) {
         return reply
           .status(400)
-          .send({ error: 'claudeConfigAutoPush is required' });
+          .send({ error: 'claude_config_auto_push is required' });
       }
 
       try {

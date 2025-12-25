@@ -32,11 +32,11 @@ export type MessageContent = TextContent | ImageContent | DocumentContent;
 // ============================================
 
 export interface FileAttachment {
-  fileName: string;
-  originalName: string;
+  file_name: string;
+  original_name: string;
   size: number;
-  mimeType: string;
-  uploadedAt: string;
+  mime_type: string;
+  uploaded_at: string;
 }
 
 export interface FileListResponse {
@@ -44,10 +44,10 @@ export interface FileListResponse {
 }
 
 export interface FileUploadResponse {
-  fileName: string;
-  originalName: string;
+  file_name: string;
+  original_name: string;
   size: number;
-  mimeType: string;
+  mime_type: string;
 }
 
 // ============================================
@@ -61,14 +61,14 @@ export interface WSConnectMessage {
 
 export interface WSResumeMessage {
   type: 'resume';
-  sessionId: string;
+  session_id: string;
 }
 
 export interface WSUserMessage {
   type: 'user_message';
   content: MessageContent[]; // Always array of content blocks
   model?: string;
-  sessionId?: string;
+  session_id?: string;
 }
 
 export interface WSControlRequest {
@@ -112,7 +112,7 @@ export interface CreateSessionRequest {
   }>;
   session_context: {
     model: string;
-    workspacePath?: string;
+    workspace_path?: string;
   };
 }
 

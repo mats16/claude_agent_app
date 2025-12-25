@@ -2,27 +2,27 @@ import { z } from 'zod';
 
 // User settings body schema
 export const updateSettingsBodySchema = z.object({
-  claudeConfigAutoPush: z.boolean(),
+  claude_config_auto_push: z.boolean(),
 });
 
 // User info response schema
 export const userInfoResponseSchema = z.object({
-  userId: z.string(),
+  user_id: z.string(),
   email: z.string().email().nullable(),
-  workspaceHome: z.string().nullable(),
-  hasWorkspacePermission: z.boolean(),
-  databricksAppUrl: z.string().url().nullable(),
+  workspace_home: z.string().nullable(),
+  has_workspace_permission: z.boolean(),
+  databricks_app_url: z.string().url().nullable(),
 });
 
 // User settings response schema
 export const userSettingsResponseSchema = z.object({
-  userId: z.string(),
-  claudeConfigAutoPush: z.boolean(),
+  user_id: z.string(),
+  claude_config_auto_push: z.boolean(),
 });
 
 // Claude backup settings response schema
 export const claudeBackupSettingsResponseSchema = z.object({
-  claudeConfigAutoPush: z.boolean(),
+  claude_config_auto_push: z.boolean(),
 });
 
 // Update settings success response
@@ -33,7 +33,7 @@ export const updateSettingsSuccessResponseSchema = z.object({
 // Update backup settings success response
 export const updateBackupSettingsSuccessResponseSchema = z.object({
   success: z.literal(true),
-  claudeConfigAutoPush: z.boolean(),
+  claude_config_auto_push: z.boolean(),
 });
 
 // Type exports

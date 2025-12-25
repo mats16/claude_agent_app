@@ -16,7 +16,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const settings = await userService.getUserSettings(context.user.sub);
-      return { claudeConfigAutoPush: settings.claudeConfigAutoPush };
+      return { claude_config_auto_push: settings.claudeConfigAutoPush };
     } catch (error: any) {
       console.error('Failed to get backup settings:', error);
       return reply.status(500).send({ error: error.message });
@@ -25,7 +25,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Update Claude backup settings
   // PATCH /api/v1/settings/claude-backup
-  fastify.patch<{ Body: { claudeConfigAutoPush: boolean } }>(
+  fastify.patch<{ Body: { claude_config_auto_push: boolean } }>(
     '/',
     async (request, reply) => {
       let context;
@@ -35,19 +35,19 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: error.message });
       }
 
-      const { claudeConfigAutoPush } = request.body;
+      const { claude_config_auto_push: claudeConfigAutoPush } = request.body;
 
       if (claudeConfigAutoPush === undefined) {
         return reply
           .status(400)
-          .send({ error: 'claudeConfigAutoPush is required' });
+          .send({ error: 'claude_config_auto_push is required' });
       }
 
       try {
         await userService.updateUserSettings(context.user, {
           claudeConfigAutoPush,
         });
-        return { success: true, claudeConfigAutoPush };
+        return { success: true, claude_config_auto_push: claudeConfigAutoPush };
       } catch (error: any) {
         console.error('Failed to update backup settings:', error);
         return reply.status(500).send({ error: error.message });
@@ -70,7 +70,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const taskId = await claudeBackupService.pullClaudeConfig(user);
-      return { success: true, taskId };
+      return { success: true, task_id: taskId };
     } catch (error: any) {
       console.error(
         `[Backup Pull] Failed to enqueue claude config pull: ${error.message}`
@@ -96,7 +96,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const taskId = await claudeBackupService.pushClaudeConfig(user);
-      return { success: true, taskId };
+      return { success: true, task_id: taskId };
     } catch (error: any) {
       console.error(
         `[Backup Push] Failed to enqueue claude config push: ${error.message}`

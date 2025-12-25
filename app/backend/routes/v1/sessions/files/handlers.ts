@@ -79,10 +79,10 @@ export async function uploadFileHandler(
   console.log(`[File Upload] Saved file: ${filePath} (${buffer.length} bytes)`);
 
   return {
-    fileName: finalName,
-    originalName,
+    file_name: finalName,
+    original_name: originalName,
     size: buffer.length,
-    mimeType: file.mimetype,
+    mime_type: file.mimetype,
   };
 }
 
@@ -137,11 +137,11 @@ export async function listFilesHandler(
       const mimeType = getMimeType(entry.name);
 
       files.push({
-        fileName: entry.name,
-        originalName: entry.name,
+        file_name: entry.name,
+        original_name: entry.name,
         size: stat.size,
-        mimeType,
-        uploadedAt: stat.mtime.toISOString(),
+        mime_type: mimeType,
+        uploaded_at: stat.mtime.toISOString(),
       });
     }
   }
@@ -149,7 +149,7 @@ export async function listFilesHandler(
   // Sort by upload time (newest first)
   files.sort(
     (a, b) =>
-      new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+      new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
   );
 
   return { files };

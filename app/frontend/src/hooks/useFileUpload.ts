@@ -6,7 +6,7 @@
 import { useState, useCallback, DragEvent } from 'react';
 import { message } from 'antd';
 import { useTranslation } from 'react-i18next';
-import type { DocumentContent, FileUploadResponse } from '@app/shared';
+import type { DocumentContent } from '@app/shared';
 import {
   isPdfFile,
   isTextBasedFile,
@@ -295,7 +295,9 @@ export function useFileUpload(
               throw new Error(error.error || 'Upload failed');
             }
 
-            const result: FileUploadResponse = await response.json();
+            const result = await response.json();
+            // Transform snake_case API response
+            const fileName = result.file_name;
 
             // Update status to uploaded
             setAttachedFiles((prev) =>
@@ -304,13 +306,13 @@ export function useFileUpload(
                   ? {
                       ...f,
                       status: 'uploaded' as const,
-                      uploadedFileName: result.fileName,
+                      uploadedFileName: fileName,
                     }
                   : f
               )
             );
 
-            uploadedNames.push(result.fileName);
+            uploadedNames.push(fileName);
           } catch (error: any) {
             // Update status to error
             setAttachedFiles((prev) =>

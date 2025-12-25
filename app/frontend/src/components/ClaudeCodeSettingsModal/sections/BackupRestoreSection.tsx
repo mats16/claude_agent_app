@@ -45,7 +45,8 @@ export default function BackupRestoreSection({
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data) {
-            setClaudeConfigSync(data.claudeConfigAutoPush);
+            // Transform snake_case API response to camelCase
+            setClaudeConfigSync(data.claude_config_auto_push);
           }
         })
         .catch(() => {
@@ -118,7 +119,7 @@ export default function BackupRestoreSection({
       const response = await fetch('/api/v1/settings/claude-backup', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claudeConfigAutoPush: checked }),
+        body: JSON.stringify({ claude_config_auto_push: checked }),
       });
 
       if (!response.ok) {

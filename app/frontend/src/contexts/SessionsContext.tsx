@@ -61,7 +61,23 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
         throw new Error('Failed to fetch sessions');
       }
       const data = await response.json();
-      setSessions(data.sessions || []);
+      // Transform snake_case API response to camelCase
+      const sessions = (data.sessions || []).map(
+        (s: Record<string, unknown>) => ({
+          id: s.id,
+          title: s.title,
+          model: s.model,
+          workspacePath: s.workspace_path,
+          workspaceAutoPush: s.workspace_auto_push,
+          appAutoDeploy: s.app_auto_deploy,
+          updatedAt: s.updated_at,
+          createdAt: s.created_at ?? s.updated_at,
+          localPath: s.local_path,
+          isArchived: s.is_archived,
+          userEmail: null,
+        })
+      );
+      setSessions(sessions);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -103,22 +119,23 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'session_created' && data.session) {
-            // Add new session to the top of the list
+            // Transform snake_case WebSocket message to camelCase
+            const s = data.session;
             const newSession: Session = {
-              id: data.session.id,
-              title: data.session.title,
-              workspacePath: data.session.workspacePath,
-              updatedAt: data.session.updatedAt,
-              createdAt: data.session.updatedAt, // New sessions have same createdAt/updatedAt
+              id: s.id,
+              title: s.title,
+              workspacePath: s.workspace_path,
+              updatedAt: s.updated_at,
+              createdAt: s.updated_at, // New sessions have same createdAt/updatedAt
               model: '',
               userEmail: null,
-              workspaceAutoPush: data.session.workspaceAutoPush ?? false,
-              appAutoDeploy: data.session.appAutoDeploy ?? false,
+              workspaceAutoPush: s.workspace_auto_push ?? false,
+              appAutoDeploy: s.app_auto_deploy ?? false,
               isArchived: false, // New sessions are always active
             };
             setSessions((prev) => {
               // 重複チェック: 既に存在する場合は追加しない
-              if (prev.some((s) => s.id === newSession.id)) {
+              if (prev.some((sess) => sess.id === newSession.id)) {
                 return prev;
               }
               return [newSession, ...prev];

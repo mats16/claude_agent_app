@@ -797,7 +797,7 @@ export default function SessionPage() {
           onImagesChange={setAttachedImages}
           attachedFiles={attachedFiles}
           onFilesChange={setAttachedFiles}
-          disabled={!isConnected}
+          disabled={false}
           isConverting={isConverting}
           isUploading={isUploading}
           onSubmit={handleSubmit}

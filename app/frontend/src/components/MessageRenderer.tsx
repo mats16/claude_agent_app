@@ -540,47 +540,41 @@ const SqlQueryModal = memo(function SqlQueryModal({
     <Modal
       open={isOpen}
       onCancel={onClose}
-      title={t('sqlQuery.title')}
+      title={null}
       footer={null}
-      width={700}
+      closable={false}
+      width="60%"
       styles={{
         body: { padding: 0 },
+        content: { padding: 0, overflow: 'hidden', borderRadius: 12 },
       }}
     >
-      <div style={{ padding: 24 }}>
-        <div
-          style={{
-            position: 'relative',
-            borderRadius: 8,
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}>
-            <Text
-              copyable={{
-                text: query,
-                tooltips: [t('sqlQuery.copy'), t('sqlQuery.copied')],
-                icon: <CopyOutlined style={{ color: '#fff' }} />,
-              }}
-            />
-          </div>
-          <SyntaxHighlighter
-            language="sql"
-            style={oneDark}
-            customStyle={{
-              margin: 0,
-              padding: 16,
-              paddingRight: 40,
-              maxHeight: 400,
-              fontSize: 13,
-              lineHeight: 1.5,
-              borderRadius: 8,
+      <div style={{ position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
+          <Text
+            copyable={{
+              text: query,
+              tooltips: [t('sqlQuery.copy'), t('sqlQuery.copied')],
+              icon: <CopyOutlined style={{ color: '#fff' }} />,
             }}
-            wrapLongLines
-          >
-            {query}
-          </SyntaxHighlighter>
+          />
         </div>
+        <SyntaxHighlighter
+          language="sql"
+          style={oneDark}
+          customStyle={{
+            margin: 0,
+            padding: 16,
+            paddingRight: 40,
+            maxHeight: 500,
+            fontSize: 13,
+            lineHeight: 1.5,
+            borderRadius: 12,
+          }}
+          wrapLongLines
+        >
+          {query}
+        </SyntaxHighlighter>
       </div>
     </Modal>
   );
@@ -884,7 +878,9 @@ export default memo(function MessageRenderer({
                 {isSqlTool ? (
                   <code
                     className="tool-input"
-                    onClick={() => setSqlQueryModal(extractSqlQuery(block.toolInput))}
+                    onClick={() =>
+                      setSqlQueryModal(extractSqlQuery(block.toolInput))
+                    }
                     style={{ cursor: 'pointer', color: colors.info }}
                   >
                     {t('sqlQuery.viewQuery')}

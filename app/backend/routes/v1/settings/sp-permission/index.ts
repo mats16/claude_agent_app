@@ -2,44 +2,72 @@ import type { FastifyPluginAsync } from 'fastify';
 import { getAccessToken } from '../../../../agent/index.js';
 import { databricks } from '../../../../config/index.js';
 
+// Common schemas
+const errorResponse = {
+  type: 'object',
+  properties: { error: { type: 'string' } },
+  required: ['error'],
+};
+
 const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {
   // Get service principal info
   // GET /api/v1/settings/sp-permission
-  fastify.get('/', async (_request, reply) => {
-    try {
-      const token = await getAccessToken();
+  fastify.get(
+    '/',
+    {
+      schema: {
+        tags: ['sp-permission'],
+        summary: 'Get service principal info',
+        description: 'Get service principal information and permissions',
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              displayName: { type: 'string' },
+              applicationId: { type: 'string', nullable: true },
+              databricksHost: { type: 'string', nullable: true },
+            },
+          },
+          500: errorResponse,
+        },
+      },
+    },
+    async (_request, reply) => {
+      try {
+        const token = await getAccessToken();
 
-      // Fetch SP info from Databricks SCIM API
-      const response = await fetch(
-        `${databricks.hostUrl}/api/2.0/preview/scim/v2/Me`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
+        // Fetch SP info from Databricks SCIM API
+        const response = await fetch(
+          `${databricks.hostUrl}/api/2.0/preview/scim/v2/Me`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          return reply.status(500).send({
+            error: `Failed to fetch service principal info: ${errorText}`,
+          });
         }
-      );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        return reply.status(500).send({
-          error: `Failed to fetch service principal info: ${errorText}`,
-        });
+        const data = (await response.json()) as {
+          displayName?: string;
+          applicationId?: string;
+          id?: string;
+          userName?: string;
+        };
+
+        return {
+          displayName: data.displayName ?? data.userName ?? 'Service Principal',
+          applicationId: data.applicationId ?? data.id ?? null,
+          databricksHost: databricks.host ?? null,
+        };
+      } catch (error: any) {
+        return reply.status(500).send({ error: error.message });
       }
-
-      const data = (await response.json()) as {
-        displayName?: string;
-        applicationId?: string;
-        id?: string;
-        userName?: string;
-      };
-
-      return {
-        displayName: data.displayName ?? data.userName ?? 'Service Principal',
-        applicationId: data.applicationId ?? data.id ?? null,
-        databricksHost: databricks.host ?? null,
-      };
-    } catch (error: any) {
-      return reply.status(500).send({ error: error.message });
     }
-  });
+  );
 };
 
 export default spPermissionRoutes;

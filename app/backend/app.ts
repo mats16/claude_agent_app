@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import autoload from '@fastify/autoload';
 import multipart from '@fastify/multipart';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -46,6 +48,61 @@ export async function buildApp() {
   await fastify.register(multipart, {
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB max
+    },
+  });
+
+  // Register Swagger for OpenAPI documentation
+  await fastify.register(swagger, {
+    openapi: {
+      openapi: '3.1.0',
+      info: {
+        title: 'Claude Agent API',
+        description:
+          'Claude Code-like coding agent API running on Databricks Apps',
+        version: '1.0.0',
+      },
+      servers: [
+        {
+          url: '/',
+          description: 'Current server',
+        },
+      ],
+      tags: [
+        { name: 'health', description: 'Health check endpoints' },
+        { name: 'me', description: 'Current user information' },
+        { name: 'sessions', description: 'Session management' },
+        { name: 'files', description: 'Session file operations' },
+        { name: 'settings', description: 'User settings' },
+        { name: 'claude-backup', description: 'Claude config backup/restore' },
+        { name: 'skills', description: 'Skills management' },
+        { name: 'agents', description: 'Subagents management' },
+        { name: 'pat', description: 'Personal Access Token management' },
+        { name: 'sp-permission', description: 'Service Principal permissions' },
+        { name: 'preset-settings', description: 'Preset skills and agents' },
+        { name: 'workspace', description: 'Databricks Workspace operations' },
+        { name: 'repos', description: 'Git repository operations' },
+        { name: 'jobs', description: 'Databricks Jobs operations' },
+        { name: 'queues', description: 'Task queue status' },
+      ],
+      components: {
+        securitySchemes: {
+          databricksAuth: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'X-Forwarded-User',
+            description: 'Databricks user context header',
+          },
+        },
+      },
+    },
+  });
+
+  // Register Swagger UI
+  await fastify.register(swaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
     },
   });
 

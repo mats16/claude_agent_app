@@ -6,83 +6,182 @@ import { isEncryptionAvailable } from '../../../../utils/encryption.js';
 const patRoutes: FastifyPluginAsync = async (fastify) => {
   // Check if PAT is set (returns boolean only, never the actual PAT)
   // GET /api/v1/settings/pat
-  fastify.get('/', async (request, reply) => {
-    let context;
-    try {
-      context = extractRequestContext(request);
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
-    }
+  fastify.get(
+    '/',
+    {
+      schema: {
+        tags: ['pat'],
+        summary: 'Check PAT status',
+        description: 'Check if a Personal Access Token is configured',
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              hasPat: { type: 'boolean' },
+              encryptionAvailable: { type: 'boolean' },
+            },
+            required: ['hasPat', 'encryptionAvailable'],
+          },
+          400: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
+            required: ['error'],
+          },
+          500: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
+            required: ['error'],
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      let context;
+      try {
+        context = extractRequestContext(request);
+      } catch (error: any) {
+        return reply.status(400).send({ error: error.message });
+      }
 
-    if (!isEncryptionAvailable()) {
-      return { hasPat: false, encryptionAvailable: false };
-    }
+      if (!isEncryptionAvailable()) {
+        return { hasPat: false, encryptionAvailable: false };
+      }
 
-    try {
-      const hasPat = await userService.hasDatabricksPat(context.user.sub);
-      return { hasPat, encryptionAvailable: true };
-    } catch (error: any) {
-      console.error('Failed to check PAT status:', error);
-      return reply.status(500).send({ error: error.message });
+      try {
+        const hasPat = await userService.hasDatabricksPat(context.user.sub);
+        return { hasPat, encryptionAvailable: true };
+      } catch (error: any) {
+        console.error('Failed to check PAT status:', error);
+        return reply.status(500).send({ error: error.message });
+      }
     }
-  });
+  );
 
   // Set PAT
   // POST /api/v1/settings/pat
-  fastify.post<{ Body: { pat: string } }>('/', async (request, reply) => {
-    let context;
-    try {
-      context = extractRequestContext(request);
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
-    }
+  fastify.post<{ Body: { pat: string } }>(
+    '/',
+    {
+      schema: {
+        tags: ['pat'],
+        summary: 'Set PAT',
+        description: 'Configure a Personal Access Token',
+        body: {
+          type: 'object',
+          properties: {
+            pat: { type: 'string', description: 'Personal Access Token' },
+          },
+          required: ['pat'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              expiresAt: {
+                type: 'string',
+                format: 'date-time',
+                nullable: true,
+              },
+              comment: { type: 'string' },
+            },
+            required: ['success'],
+          },
+          400: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
+            required: ['error'],
+          },
+          503: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
+            required: ['error'],
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      let context;
+      try {
+        context = extractRequestContext(request);
+      } catch (error: any) {
+        return reply.status(400).send({ error: error.message });
+      }
 
-    const { pat } = request.body;
+      const { pat } = request.body;
 
-    if (!pat || typeof pat !== 'string' || pat.trim().length === 0) {
-      return reply.status(400).send({ error: 'PAT is required' });
-    }
+      if (!pat || typeof pat !== 'string' || pat.trim().length === 0) {
+        return reply.status(400).send({ error: 'PAT is required' });
+      }
 
-    if (!isEncryptionAvailable()) {
-      return reply.status(503).send({
-        error: 'PAT storage is not available. ENCRYPTION_KEY not configured.',
-      });
-    }
+      if (!isEncryptionAvailable()) {
+        return reply.status(503).send({
+          error: 'PAT storage is not available. ENCRYPTION_KEY not configured.',
+        });
+      }
 
-    try {
-      const result = await userService.setDatabricksPat(
-        context.user,
-        pat.trim()
-      );
-      return {
-        success: true,
-        expiresAt: result.expiresAt?.toISOString() ?? null,
-        comment: result.comment,
-      };
-    } catch (error: any) {
-      console.error('Failed to set PAT:', error);
-      return reply.status(500).send({ error: error.message });
+      try {
+        const result = await userService.setDatabricksPat(
+          context.user,
+          pat.trim()
+        );
+        return {
+          success: true,
+          expiresAt: result.expiresAt?.toISOString() ?? null,
+          comment: result.comment,
+        };
+      } catch (error: any) {
+        console.error('Failed to set PAT:', error);
+        return reply.status(500).send({ error: error.message });
+      }
     }
-  });
+  );
 
   // Clear PAT
   // DELETE /api/v1/settings/pat
-  fastify.delete('/', async (request, reply) => {
-    let context;
-    try {
-      context = extractRequestContext(request);
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
-    }
+  fastify.delete(
+    '/',
+    {
+      schema: {
+        tags: ['pat'],
+        summary: 'Clear PAT',
+        description: 'Remove the configured Personal Access Token',
+        response: {
+          200: {
+            type: 'object',
+            properties: { success: { type: 'boolean' } },
+            required: ['success'],
+          },
+          400: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
+            required: ['error'],
+          },
+          500: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
+            required: ['error'],
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      let context;
+      try {
+        context = extractRequestContext(request);
+      } catch (error: any) {
+        return reply.status(400).send({ error: error.message });
+      }
 
-    try {
-      await userService.clearDatabricksPat(context.user.sub);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to clear PAT:', error);
-      return reply.status(500).send({ error: error.message });
+      try {
+        await userService.clearDatabricksPat(context.user.sub);
+        return { success: true };
+      } catch (error: any) {
+        console.error('Failed to clear PAT:', error);
+        return reply.status(500).send({ error: error.message });
+      }
     }
-  });
+  );
 };
 
 export default patRoutes;

@@ -1,0 +1,42 @@
+{
+  "name": "@app/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bash scripts/install-jq.sh && tsc && cp -r preset-settings dist/",
+    "start": "node dist/server.js",
+    "dev": "tsx watch --env-file=../.env server.ts",
+    "db:migrate": "tsx --env-file=../.env db/migrate.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "format": "prettier --write \"**/*.{ts,js,json}\" --ignore-path ../.gitignore",
+    "format:check": "prettier --check \"**/*.{ts,js,json}\" --ignore-path ../.gitignore"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.70",
+    "@databricks/sql": "^1.8.0",
+    "@app/shared": "*",
+    "@fastify/autoload": "^6.1.0",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@fastify/websocket": "^11.2.0",
+    "fastify-plugin": "^5.0.1",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^1.0.0-beta.5",
+    "fastify": "^5.6.2",
+    "fastq": "^1.17.1",
+    "gray-matter": "^4.0.3",
+    "postgres": "^3.4.7",
+    "zod": "^3.23.0",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "@types/ws": "^8.5.13",
+    "drizzle-kit": "^1.0.0-beta.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,13 @@
+command: ["npm", "run", "start", "--workspace=backend"]
+
+env:
+  - name: ENCRYPTION_KEY
+    valueFrom: encryption-key-secret
+  - name: DATABASE_URL
+    valueFrom: database-url-secret
+  - name: WAREHOUSE_ID_2XS
+    valueFrom: warehouse-2xs
+  - name: WAREHOUSE_ID_XS
+    valueFrom: warehouse-2xs
+  - name: WAREHOUSE_ID_S
+    valueFrom: warehouse-2xs

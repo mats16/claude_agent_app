@@ -1,0 +1,26 @@
+{
+  "name": "claude-agent-app",
+  "version": "1.0.0",
+  "description": "Monorepo with React frontend and Express backend",
+  "private": true,
+  "packageManager": "npm@10.0.0",
+  "workspaces": [
+    "shared",
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "start": "npm run start --workspace=backend",
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "format": "turbo run format",
+    "format:check": "turbo run format:check"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "drizzle-orm": "^0.45.1",
+    "prettier": "^3.7.4",
+    "turbo": "^2.0.0"
+  }
+}

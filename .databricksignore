@@ -1,0 +1,28 @@
+# Environment files (should never be deployed)
+.env
+.env.local
+.env.*.local
+app/.env
+app/.env.local
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Build artifacts
+dist/
+**/dist/
+*.js.map
+
+# Development files
+.vscode/
+.idea/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db

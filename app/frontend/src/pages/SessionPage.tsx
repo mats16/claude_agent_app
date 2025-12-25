@@ -363,7 +363,7 @@ export default function SessionPage() {
     clearImages,
   } = useImageUpload({
     maxImages,
-    isDisabled: () => !isConnected || isConverting,
+    isDisabled: () => isConverting,
   });
 
   // File upload handling via custom hook (with unified drag & drop for images)
@@ -380,7 +380,7 @@ export default function SessionPage() {
     clearFiles,
   } = useFileUpload({
     maxFiles: 10,
-    isDisabled: () => !isConnected || isUploading,
+    isDisabled: () => isUploading,
     // Unified drag & drop: pass image state to handle both images and files
     currentImages: attachedImages,
     maxImages,

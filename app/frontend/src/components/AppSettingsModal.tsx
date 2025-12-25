@@ -10,6 +10,9 @@ import {
   Divider,
   Input,
   Space,
+  Radio,
+  Card,
+  Tag,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -65,6 +68,10 @@ export default function AppSettingsModal({
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+
+  // Access option state for initial setup
+  type AccessOption = 'pat' | 'sp';
+  const [selectedOption, setSelectedOption] = useState<AccessOption>('pat');
 
   const hasPat = userSettings?.hasDatabricksPat ?? false;
   const encryptionAvailable = userSettings?.encryptionAvailable ?? false;
@@ -139,6 +146,11 @@ export default function AppSettingsModal({
       setPatValue('');
       setPatMessage({ type: 'success', text: t('patSection.saveSuccess') });
       await refetchUserSettings();
+
+      // Trigger permission granted callback when PAT is saved in initial setup
+      if (isInitialSetup) {
+        onPermissionGranted?.();
+      }
     } catch {
       setPatMessage({ type: 'error', text: t('patSection.saveFailed') });
     } finally {
@@ -175,13 +187,6 @@ export default function AppSettingsModal({
         icon={<ExclamationCircleOutlined />}
         message={t('appSettingsModal.noPermission')}
         showIcon
-        style={{ marginBottom: 16 }}
-      />
-
-      {/* Service Principal authentication note */}
-      <Alert
-        type="info"
-        message={t('appSettingsModal.spAuthNote')}
         style={{ marginBottom: 16 }}
       />
 
@@ -240,6 +245,112 @@ export default function AppSettingsModal({
     </div>
   );
 
+  const renderSpPermissionSection = () => (
+    <div>
+      {renderPermissionInstructions()}
+
+      {/* SP limitations warning */}
+      <Alert
+        type="warning"
+        icon={<WarningOutlined />}
+        message={t('appSettingsModal.spLimitationsTitle')}
+        description={
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <li>{t('appSettingsModal.spLimitGit')}</li>
+            <li>{t('appSettingsModal.spLimitCommit')}</li>
+            <li>{t('appSettingsModal.spLimitCli')}</li>
+          </ul>
+        }
+        showIcon
+        style={{ marginTop: spacing.lg }}
+      />
+    </div>
+  );
+
+  const renderInitialSetup = () => (
+    <div>
+      {/* Info alert for title */}
+      <Alert
+        type="info"
+        message={t('appSettingsModal.chooseAccessMethod')}
+        showIcon
+        style={{ marginBottom: spacing.md }}
+      />
+
+      {/* Warning alert explaining why authentication is needed */}
+      <Alert
+        type="warning"
+        icon={<ExclamationCircleOutlined />}
+        message={t('appSettingsModal.chooseAccessMethodDesc')}
+        showIcon
+        style={{ marginBottom: spacing.lg }}
+      />
+
+      {/* Option selector */}
+      <Radio.Group
+        value={selectedOption}
+        onChange={(e) => setSelectedOption(e.target.value)}
+        style={{ width: '100%', marginBottom: spacing.lg }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          {/* PAT Option Card */}
+          <Card
+            hoverable
+            onClick={() => setSelectedOption('pat')}
+            style={{
+              borderColor: selectedOption === 'pat' ? colors.brand : undefined,
+              cursor: 'pointer',
+            }}
+            styles={{
+              body: { padding: spacing.md },
+            }}
+          >
+            <Radio value="pat">
+              <Space direction="vertical" size={4}>
+                <Space>
+                  <Text strong>{t('appSettingsModal.optionPat')}</Text>
+                  <Tag color="orange">{t('appSettingsModal.recommended')}</Tag>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {t('appSettingsModal.optionPatDesc')}
+                </Text>
+              </Space>
+            </Radio>
+          </Card>
+
+          {/* SP Option Card */}
+          <Card
+            hoverable
+            onClick={() => setSelectedOption('sp')}
+            style={{
+              borderColor: selectedOption === 'sp' ? colors.brand : undefined,
+              cursor: 'pointer',
+            }}
+            styles={{
+              body: { padding: spacing.md },
+            }}
+          >
+            <Radio value="sp">
+              <Space direction="vertical" size={4}>
+                <Text strong>{t('appSettingsModal.optionSp')}</Text>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {t('appSettingsModal.optionSpDesc')}
+                </Text>
+              </Space>
+            </Radio>
+          </Card>
+        </Space>
+      </Radio.Group>
+
+      <Divider />
+
+      {/* Content based on selected option */}
+      {selectedOption === 'pat'
+        ? renderPatSection()
+        : renderSpPermissionSection()}
+    </div>
+  );
+
   const renderPatSection = () => {
     if (!encryptionAvailable) {
       return (
@@ -255,15 +366,6 @@ export default function AppSettingsModal({
 
     return (
       <div>
-        {/* Warning about user delegation limitations */}
-        <Alert
-          type="info"
-          message={t('patSection.scopeWarning')}
-          description={t('patSection.scopeWarningDesc')}
-          showIcon
-          style={{ marginBottom: spacing.lg }}
-        />
-
         {/* Current status */}
         <div style={{ marginBottom: spacing.lg }}>
           <Text
@@ -379,7 +481,8 @@ export default function AppSettingsModal({
     </div>
   );
 
-  const canClose = !isInitialSetup || hasPermission === true;
+  // Can close if: not initial setup, OR permission granted, OR PAT is set
+  const canClose = !isInitialSetup || hasPermission === true || hasPat === true;
 
   return (
     <Modal
@@ -403,10 +506,10 @@ export default function AppSettingsModal({
         <Flex justify="center" align="center" style={{ minHeight: 200 }}>
           <Spin size="large" />
         </Flex>
-      ) : hasPermission ? (
+      ) : hasPermission || hasPat ? (
         renderSettings()
       ) : (
-        renderPermissionInstructions()
+        renderInitialSetup()
       )}
     </Modal>
   );

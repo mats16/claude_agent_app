@@ -66,7 +66,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onSessionCreated }: SidebarProps) {
   const { t } = useTranslation();
-  const { userInfo, isLoading } = useUser();
+  const { userInfo, userSettings, isLoading } = useUser();
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState(() => {
     return (
@@ -91,17 +91,19 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const hasPermission = userInfo?.hasWorkspacePermission ?? null;
+  const hasPat = userSettings?.hasDatabricksPat ?? false;
 
-  // Show permission modal if no permission after loading, hide if permission granted
+  // Show permission modal if no permission and no PAT after loading
+  // Hide if permission granted OR PAT is set
   useEffect(() => {
     if (!isLoading) {
-      if (hasPermission === false) {
+      if (hasPermission === false && !hasPat) {
         setShowPermissionModal(true);
-      } else if (hasPermission === true) {
+      } else if (hasPermission === true || hasPat) {
         setShowPermissionModal(false);
       }
     }
-  }, [isLoading, hasPermission]);
+  }, [isLoading, hasPermission, hasPat]);
 
   // Unified file handler - handles images and PDFs only
   const handleFiles = useCallback(
@@ -341,8 +343,10 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
 
   const isProcessing = isSubmitting || isConverting;
   const hasAttachments = attachedImages.length > 0 || attachedPdfs.length > 0;
+  // Can submit if: has permission OR has PAT
+  const canAccess = hasPermission || hasPat;
   const isSubmitDisabled =
-    (!input.trim() && !hasAttachments) || !hasPermission || isProcessing;
+    (!input.trim() && !hasAttachments) || !canAccess || isProcessing;
 
   // Accept types for file input (images and PDFs only for sidebar)
   const acceptTypes = [
@@ -570,9 +574,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
                 },
               ]}
             />
-            <Tooltip
-              title={!hasPermission ? t('sidebar.permissionRequired') : ''}
-            >
+            <Tooltip title={!canAccess ? t('sidebar.permissionRequired') : ''}>
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -634,7 +636,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
       <AppSettingsModal
         isOpen={showPermissionModal}
         onClose={() => setShowPermissionModal(false)}
-        isInitialSetup={!hasPermission}
+        isInitialSetup={!canAccess}
         onPermissionGranted={handlePermissionGranted}
       />
     </Flex>

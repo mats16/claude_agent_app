@@ -92,7 +92,18 @@
     "recheckPermission": "権限を再確認",
     "permissionGranted": "ワークスペースへのアクセス権限が確認できました",
     "saved": "設定を保存しました",
-    "saveFailed": "設定の保存に失敗しました"
+    "saveFailed": "設定の保存に失敗しました",
+    "chooseAccessMethod": "Databricks へのアクセス認証方法を選択",
+    "chooseAccessMethodDesc": "ユーザー代理認可 (OBO: on-behalf-of-user authorization) では必要なスコープが不足しているため、「PAT の利用」もしくは「Service Principal への権限付与」が必要です。SQL や Genie へのアクセスは代理認可トークンを利用します。",
+    "optionPat": "Personal Access Token",
+    "optionPatDesc": "PAT を登録すると、Databricks CLI のフルアクセスが可能になります。すべての操作はあなたとして実行されます。",
+    "optionSp": "Service Principal への権限付与",
+    "optionSpDesc": "アプリの Service Principal にホームフォルダへのアクセス権限を付与します。",
+    "recommended": "推奨",
+    "spLimitationsTitle": "Service Principal 使用時の制限事項",
+    "spLimitGit": "Git 操作（clone、push、pull）は Service Principal の認証情報で実行されます",
+    "spLimitCommit": "Git コミットはあなたではなく Service Principal として作成されます",
+    "spLimitCli": "一部の Databricks CLI 操作の動作が異なる場合があります"
   },
   "settingsModal": {
     "title": "Claude Code の設定のバックアップとリストア",

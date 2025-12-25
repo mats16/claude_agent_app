@@ -92,7 +92,18 @@
     "recheckPermission": "Recheck Permission",
     "permissionGranted": "Workspace access permission confirmed",
     "saved": "Settings saved successfully",
-    "saveFailed": "Failed to save settings"
+    "saveFailed": "Failed to save settings",
+    "chooseAccessMethod": "Choose authentication method for Databricks",
+    "chooseAccessMethodDesc": "On-behalf-of-user authorization (OBO) lacks the required scopes, so either \"Use PAT\" or \"Grant permission to Service Principal\" is required. SQL and Genie access uses the delegation token.",
+    "optionPat": "Personal Access Token",
+    "optionPatDesc": "Register your PAT for full Databricks CLI access. All operations will be performed as you.",
+    "optionSp": "Service Principal Permission",
+    "optionSpDesc": "Grant the app's Service Principal access to your home folder.",
+    "recommended": "Recommended",
+    "spLimitationsTitle": "Limitations when using Service Principal",
+    "spLimitGit": "Git operations (clone, push, pull) will use Service Principal credentials",
+    "spLimitCommit": "Git commits will be authored by the Service Principal, not you",
+    "spLimitCli": "Some Databricks CLI operations may behave differently"
   },
   "settingsModal": {
     "title": "Claude Code Settings Backup and Restore",

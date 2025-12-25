@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bash scripts/install-jq.sh && tsc && cp -r preset-settings dist/",
+    "build": "bash scripts/install-jq.sh && tsc && cp -r preset-settings dist/ && cp -r db/drizzle dist/db/",
     "start": "node dist/server.js",
     "dev": "tsx watch --env-file=../.env server.ts",
     "db:migrate": "tsx --env-file=../.env db/migrate.ts",

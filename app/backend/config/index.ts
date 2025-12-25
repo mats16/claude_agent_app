@@ -35,7 +35,9 @@ export const database = {
 };
 
 // Encryption configuration
-export const encryptionKey = process.env.ENCRYPTION_KEY ?? 'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe';
+export const encryptionKey =
+  process.env.ENCRYPTION_KEY ??
+  'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe';
 
 // Path configuration (uses $HOME as base for both local dev and Databricks Apps)
 const homeDir = process.env.HOME ?? '/tmp';

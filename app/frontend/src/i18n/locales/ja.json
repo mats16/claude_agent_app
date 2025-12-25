@@ -297,7 +297,9 @@
     "edaTitle": "ノートブックによる EDA",
     "edaDescription": "Databricks ノートブックで探索的データ分析",
     "appsTitle": "Databricks Apps の開発",
-    "appsDescription": "Databricks 上でアプリケーションを構築・デプロイ"
+    "appsDescription": "Databricks 上でアプリケーションを構築・デプロイ",
+    "jobsTitle": "失敗したジョブの調査",
+    "jobsDescription": "失敗したジョブを調査・デバッグ"
   },
   "imageUpload": {
     "attachImage": "画像を添付",
@@ -352,5 +354,13 @@
     "createFailed": "App の作成に失敗しました",
     "alreadyExists": "指定したパスは既に存在します",
     "initialMessage": "「{{templateName}}」テンプレートをクローンしました。このアプリの開発を手伝ってください。まずプロジェクト構成を確認し、このテンプレートの機能を説明してから、カスタマイズと実行を手伝ってください。"
+  },
+  "quickstartJobs": {
+    "title": "Quickstart: 失敗したジョブの調査",
+    "subtitle": "直近で失敗したジョブ一覧",
+    "loading": "失敗したジョブを読み込み中...",
+    "noFailedJobs": "失敗したジョブはありません",
+    "investigate": "調査",
+    "initialMessage": "ジョブ「{{jobName}}」(run_id: {{runId}}) が失敗しました。エラーを調査して、何が問題だったのか理解する手助けをしてください。"
   }
 }

@@ -2,14 +2,11 @@ import { useMemo, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, Typography, Flex } from 'antd';
-import {
-  FolderOutlined,
-  BookOutlined,
-  RocketOutlined,
-} from '@ant-design/icons';
+import { BookOutlined, RocketOutlined, BugOutlined } from '@ant-design/icons';
 import Layout from './components/Layout';
 import SessionPage from './pages/SessionPage';
 import QuickstartAppsModal from './components/QuickstartAppsModal';
+import QuickstartJobErrorsModal from './components/QuickstartJobErrorsModal';
 import { colors, borderRadius, typography } from './styles/theme';
 import './App.css';
 
@@ -18,14 +15,16 @@ const { Title, Text } = Typography;
 function WelcomePage() {
   const { t } = useTranslation();
   const [isAppTemplateModalOpen, setIsAppTemplateModalOpen] = useState(false);
+  const [isJobErrorsModalOpen, setIsJobErrorsModalOpen] = useState(false);
 
   const actionCards = useMemo(
     () => [
       {
-        id: 'explore',
-        icon: <FolderOutlined style={{ fontSize: 24, color: colors.brand }} />,
-        title: t('welcome.exploreTitle'),
-        description: t('welcome.exploreDescription'),
+        id: 'jobs',
+        icon: <BugOutlined style={{ fontSize: 24, color: colors.brand }} />,
+        title: t('welcome.jobsTitle'),
+        description: t('welcome.jobsDescription'),
+        onClick: () => setIsJobErrorsModalOpen(true),
       },
       {
         id: 'eda',
@@ -150,6 +149,11 @@ function WelcomePage() {
       <QuickstartAppsModal
         isOpen={isAppTemplateModalOpen}
         onClose={() => setIsAppTemplateModalOpen(false)}
+      />
+
+      <QuickstartJobErrorsModal
+        isOpen={isJobErrorsModalOpen}
+        onClose={() => setIsJobErrorsModalOpen(false)}
       />
     </Flex>
   );

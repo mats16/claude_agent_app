@@ -297,7 +297,9 @@
     "edaTitle": "EDA with notebooks",
     "edaDescription": "Exploratory Data Analysis with Databricks notebooks",
     "appsTitle": "Develop Databricks Apps",
-    "appsDescription": "Build and deploy applications on Databricks"
+    "appsDescription": "Build and deploy applications on Databricks",
+    "jobsTitle": "Investigate Job Errors",
+    "jobsDescription": "Debug and investigate failed jobs"
   },
   "imageUpload": {
     "attachImage": "Attach image",
@@ -352,5 +354,13 @@
     "createFailed": "Failed to create app",
     "alreadyExists": "A folder with this name already exists",
     "initialMessage": "I've cloned the \"{{templateName}}\" template. Please help me get started with this app. First, explore the project structure and explain what this template provides, then help me customize and run it."
+  },
+  "quickstartJobs": {
+    "title": "Quickstart: Failed Job Runs",
+    "subtitle": "List of recently failed jobs",
+    "loading": "Loading failed jobs...",
+    "noFailedJobs": "No failed jobs",
+    "investigate": "Investigate",
+    "initialMessage": "Job \"{{jobName}}\" (run_id: {{runId}}) has failed. Please investigate the error and help me understand what went wrong."
   }
 }

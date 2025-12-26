@@ -15,6 +15,7 @@ interface SQLResultData {
 
 interface SqlResultTableProps {
   data: SQLResultData;
+  sessionId?: string;
 }
 
 // Parse SQL result from tool output
@@ -30,11 +31,38 @@ export function parseSqlResult(content: string): SQLResultData | null {
   }
 }
 
-export default memo(function SqlResultTable({ data }: SqlResultTableProps) {
-  const handleDownload = () => {
-    // TODO: Implement actual download via API
-    console.log('Download CSV:', data.resultPath);
-    alert(`Download: ${data.resultPath}`);
+export default memo(function SqlResultTable({
+  data,
+  sessionId,
+}: SqlResultTableProps) {
+  const handleDownload = async () => {
+    if (!sessionId) {
+      console.error('Session ID is required for download');
+      return;
+    }
+
+    const url = `/api/v1/sessions/${sessionId}/files?path=${encodeURIComponent(data.resultPath)}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      // Extract filename from resultPath
+      const filename = data.resultPath.split('/').pop() || 'query-result.csv';
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Download error:', error);
+    }
   };
 
   return (
@@ -49,6 +77,7 @@ export default memo(function SqlResultTable({ data }: SqlResultTableProps) {
           icon={<DownloadOutlined />}
           onClick={handleDownload}
           size="small"
+          disabled={!sessionId}
         >
           Download CSV
         </Button>

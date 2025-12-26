@@ -237,10 +237,12 @@ const CollapsibleOutput = memo(function CollapsibleOutput({
   content,
   toolName,
   isError,
+  sessionId,
 }: {
   content: string;
   toolName?: string;
   isError?: boolean;
+  sessionId?: string;
 }) {
   const lines = content.split('\n');
   const MAX_COLLAPSED_LINES = 3;
@@ -274,7 +276,7 @@ const CollapsibleOutput = memo(function CollapsibleOutput({
   if (sqlResult) {
     return (
       <div style={{ minWidth: 0, width: '100%' }}>
-        <SqlResultTable data={sqlResult} />
+        <SqlResultTable data={sqlResult} sessionId={sessionId} />
       </div>
     );
   }
@@ -888,6 +890,7 @@ export default memo(function MessageRenderer({
                     content={outputResult.content}
                     toolName={block.toolName}
                     isError={outputResult.isError}
+                    sessionId={sessionId}
                   />
                 </div>
               )}

@@ -6,6 +6,7 @@ import type {
   FileAttachment,
   FileUploadResponse,
   FileListResponse,
+  FileDeleteResponse,
 } from '@app/shared';
 import { extractRequestContext } from '../../../../utils/headers.js';
 import { getSessionById } from '../../../../db/sessions.js';
@@ -13,12 +14,101 @@ import { getSessionById } from '../../../../db/sessions.js';
 // Size limits
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-// Upload file handler
-export async function uploadFileHandler(
-  request: FastifyRequest<{ Params: { sessionId: string } }>,
+// Helper: Validate and resolve file path within session directory
+function validateFilePath(
+  filePath: string,
+  agentLocalPath: string
+): { valid: true; fullPath: string } | { valid: false; error: string } {
+  // Normalize the path to prevent traversal attacks
+  const normalizedPath = path.normalize(filePath);
+
+  // Prevent path traversal by checking for .. after normalization
+  if (
+    normalizedPath.startsWith('..') ||
+    normalizedPath.includes('/..') ||
+    normalizedPath.includes('\\..')
+  ) {
+    return { valid: false, error: 'Invalid file path' };
+  }
+
+  const fullPath = path.join(agentLocalPath, normalizedPath);
+
+  // Verify the file is within the session agentLocalPath
+  const resolvedPath = path.resolve(fullPath);
+  const resolvedAgentLocalPath = path.resolve(agentLocalPath);
+  if (
+    !resolvedPath.startsWith(resolvedAgentLocalPath + path.sep) &&
+    resolvedPath !== resolvedAgentLocalPath
+  ) {
+    return { valid: false, error: 'Invalid file path' };
+  }
+
+  return { valid: true, fullPath };
+}
+
+// Helper function to get mime type from file extension
+function getMimeType(fileName: string): string {
+  const ext = path.extname(fileName).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+    '.json': 'application/json',
+    '.md': 'text/markdown',
+    '.html': 'text/html',
+    '.xml': 'application/xml',
+    '.yaml': 'application/yaml',
+    '.yml': 'application/yaml',
+    '.pdf': 'application/pdf',
+    '.js': 'text/javascript',
+    '.ts': 'text/typescript',
+    '.py': 'text/x-python',
+    '.sql': 'application/sql',
+    '.sh': 'application/x-sh',
+    '.log': 'text/plain',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.webp': 'image/webp',
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
+// GET /files - List files or GET /files?path={path} - Get file
+// This handler routes based on presence of path query parameter
+export async function filesHandler(
+  request: FastifyRequest<{
+    Params: { sessionId: string };
+    Querystring: { path?: string };
+  }>,
   reply: FastifyReply
-): Promise<FileUploadResponse> {
+): Promise<FileListResponse | void> {
+  const filePath = request.query.path;
+
+  if (filePath) {
+    // Delegate to getFileHandler
+    return getFileHandler(request as any, reply);
+  } else {
+    // Delegate to listFilesHandler
+    return listFilesHandler(request, reply);
+  }
+}
+
+// GET /files?path={path} - Get/download file
+export async function getFileHandler(
+  request: FastifyRequest<{
+    Params: { sessionId: string };
+    Querystring: { path: string };
+  }>,
+  reply: FastifyReply
+): Promise<void> {
   const { sessionId } = request.params;
+  const filePath = request.query.path;
+
+  if (!filePath) {
+    return reply.status(400).send({ error: 'File path is required' });
+  }
 
   // Extract user context
   let context;
@@ -42,51 +132,196 @@ export async function uploadFileHandler(
       .send({ error: 'Session working directory not available' });
   }
 
-  // Process multipart file
-  const file = await request.file();
-  if (!file) {
-    return reply.status(400).send({ error: 'No file uploaded' });
+  // Validate file path
+  const validation = validateFilePath(filePath, session.agentLocalPath);
+  if (!validation.valid) {
+    return reply.status(400).send({ error: validation.error });
+  }
+
+  const fullPath = validation.fullPath;
+
+  // Check if file exists
+  try {
+    await fs.access(fullPath);
+  } catch {
+    return reply.status(404).send({ error: 'File not found' });
+  }
+
+  // Check if it's a file (not directory)
+  const stat = await fs.stat(fullPath);
+  if (!stat.isFile()) {
+    return reply.status(400).send({ error: 'Path is not a file' });
+  }
+
+  // Get mime type from the filename
+  const fileName = path.basename(fullPath);
+  const mimeType = getMimeType(fileName);
+
+  // Set headers for download
+  reply.header('Content-Type', mimeType);
+  reply.header('Content-Length', stat.size);
+  reply.header(
+    'Content-Disposition',
+    `attachment; filename="${encodeURIComponent(fileName)}"`
+  );
+
+  // Stream file
+  const stream = fsSync.createReadStream(fullPath);
+  return reply.send(stream);
+}
+
+// POST /files?path={path} - Upload file (raw body)
+export async function uploadFileHandler(
+  request: FastifyRequest<{
+    Params: { sessionId: string };
+    Querystring: { path: string };
+  }>,
+  reply: FastifyReply
+): Promise<FileUploadResponse> {
+  const { sessionId } = request.params;
+  const filePath = request.query.path;
+
+  if (!filePath) {
+    return reply.status(400).send({ error: 'File path is required' });
+  }
+
+  // Extract user context
+  let context;
+  try {
+    context = extractRequestContext(request);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+
+  const userId = context.user.sub;
+
+  // Verify session ownership and get agentLocalPath
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
+    return reply.status(404).send({ error: 'Session not found' });
+  }
+
+  if (!session.agentLocalPath) {
+    return reply
+      .status(400)
+      .send({ error: 'Session working directory not available' });
+  }
+
+  // Validate file path
+  const validation = validateFilePath(filePath, session.agentLocalPath);
+  if (!validation.valid) {
+    return reply.status(400).send({ error: validation.error });
+  }
+
+  const fullPath = validation.fullPath;
+
+  // Get raw body as buffer
+  const buffer = request.body as Buffer;
+  if (!buffer || buffer.length === 0) {
+    return reply.status(400).send({ error: 'No file content provided' });
   }
 
   // Validate file size
-  const buffer = await file.toBuffer();
   if (buffer.length > MAX_FILE_SIZE) {
     return reply.status(413).send({
       error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`,
     });
   }
 
-  // Sanitize filename to prevent path traversal
-  const originalName = file.filename;
-  const sanitizedName = path
-    .basename(originalName)
-    .replace(/[^a-zA-Z0-9._-]/g, '_');
+  // Create parent directories if needed
+  const parentDir = path.dirname(fullPath);
+  await fs.mkdir(parentDir, { recursive: true });
 
-  // Check for filename collision and add suffix if needed
-  let finalName = sanitizedName;
-  let counter = 1;
-  while (fsSync.existsSync(path.join(session.agentLocalPath, finalName))) {
-    const ext = path.extname(sanitizedName);
-    const base = path.basename(sanitizedName, ext);
-    finalName = `${base}_${counter}${ext}`;
-    counter++;
-  }
+  // Save file
+  await fs.writeFile(fullPath, buffer);
 
-  // Save file to session agentLocalPath
-  const filePath = path.join(session.agentLocalPath, finalName);
-  await fs.writeFile(filePath, buffer);
+  // Get mime type from Content-Type header or file extension
+  const contentType = request.headers['content-type'];
+  const fileName = path.basename(fullPath);
+  const mimeType =
+    contentType && contentType !== 'application/octet-stream'
+      ? contentType
+      : getMimeType(fileName);
 
-  console.log(`[File Upload] Saved file: ${filePath} (${buffer.length} bytes)`);
+  console.log(`[File Upload] Saved file: ${fullPath} (${buffer.length} bytes)`);
 
   return {
-    fileName: finalName,
-    originalName,
+    path: filePath,
     size: buffer.length,
-    mimeType: file.mimetype,
+    mime_type: mimeType,
   };
 }
 
-// List files handler
+// DELETE /files?path={path} - Delete file
+export async function deleteFileHandler(
+  request: FastifyRequest<{
+    Params: { sessionId: string };
+    Querystring: { path: string };
+  }>,
+  reply: FastifyReply
+): Promise<FileDeleteResponse> {
+  const { sessionId } = request.params;
+  const filePath = request.query.path;
+
+  if (!filePath) {
+    return reply.status(400).send({ error: 'File path is required' });
+  }
+
+  // Extract user context
+  let context;
+  try {
+    context = extractRequestContext(request);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+
+  const userId = context.user.sub;
+
+  // Verify session ownership and get agentLocalPath
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
+    return reply.status(404).send({ error: 'Session not found' });
+  }
+
+  if (!session.agentLocalPath) {
+    return reply
+      .status(400)
+      .send({ error: 'Session working directory not available' });
+  }
+
+  // Validate file path
+  const validation = validateFilePath(filePath, session.agentLocalPath);
+  if (!validation.valid) {
+    return reply.status(400).send({ error: validation.error });
+  }
+
+  const fullPath = validation.fullPath;
+
+  // Check if file exists
+  try {
+    await fs.access(fullPath);
+  } catch {
+    return reply.status(404).send({ error: 'File not found' });
+  }
+
+  // Check if it's a file (not directory)
+  const stat = await fs.stat(fullPath);
+  if (!stat.isFile()) {
+    return reply.status(400).send({ error: 'Path is not a file' });
+  }
+
+  // Delete file
+  await fs.unlink(fullPath);
+
+  console.log(`[File Delete] Deleted file: ${fullPath}`);
+
+  return {
+    success: true,
+    path: filePath,
+  };
+}
+
+// List files handler (internal, called by filesHandler)
 export async function listFilesHandler(
   request: FastifyRequest<{ Params: { sessionId: string } }>,
   reply: FastifyReply
@@ -130,8 +365,8 @@ export async function listFilesHandler(
 
   for (const entry of entries) {
     if (entry.isFile()) {
-      const filePath = path.join(session.agentLocalPath, entry.name);
-      const stat = await fs.stat(filePath);
+      const entryPath = path.join(session.agentLocalPath, entry.name);
+      const stat = await fs.stat(entryPath);
 
       // Detect mime type based on extension
       const mimeType = getMimeType(entry.name);
@@ -153,116 +388,4 @@ export async function listFilesHandler(
   );
 
   return { files };
-}
-
-// Download file handler (supports subdirectories via wildcard path)
-export async function downloadFileHandler(
-  request: FastifyRequest<{ Params: { sessionId: string; '*': string } }>,
-  reply: FastifyReply
-): Promise<void> {
-  const { sessionId } = request.params;
-  const filePath = request.params['*'];
-
-  if (!filePath) {
-    return reply.status(400).send({ error: 'File path is required' });
-  }
-
-  // Extract user context
-  let context;
-  try {
-    context = extractRequestContext(request);
-  } catch (error: any) {
-    return reply.status(400).send({ error: error.message });
-  }
-
-  const userId = context.user.sub;
-
-  // Verify session ownership and get agentLocalPath
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
-    return reply.status(404).send({ error: 'Session not found' });
-  }
-
-  if (!session.agentLocalPath) {
-    return reply
-      .status(400)
-      .send({ error: 'Session working directory not available' });
-  }
-
-  // Normalize the path to prevent traversal attacks
-  // path.normalize handles .. and . components
-  const normalizedPath = path.normalize(filePath);
-
-  // Prevent path traversal by checking for .. after normalization
-  if (
-    normalizedPath.startsWith('..') ||
-    normalizedPath.includes('/..') ||
-    normalizedPath.includes('\\..')
-  ) {
-    return reply.status(400).send({ error: 'Invalid file path' });
-  }
-
-  const fullPath = path.join(session.agentLocalPath, normalizedPath);
-
-  // Verify the file is within the session agentLocalPath
-  const resolvedPath = path.resolve(fullPath);
-  const resolvedAgentLocalPath = path.resolve(session.agentLocalPath);
-  if (
-    !resolvedPath.startsWith(resolvedAgentLocalPath + path.sep) &&
-    resolvedPath !== resolvedAgentLocalPath
-  ) {
-    return reply.status(400).send({ error: 'Invalid file path' });
-  }
-
-  // Check if file exists
-  try {
-    await fs.access(fullPath);
-  } catch {
-    return reply.status(404).send({ error: 'File not found' });
-  }
-
-  // Check if it's a file (not directory)
-  const stat = await fs.stat(fullPath);
-  if (!stat.isFile()) {
-    return reply.status(400).send({ error: 'Path is not a file' });
-  }
-
-  // Get mime type from the filename
-  const fileName = path.basename(fullPath);
-  const mimeType = getMimeType(fileName);
-
-  // Set headers for download
-  reply.header('Content-Type', mimeType);
-  reply.header('Content-Length', stat.size);
-  reply.header(
-    'Content-Disposition',
-    `attachment; filename="${encodeURIComponent(fileName)}"`
-  );
-
-  // Stream file
-  const stream = fsSync.createReadStream(fullPath);
-  return reply.send(stream);
-}
-
-// Helper function to get mime type from file extension
-function getMimeType(fileName: string): string {
-  const ext = path.extname(fileName).toLowerCase();
-  const mimeTypes: Record<string, string> = {
-    '.txt': 'text/plain',
-    '.csv': 'text/csv',
-    '.json': 'application/json',
-    '.md': 'text/markdown',
-    '.html': 'text/html',
-    '.xml': 'application/xml',
-    '.yaml': 'application/yaml',
-    '.yml': 'application/yaml',
-    '.pdf': 'application/pdf',
-    '.js': 'text/javascript',
-    '.ts': 'text/typescript',
-    '.py': 'text/x-python',
-    '.sql': 'application/sql',
-    '.sh': 'application/x-sh',
-    '.log': 'text/plain',
-  };
-  return mimeTypes[ext] || 'application/octet-stream';
 }

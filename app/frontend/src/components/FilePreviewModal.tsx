@@ -55,12 +55,9 @@ export default function FilePreviewModal({
       setContent(null);
 
       try {
-        const encodedPath = filePath
-          .split('/')
-          .map((segment) => encodeURIComponent(segment))
-          .join('/');
+        const encodedPath = encodeURIComponent(filePath);
         const response = await fetch(
-          `/api/v1/sessions/${sessionId}/fs/${encodedPath}`
+          `/api/v1/sessions/${sessionId}/files?path=${encodedPath}`
         );
 
         if (!response.ok) {
@@ -89,12 +86,9 @@ export default function FilePreviewModal({
   // Download file
   const handleDownload = useCallback(async () => {
     try {
-      const encodedPath = filePath
-        .split('/')
-        .map((segment) => encodeURIComponent(segment))
-        .join('/');
+      const encodedPath = encodeURIComponent(filePath);
       const response = await fetch(
-        `/api/v1/sessions/${sessionId}/fs/${encodedPath}`
+        `/api/v1/sessions/${sessionId}/files?path=${encodedPath}`
       );
 
       if (!response.ok) {

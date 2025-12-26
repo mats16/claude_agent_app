@@ -44,10 +44,14 @@ export interface FileListResponse {
 }
 
 export interface FileUploadResponse {
-  fileName: string;
-  originalName: string;
+  path: string;
   size: number;
-  mimeType: string;
+  mime_type: string;
+}
+
+export interface FileDeleteResponse {
+  success: boolean;
+  path: string;
 }
 
 // ============================================

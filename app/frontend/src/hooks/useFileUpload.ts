@@ -279,14 +279,19 @@ export function useFileUpload(
           );
 
           try {
-            const formData = new FormData();
-            formData.append('file', attachedFile.file);
+            // Read file as ArrayBuffer for raw body upload
+            const arrayBuffer = await attachedFile.file.arrayBuffer();
+            const encodedPath = encodeURIComponent(attachedFile.file.name);
 
             const response = await fetch(
-              `/api/v1/sessions/${sessionId}/files`,
+              `/api/v1/sessions/${sessionId}/files?path=${encodedPath}`,
               {
                 method: 'POST',
-                body: formData,
+                headers: {
+                  'Content-Type':
+                    attachedFile.file.type || 'application/octet-stream',
+                },
+                body: arrayBuffer,
               }
             );
 
@@ -297,6 +302,9 @@ export function useFileUpload(
 
             const result: FileUploadResponse = await response.json();
 
+            // Extract filename from path
+            const uploadedFileName = result.path.split('/').pop() || result.path;
+
             // Update status to uploaded
             setAttachedFiles((prev) =>
               prev.map((f) =>
@@ -304,13 +312,13 @@ export function useFileUpload(
                   ? {
                       ...f,
                       status: 'uploaded' as const,
-                      uploadedFileName: result.fileName,
+                      uploadedFileName,
                     }
                   : f
               )
             );
 
-            uploadedNames.push(result.fileName);
+            uploadedNames.push(uploadedFileName);
           } catch (error: any) {
             // Update status to error
             setAttachedFiles((prev) =>

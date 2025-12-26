@@ -1,19 +1,37 @@
 import type { FastifyPluginAsync } from 'fastify';
 import {
+  filesHandler,
   uploadFileHandler,
-  listFilesHandler,
-  downloadFileHandler,
+  deleteFileHandler,
 } from './handlers.js';
 
 const sessionFileRoutes: FastifyPluginAsync = async (fastify) => {
-  // Upload file to session (still uses /files for flat upload)
+  // Configure raw body parsing for upload endpoint
+  fastify.addContentTypeParser(
+    'application/octet-stream',
+    { parseAs: 'buffer' },
+    (req, body, done) => {
+      done(null, body);
+    }
+  );
+
+  // Also handle other content types as raw buffer for file uploads
+  fastify.addContentTypeParser(
+    /^(?!application\/json|multipart\/form-data).*/,
+    { parseAs: 'buffer' },
+    (req, body, done) => {
+      done(null, body);
+    }
+  );
+
+  // GET /files - List files (no path) or Get file (with path)
+  fastify.get('/:sessionId/files', filesHandler);
+
+  // POST /files?path={path} - Upload file (raw body)
   fastify.post('/:sessionId/files', uploadFileHandler);
 
-  // List files in session
-  fastify.get('/:sessionId/files', listFilesHandler);
-
-  // Download file from session (supports subdirectories via wildcard)
-  fastify.get('/:sessionId/fs/*', downloadFileHandler);
+  // DELETE /files?path={path} - Delete file
+  fastify.delete('/:sessionId/files', deleteFileHandler);
 };
 
 export default sessionFileRoutes;

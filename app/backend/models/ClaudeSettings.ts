@@ -28,7 +28,7 @@ interface ClaudeSettingsJSON {
     allow?: string[];
     deny?: string[];
   };
-  env?: Record<string, string>;
+  env?: Record<string, string | undefined>;
   hooks: {
     [key in HookEvent]?: HookEntry[];
   };
@@ -77,7 +77,12 @@ export class ClaudeSettings {
    * Generate the Claude settings content with workspace sync hooks
    */
   toJSON(): ClaudeSettingsJSON {
-    return {
+    const settingsJson: ClaudeSettingsJSON = {
+      env: {
+        WORKSPACE_DIR: this.workspacePath,
+        WORKSPACE_AUTO_PUSH: `${this.workspaceAutoPush}`,
+        APP_AUTO_DEPLOY: `${this.appAutoDeploy}`,
+      },
       hooks: {
         SessionStart: [
           {
@@ -141,5 +146,6 @@ export class ClaudeSettings {
         ],
       },
     };
+    return settingsJson;
   }
 }

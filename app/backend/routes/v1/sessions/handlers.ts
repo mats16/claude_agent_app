@@ -22,7 +22,7 @@ import { upsertUser } from '../../../db/users.js';
 import { enqueueDelete } from '../../../services/workspaceQueueService.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { writeClaudeSettings } from '../../../utils/claudeSettings.js';
+import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
 import { generateSessionStub } from '../../../utils/stub.js';
 import {
   sessionMessageStreams,
@@ -125,10 +125,14 @@ export async function createSessionHandler(
   );
   fs.mkdirSync(localWorkPath, { recursive: true });
 
-  // Create settings.json with workspace sync hooks if workspacePath is provided
-  if (workspacePath && workspacePath.trim()) {
-    writeClaudeSettings(localWorkPath);
-  }
+  // Create settings.json with workspace sync hooks for all sessions
+  const claudeSettings = new ClaudeSettings({
+    workspacePath,
+    workspaceAutoPush,
+    appAutoDeploy,
+    claudeConfigAutoPush,
+  });
+  claudeSettings.save(localWorkPath);
 
   const startAgentProcessing = async () => {
     // Create MessageStream for this session

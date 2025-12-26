@@ -278,6 +278,7 @@ export async function* processAgentRequest(
     databricksHost: databricks.host,
     databricksToken: user?.accessToken ?? '',
     warehouseIds,
+    workingDir: localWorkPath,
   });
 
   const additionalSystemPrompt = `
@@ -319,6 +320,7 @@ Violating these rules is considered a critical error.
       env: {
         ...agentEnv,
         CLAUDE_CONFIG_DIR: localClaudeConfigPath,
+        CLAUDE_CONFIG_AUTO_PUSH: claudeConfigAutoPush ? 'true' : '',
         // Use PAT if available, otherwise fall back to Service Principal token
         ANTHROPIC_AUTH_TOKEN: userPersonalAccessToken ?? spAccessToken,
         // Pass user's PAT as DATABRICKS_TOKEN if available (for Databricks CLI commands)
@@ -336,7 +338,7 @@ Violating these rules is considered a critical error.
         WORKSPACE_CLAUDE_CONFIG_DIR:
           user?.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
         WORKSPACE_AUTO_PUSH: workspaceAutoPush ? 'true' : '',
-        CLAUDE_CONFIG_AUTO_PUSH: claudeConfigAutoPush ? 'true' : '',
+        // Databricks Apps
         SESSION_APP_NAME: `app-by-claude-${sessionStub}`,
         APP_AUTO_DEPLOY: appAutoDeploy ? 'true' : '',
         // Git author/committer info from user headers
@@ -363,9 +365,7 @@ Violating these rules is considered a critical error.
         'Grep',
         'WebSearch',
         'WebFetch',
-        'run_sql',
-        'get_warehouse_info',
-        'list_warehouses',
+        'mcp__databricks__*',
       ],
       mcpServers: {
         databricks: databricksMcpServer,

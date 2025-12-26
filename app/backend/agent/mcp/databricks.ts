@@ -1,6 +1,8 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import { DBSQLClient } from '@databricks/sql';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 
 // SQL Warehouse configuration
 const MAX_ROWS_DEFAULT = 1000;
@@ -11,9 +13,8 @@ const SQL_RESULT_MARKER = '<!--SQL_RESULT-->';
 
 interface SQLResultData {
   columns: string[];
-  rows: unknown[][];
   totalRows: number;
-  truncated: boolean;
+  resultPath: string;
 }
 
 type WarehouseSize = '2xs' | 'xs' | 's';
@@ -27,55 +28,33 @@ export interface DatabricksMcpConfig {
     xs?: string;
     s?: string;
   };
+  workingDir: string;
 }
 
-// Serialize value for display (handles complex objects)
-function serializeValue(value: unknown): unknown {
+// Escape CSV value (handle quotes, commas, newlines)
+function escapeCsvValue(value: unknown): string {
   if (value === null || value === undefined) {
-    return null;
+    return '';
   }
-  if (typeof value === 'object') {
-    // Convert complex objects to JSON string to avoid [object Object]
-    return JSON.stringify(value);
+  const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  // Escape if contains comma, quote, or newline
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
   }
-  return value;
+  return str;
 }
 
-// Format query result as structured JSON data
-function formatQueryResult(
-  result: Record<string, unknown>[],
-  maxRows: number
-): string {
-  if (!result || result.length === 0) {
-    return 'Query executed successfully. No rows returned.';
-  }
+// Chunk size for streaming fetch
+const FETCH_CHUNK_SIZE = 10000;
 
-  const limitedResult = result.slice(0, maxRows);
-  const truncated = result.length > maxRows;
-  const columns = Object.keys(limitedResult[0]);
-
-  // Convert to structured data with proper serialization
-  const rows = limitedResult.map((row) =>
-    columns.map((col) => serializeValue(row[col]))
-  );
-
-  const sqlResultData: SQLResultData = {
-    columns,
-    rows,
-    totalRows: result.length,
-    truncated,
-  };
-
-  return SQL_RESULT_MARKER + JSON.stringify(sqlResultData);
-}
-
-// Execute SQL query
+// Execute SQL query with streaming write to CSV
 async function executeQuery(
   sql: string,
   warehouseId: string,
   maxRows: number,
   token: string,
-  host: string
+  host: string,
+  workingDir: string
 ): Promise<string> {
   const client = new DBSQLClient();
 
@@ -86,14 +65,66 @@ async function executeQuery(
       path: `/sql/1.0/warehouses/${warehouseId}`,
     });
     const session = await client.openSession();
+    const sessionId = session.id;
     const op = await session.executeStatement(sql, { runAsync: true, maxRows });
-    const result = await op.fetchAll();
+
+    // Prepare CSV file
+    const dir = path.join(workingDir, 'query-results');
+    await fs.promises.mkdir(dir, { recursive: true });
+    const filePath = path.join(dir, `${sessionId}.csv`);
+    const resultPath = `./query-results/${sessionId}.csv`;
+
+    let columns: string[] = [];
+    let totalRows = 0;
+    let isFirstChunk = true;
+
+    // Stream fetch and write chunks
+    let hasMoreRows = true;
+    while (hasMoreRows) {
+      const chunk = await op.fetchChunk({ maxRows: FETCH_CHUNK_SIZE });
+      const rows = chunk as Record<string, unknown>[];
+
+      if (rows.length === 0) {
+        hasMoreRows = false;
+        break;
+      }
+
+      // Write header on first chunk
+      if (isFirstChunk) {
+        columns = Object.keys(rows[0]);
+        const headerLine = columns.map(escapeCsvValue).join(',') + '\n';
+        await fs.promises.writeFile(filePath, headerLine, 'utf-8');
+        isFirstChunk = false;
+      }
+
+      // Append data rows
+      const dataLines = rows
+        .map((row) => columns.map((col) => escapeCsvValue(row[col])).join(','))
+        .join('\n');
+      await fs.promises.appendFile(filePath, dataLines + '\n', 'utf-8');
+
+      totalRows += rows.length;
+
+      // Check if more rows available
+      hasMoreRows = await op.hasMoreRows();
+    }
 
     await op.close();
     await session.close();
     await client.close();
 
-    return formatQueryResult(result as Record<string, unknown>[], maxRows);
+    // Handle empty result
+    if (totalRows === 0) {
+      return 'Query executed successfully. No rows returned.';
+    }
+
+    const sqlResultData: SQLResultData = {
+      columns,
+      totalRows,
+      resultPath,
+    };
+
+    return SQL_RESULT_MARKER + JSON.stringify(sqlResultData);
   } catch (error: unknown) {
     try {
       await client.close();
@@ -111,7 +142,7 @@ async function executeQuery(
  * instead of relying on environment variables.
  */
 export function createDatabricksMcpServer(config: DatabricksMcpConfig) {
-  const { databricksHost, databricksToken, warehouseIds } = config;
+  const { databricksHost, databricksToken, warehouseIds, workingDir } = config;
 
   // Get WAREHOUSE_ID from size using injected config
   function getWarehouseId(size: WarehouseSize): string {
@@ -178,7 +209,8 @@ export function createDatabricksMcpServer(config: DatabricksMcpConfig) {
               warehouseId,
               maxRows,
               databricksToken,
-              databricksHost
+              databricksHost,
+              workingDir
             );
             return { content: [{ type: 'text', text: result }] };
           } catch (error: unknown) {

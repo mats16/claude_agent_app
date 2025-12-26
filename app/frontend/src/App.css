@@ -235,33 +235,9 @@ body {
   background: var(--color-background-secondary);
 }
 
-/* SQL Result Table */
+/* SQL Result */
 .sql-result-table {
   margin-top: 8px;
-  width: 100%;
-  min-width: 0;
-}
-
-.sql-result-table .ant-table-wrapper {
-  min-width: 0;
-}
-
-.sql-result-table .ant-table {
-  font-size: 12px;
-}
-
-.sql-result-table .ant-table-thead > tr > th {
-  background: var(--color-background-hover);
-  font-weight: 600;
-  padding: 8px 12px;
-}
-
-.sql-result-table .ant-table-tbody > tr > td {
-  padding: 6px 12px;
-}
-
-.sql-result-table .ant-table-tbody > tr:nth-child(even) {
-  background: var(--color-background-tertiary);
 }
 
 /* Markdown Content Styles */

@@ -270,30 +270,11 @@ const CollapsibleOutput = memo(function CollapsibleOutput({
     color: colors.textSecondary,
   };
 
-  // SQL result rendering with Ant Design Table
+  // SQL result rendering with download button
   if (sqlResult) {
-    const rowInfo = sqlResult.truncated
-      ? `${sqlResult.rows.length} of ${sqlResult.totalRows} rows`
-      : `${sqlResult.rows.length} rows`;
-
-    if (!isExpanded) {
-      return (
-        <div>
-          <button onClick={() => setIsExpanded(true)} style={buttonStyle}>
-            <DownOutlined style={{ fontSize: '10px' }} />
-            <span>{rowInfo}</span>
-          </button>
-        </div>
-      );
-    }
-
     return (
       <div style={{ minWidth: 0, width: '100%' }}>
         <SqlResultTable data={sqlResult} />
-        <button onClick={() => setIsExpanded(false)} style={buttonStyle}>
-          <UpOutlined style={{ fontSize: '10px' }} />
-          <span>Show less</span>
-        </button>
       </div>
     );
   }

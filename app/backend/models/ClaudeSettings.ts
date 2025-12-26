@@ -12,17 +12,16 @@ interface HookEntry {
   hooks: HookCommand[];
 }
 
+type HookEvent = 'PreToolUse' | 'PostToolUse' | 'UserPromptSubmit' | 'Notification' | 'Stop' | 'SubagentStop' | 'PreCompact' | 'SessionStart' | 'SessionEnd';
+
 interface ClaudeSettingsJSON {
+  permissions?: {
+    allow?: string[];
+    deny?: string[];
+  };
+  env?: Record<string, string>;
   hooks: {
-    PreToolUse?: HookEntry[];
-    PostToolUse?: HookEntry[];
-    UserPromptSubmit?: HookEntry[];
-    Notification?: HookEntry[];
-    Stop?: HookEntry[];
-    SubagentStop?: HookEntry[];
-    PreCompact?: HookEntry[];
-    SessionStart?: HookEntry[];
-    SessionEnd?: HookEntry[];
+    [key in HookEvent]?: HookEntry[];
   };
 }
 

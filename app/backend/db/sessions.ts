@@ -101,42 +101,6 @@ export async function updateSessionTitle(
   });
 }
 
-// Update session from structured output (with RLS)
-// - title: only updated if currently null (using COALESCE)
-// - summary: always overwritten
-// Returns true if title was updated (for notification purposes)
-export async function updateSessionFromStructuredOutput(
-  id: string,
-  data: { title?: string; summary?: string },
-  userId: string
-): Promise<boolean> {
-  return withUserContext(userId, async () => {
-    // Build set clause dynamically
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const setClause: Record<string, any> = {
-      updatedAt: new Date(),
-    };
-
-    if (data.summary !== undefined) {
-      setClause.summary = data.summary;
-    }
-
-    // Use COALESCE to keep existing title if not NULL
-    if (data.title !== undefined) {
-      setClause.title = sql`COALESCE(${sessions.title}, ${data.title})`;
-    }
-
-    const result = await db
-      .update(sessions)
-      .set(setClause)
-      .where(eq(sessions.id, id))
-      .returning({ title: sessions.title });
-
-    // Title was updated if it now equals our new title (was NULL before)
-    return data.title !== undefined && result[0]?.title === data.title;
-  });
-}
-
 // Update session settings (title, workspaceAutoPush, workspacePath, appAutoDeploy, model) with RLS
 export async function updateSession(
   id: string,

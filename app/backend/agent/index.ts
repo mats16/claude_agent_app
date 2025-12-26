@@ -8,7 +8,6 @@ import fs from 'fs';
 import path from 'path';
 import type { MessageContent } from '@app/shared';
 import { databricks, warehouseIds, agentEnv } from '../config/index.js';
-import { outputFormat } from './outputSchema.js';
 import type { RequestUser } from '../models/RequestUser.js';
 
 export type { SDKMessage };
@@ -376,7 +375,6 @@ Violating these rules is considered a critical error.
         preset: 'claude_code',
         append: additionalSystemPrompt,
       },
-      outputFormat,
       // Note: workspace sync is now handled by settings.local.json hooks
     },
   });

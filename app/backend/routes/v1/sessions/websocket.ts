@@ -3,11 +3,7 @@ import type { MessageContent, IncomingWSMessage } from '@app/shared';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { processAgentRequest, MessageStream } from '../../../agent/index.js';
 import { saveMessage } from '../../../db/events.js';
-import {
-  getSessionById,
-  updateSessionFromStructuredOutput,
-  updateSession,
-} from '../../../db/sessions.js';
+import { getSessionById, updateSession } from '../../../db/sessions.js';
 import { getSettingsDirect } from '../../../db/settings.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContextFromHeaders } from '../../../utils/headers.js';
@@ -20,7 +16,6 @@ import {
   createControlRequest,
   createControlResponse,
   createResultMessage,
-  notifySessionUpdated,
 } from '../../../services/sessionState.js';
 
 const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
@@ -244,48 +239,6 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                       'Failed to send WebSocket message:',
                       sendError
                     );
-                  }
-
-                  // Extract session_title from structured output in result message
-                  if (
-                    sdkMessage.type === 'result' &&
-                    'subtype' in sdkMessage &&
-                    sdkMessage.subtype === 'success'
-                  ) {
-                    const structuredOutput = (
-                      sdkMessage as { structured_output?: unknown }
-                    ).structured_output as
-                      | {
-                          session_title?: string;
-                          summary?: string;
-                        }
-                      | undefined;
-
-                    if (
-                      structuredOutput?.session_title ||
-                      structuredOutput?.summary
-                    ) {
-                      try {
-                        // Update session: title only if null, summary always overwritten
-                        const titleUpdated =
-                          await updateSessionFromStructuredOutput(
-                            sessionId,
-                            {
-                              title: structuredOutput.session_title,
-                              summary: structuredOutput.summary,
-                            },
-                            userId
-                          );
-                        if (titleUpdated) {
-                          notifySessionUpdated(userId, {
-                            id: sessionId,
-                            title: structuredOutput.session_title,
-                          });
-                        }
-                      } catch (error) {
-                        console.error('Failed to update session:', error);
-                      }
-                    }
                   }
                 }
               } finally {

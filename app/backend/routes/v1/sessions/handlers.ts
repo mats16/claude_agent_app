@@ -27,13 +27,12 @@ import { generateSessionStub } from '../../../utils/stub.js';
 import {
   sessionMessageStreams,
   notifySessionCreated,
-  notifySessionUpdated,
   getOrCreateQueue,
   addEventToQueue,
   markQueueCompleted,
   createUserMessage,
 } from '../../../services/sessionState.js';
-import { updateSessionFromStructuredOutput } from '../../../db/sessions.js';
+import { generateTitleAsync } from '../../../services/titleService.js';
 
 // Types
 interface CreateSessionBody {
@@ -205,6 +204,14 @@ export async function createSessionHandler(
               updatedAt: new Date().toISOString(),
             });
 
+            // Trigger async title generation (supports both text and images)
+            void generateTitleAsync({
+              sessionId,
+              messageContent,
+              userId,
+              userAccessToken: userPersonalAccessToken,
+            });
+
             resolveInit?.();
 
             // Save user message after getting sessionId
@@ -220,47 +227,6 @@ export async function createSessionHandler(
           if (sessionId) {
             await saveMessage(sdkMessage);
             addEventToQueue(sessionId, sdkMessage);
-
-            // Extract session_title from structured output in result message
-            if (
-              sdkMessage.type === 'result' &&
-              'subtype' in sdkMessage &&
-              sdkMessage.subtype === 'success'
-            ) {
-              const structuredOutput = (
-                sdkMessage as { structured_output?: unknown }
-              ).structured_output as
-                | {
-                    session_title?: string;
-                    summary?: string;
-                  }
-                | undefined;
-
-              if (
-                structuredOutput?.session_title ||
-                structuredOutput?.summary
-              ) {
-                try {
-                  // Update session: title only if null, summary always overwritten
-                  const titleUpdated = await updateSessionFromStructuredOutput(
-                    sessionId,
-                    {
-                      title: structuredOutput.session_title,
-                      summary: structuredOutput.summary,
-                    },
-                    userId
-                  );
-                  if (titleUpdated) {
-                    notifySessionUpdated(userId, {
-                      id: sessionId,
-                      title: structuredOutput.session_title,
-                    });
-                  }
-                } catch (error) {
-                  console.error('Failed to update session:', error);
-                }
-              }
-            }
           }
         }
       } catch (error: any) {

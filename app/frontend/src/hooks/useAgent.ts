@@ -233,10 +233,6 @@ export function useAgent(options: UseAgentOptions = {}) {
                   if (block.type === 'text' && block.text) {
                     currentResponseRef.current += block.text;
                   } else if (block.type === 'tool_use' && block.name) {
-                    // Skip StructuredOutput tool (used for session title generation)
-                    if (block.name === 'StructuredOutput') {
-                      continue;
-                    }
                     const toolInput = block.input
                       ? formatToolInput(block.input, block.name)
                       : '';
@@ -447,10 +443,6 @@ export function useAgent(options: UseAgentOptions = {}) {
             if (block.type === 'text' && block.text) {
               currentResponseRef.current += block.text;
             } else if (block.type === 'tool_use' && block.name) {
-              // Skip StructuredOutput tool (used for session title generation)
-              if (block.name === 'StructuredOutput') {
-                continue;
-              }
               const toolInput = block.input
                 ? formatToolInput(block.input, block.name)
                 : '';
@@ -550,13 +542,6 @@ export function useAgent(options: UseAgentOptions = {}) {
                 }
 
                 if (resultText) {
-                  // Skip StructuredOutput tool results
-                  if (
-                    resultText === 'Structured output provided successfully'
-                  ) {
-                    continue;
-                  }
-
                   // Find the tool name from pending tool uses
                   const pendingTool = pendingToolUsesRef.current.find(
                     (t) => t.id === block.tool_use_id

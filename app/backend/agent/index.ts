@@ -332,7 +332,7 @@ Violating these rules is considered a critical error.
           ? undefined
           : databricks.clientSecret,
         DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
-        // Used by hooks in settings.local.json
+        // Used by hooks in settings.json
         WORKSPACE_DIR: workspacePath,
         WORKSPACE_CLAUDE_CONFIG_DIR:
           user?.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
@@ -375,7 +375,7 @@ Violating these rules is considered a critical error.
         preset: 'claude_code',
         append: additionalSystemPrompt,
       },
-      // Note: workspace sync is now handled by settings.local.json hooks
+      // Note: workspace sync is now handled by settings.json hooks
     },
   });
 

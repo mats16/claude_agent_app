@@ -125,14 +125,14 @@ export async function createSessionHandler(
   );
   fs.mkdirSync(localWorkPath, { recursive: true });
 
-  // Create settings.local.json with workspace sync hooks if workspacePath is provided
+  // Create settings.json with workspace sync hooks if workspacePath is provided
   if (workspacePath && workspacePath.trim()) {
     writeClaudeSettings(localWorkPath);
   }
 
   const startAgentProcessing = async () => {
     // Create MessageStream for this session
-    // Note: workspace sync is now handled by settings.local.json hooks
+    // Note: workspace sync is now handled by settings.json hooks
     const stream = new MessageStream(messageContent);
 
     // Get user's PAT if configured (for Databricks CLI operations)

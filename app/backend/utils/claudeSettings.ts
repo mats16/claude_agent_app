@@ -34,7 +34,7 @@ export function generateClaudeSettings(): ClaudeSettings {
             {
               type: 'command',
               command:
-                '[ -n "$WORKSPACE_DIR" ] && databricks workspace export-dir "$WORKSPACE_DIR" "$CLAUDE_WORKING_DIR"',
+                '[ -n "$WORKSPACE_DIR" ] && databricks workspace export-dir "$WORKSPACE_DIR" .',
             },
             // Create Databricks Apps for the session
             {
@@ -53,7 +53,7 @@ export function generateClaudeSettings(): ClaudeSettings {
             {
               type: 'command',
               command:
-                '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_WORKING_DIR" "$WORKSPACE_DIR" --exclude ".claude/settings.local.json" --exclude "node_modules" > /dev/null 2>&1 &',
+                '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync . "$WORKSPACE_DIR" --exclude ".claude/settings.json" --exclude "node_modules" > /dev/null 2>&1 &',
             },
           ],
         },
@@ -75,7 +75,7 @@ export function generateClaudeSettings(): ClaudeSettings {
             {
               type: 'command',
               command:
-                '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_WORKING_DIR" "$WORKSPACE_DIR" --exclude ".claude/settings.local.json" --exclude "node_modules"',
+                '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync . "$WORKSPACE_DIR" --exclude ".claude/settings.json" --exclude "node_modules"',
             },
             // Auto deploy Databricks Apps for the session
             {
@@ -91,15 +91,15 @@ export function generateClaudeSettings(): ClaudeSettings {
 }
 
 /**
- * Write settings.local.json to the specified directory
+ * Write settings.json to the specified directory
  */
 export function writeClaudeSettings(localWorkPath: string): void {
   const claudeDir = path.join(localWorkPath, '.claude');
-  const settingsPath = path.join(claudeDir, 'settings.local.json');
+  const settingsPath = path.join(claudeDir, 'settings.json');
 
   fs.mkdirSync(claudeDir, { recursive: true });
 
   const settings = generateClaudeSettings();
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-  console.log(`[Settings] Created settings.local.json at ${settingsPath}`);
+  console.log(`[Settings] Created settings.json at ${settingsPath}`);
 }

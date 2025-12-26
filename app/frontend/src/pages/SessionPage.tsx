@@ -680,43 +680,89 @@ export default function SessionPage() {
             flexDirection: 'column',
           }}
         >
-        <div
-          style={{
-            flex: 1,
-            maxWidth: layout.maxContentWidth,
-            width: '100%',
-            margin: '0 auto',
-            paddingBottom: spacing.lg,
-          }}
-        >
-          {messages.length === 0 && !isProcessing && !isLoadingHistory && (
-            <Flex
-              justify="center"
-              align="center"
-              style={{ padding: spacing.xxxl, color: colors.textMuted }}
-            >
-              <Text type="secondary">
-                {t('sessionPage.waitingForResponse')}
-              </Text>
-            </Flex>
-          )}
-
-          {messages.map((message, index) => {
-            const isLastMessage = index === messages.length - 1;
-            const showSpinnerInMessage =
-              isProcessing && isLastMessage && message.role === 'agent';
-            const isUser = message.role === 'user';
-
-            return (
-              <div
-                key={message.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: isUser ? 'flex-end' : 'flex-start',
-                  padding: `${spacing.lg}px ${spacing.xxl}px`,
-                }}
+          <div
+            style={{
+              flex: 1,
+              maxWidth: layout.maxContentWidth,
+              width: '100%',
+              margin: '0 auto',
+              paddingBottom: spacing.lg,
+            }}
+          >
+            {messages.length === 0 && !isProcessing && !isLoadingHistory && (
+              <Flex
+                justify="center"
+                align="center"
+                style={{ padding: spacing.xxxl, color: colors.textMuted }}
               >
-                {!isUser && (
+                <Text type="secondary">
+                  {t('sessionPage.waitingForResponse')}
+                </Text>
+              </Flex>
+            )}
+
+            {messages.map((message, index) => {
+              const isLastMessage = index === messages.length - 1;
+              const showSpinnerInMessage =
+                isProcessing && isLastMessage && message.role === 'agent';
+              const isUser = message.role === 'user';
+
+              return (
+                <div
+                  key={message.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: isUser ? 'flex-end' : 'flex-start',
+                    padding: `${spacing.lg}px ${spacing.xxl}px`,
+                  }}
+                >
+                  {!isUser && (
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        width: spacing.xxl,
+                        fontSize: typography.fontSizeLarge,
+                        paddingTop: 2,
+                        color: colors.textPrimary,
+                        marginRight: spacing.md,
+                      }}
+                    >
+                      <RobotOutlined />
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      maxWidth: isUser ? '80%' : '100%',
+                      minWidth: 0,
+                      ...(isUser ? userMessageBubbleStyle : { flex: 1 }),
+                    }}
+                  >
+                    <MessageRenderer
+                      content={message.content}
+                      role={message.role as 'user' | 'agent'}
+                      images={message.images}
+                      sessionId={sessionId}
+                    />
+                    {showSpinnerInMessage && (
+                      <div style={{ marginTop: spacing.sm }}>
+                        <ThinkingIndicator />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {isProcessing &&
+              messages.length > 0 &&
+              messages[messages.length - 1].role === 'user' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    padding: `${spacing.lg}px ${spacing.xxl}px`,
+                  }}
+                >
                   <div
                     style={{
                       flexShrink: 0,
@@ -729,58 +775,12 @@ export default function SessionPage() {
                   >
                     <RobotOutlined />
                   </div>
-                )}
-                <div
-                  style={{
-                    maxWidth: isUser ? '80%' : '100%',
-                    minWidth: 0,
-                    ...(isUser ? userMessageBubbleStyle : { flex: 1 }),
-                  }}
-                >
-                  <MessageRenderer
-                    content={message.content}
-                    role={message.role as 'user' | 'agent'}
-                    images={message.images}
-                    sessionId={sessionId}
-                  />
-                  {showSpinnerInMessage && (
-                    <div style={{ marginTop: spacing.sm }}>
-                      <ThinkingIndicator />
-                    </div>
-                  )}
+                  <ThinkingIndicator />
                 </div>
-              </div>
-            );
-          })}
+              )}
 
-          {isProcessing &&
-            messages.length > 0 &&
-            messages[messages.length - 1].role === 'user' && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-start',
-                  padding: `${spacing.lg}px ${spacing.xxl}px`,
-                }}
-              >
-                <div
-                  style={{
-                    flexShrink: 0,
-                    width: spacing.xxl,
-                    fontSize: typography.fontSizeLarge,
-                    paddingTop: 2,
-                    color: colors.textPrimary,
-                    marginRight: spacing.md,
-                  }}
-                >
-                  <RobotOutlined />
-                </div>
-                <ThinkingIndicator />
-              </div>
-            )}
-
-          <div ref={messagesEndRef} />
-        </div>
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* App Status Panel - Fixed above input */}

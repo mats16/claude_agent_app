@@ -64,9 +64,12 @@ export const stickyInputStyle: CSSProperties = {
 
 // Section header style
 export const sectionHeaderStyle: CSSProperties = {
-  padding: `${spacing.lg}px ${spacing.xl}px`,
+  height: 50,
+  padding: `0 ${spacing.xl}px`,
   borderBottom: `1px solid ${colors.border}`,
   background: colors.background,
+  display: 'flex',
+  alignItems: 'center',
 };
 
 // Footer style

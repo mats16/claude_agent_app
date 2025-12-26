@@ -1,44 +1,53 @@
 ---
 name: databricks-apps
 description: Databricks Apps deployment, debugging, and configuration management. Use when working with Databricks Apps issues including deployment failures, app configuration (app.yaml), checking logs, granting permissions to SQL warehouses or Unity Catalog resources, troubleshooting app errors, or managing app state (start/stop). Triggered by mentions of SESSION_APP_NAME, app.yaml, deployment errors, or permission issues with Apps.
-version: 0.0.3
+version: 0.0.5
 ---
 
 # Databricks Apps
 
 Manage Databricks Apps deployment, debugging, and configuration using the Databricks CLI.
 
-## 重要: 認可方式の選択
+## Important: Choosing Authorization Method
 
-Databricks Apps では**ユーザー代理認可（User-on-behalf-of Authorization）を優先**して使用してください。
+For Databricks Apps, **prioritize User-on-behalf-of Authorization**.
 
-### 認可方式の優先順位
+### Authorization Method Priority
 
-1. **ユーザー代理認可（OAuth scope）** - **最優先**
-   - `databricks apps update` コマンドで `user_api_scopes` と `resources` を設定
-   - アプリ利用ユーザーの権限で操作を実行
-   - ユーザーごとのアクセス制御が可能
+1. **User-on-behalf-of Authorization (OAuth scope)** - **Highest Priority**
+   - Set `user_api_scopes` using `databricks apps update` command (required)
+   - Operations execute with the app user's permissions
+   - Enables per-user access control
 
-2. **Service Principal** - **scope で対応できない場合のみ使用**
-   - ユーザー代理認可で対応できない操作がある場合のみ
-   - バックグラウンドジョブなど、ユーザーコンテキストがない場合
-   - 全ユーザーで共通の認証が必要な場合
-   - `databricks apps update` コマンドで `resources` を設定し、Service Principal に権限を付与
+2. **Service Principal** - **Use only when scope cannot handle the operation**
+   - Only when operations cannot be handled by user-on-behalf-of authorization
+   - For background jobs where there is no user context
+   - When shared authentication across all users is required
+   - Set `resources` using `databricks apps update` command (required), then grant permissions to Service Principal
 
-## 認可設定の方法
+## How to Configure Authorization
 
-**重要**: `app.yaml` では認可設定（`user_api_scopes`、`resources`）を設定できません。
-`databricks apps update` コマンドを使用する必要があります。
+**Important**: Authorization settings (`user_api_scopes`, `resources`) cannot be configured in `app.yaml`.
+You must use the `databricks apps update` command (internally `PATCH /api/2.0/apps/{app_name}`).
 
-### ユーザー代理認可の設定
+### User-on-behalf-of Authorization Configuration
 
-ユーザー代理認可には以下の **2つの設定が必要** です：
+Configuration for user-on-behalf-of authorization:
 
-1. **`user_api_scopes`**: アプリがユーザーの代理でアクセスできる API スコープ
-2. **`resources`**: アクセスするリソースの詳細
+1. **`user_api_scopes`** (required): API scopes the app can access on behalf of the user
+2. **`resources`** (optional): Set when you need to reference resource IDs as environment variables
+
+**Note**: For user-on-behalf-of authorization, permissions are determined by the app user's permissions, so `resources` is not required for authorization purposes. However, setting `resources` allows you to reference resource IDs (such as WAREHOUSE_ID) as environment variables.
 
 ```bash
-# ユーザー代理認可の設定
+# User-on-behalf-of authorization (user_api_scopes only - minimal configuration)
+databricks apps update $SESSION_APP_NAME --json '{
+  "user_api_scopes": ["sql", "unity-catalog"]
+}'
+```
+
+```bash
+# User-on-behalf-of authorization (with resources - when referencing IDs via environment variables)
 databricks apps update $SESSION_APP_NAME --json '{
   "user_api_scopes": ["sql", "unity-catalog"],
   "resources": [
@@ -61,22 +70,32 @@ databricks apps update $SESSION_APP_NAME --json '{
 }'
 ```
 
-### user_api_scopes の種類
+### Referencing Resource Values via Environment Variables
 
-| scope | 説明 | 対応する resources |
-|-------|------|-------------------|
-| `sql` | SQL Warehouse へのアクセス | `sql_warehouse` |
-| `unity-catalog` | Unity Catalog へのアクセス | `unity_catalog_schema` |
-| `serving` | Model Serving Endpoint へのアクセス | `serving_endpoint` |
-| `vector-search` | Vector Search Index へのアクセス | `vector_search_index` |
-| `genie` | Genie Space へのアクセス | `genie_space` |
-| `jobs` | Jobs へのアクセス | `job` |
-| `secrets` | Secret Scope へのアクセス | `secret_scope` |
+When `resources` is configured, you can reference resource IDs as environment variables within your app:
 
-### resources の設定例
+| resource name | Environment Variable |
+|--------------|---------------------|
+| `sql_warehouse` | `DATABRICKS_RESOURCE_SQL_WAREHOUSE_ID` etc. |
+
+This allows you to reference resource IDs without hardcoding them in your code.
+
+### user_api_scopes Types
+
+| scope | Description | Corresponding resources (for env var reference) |
+|-------|-------------|------------------------------------------------|
+| `sql` | Access to SQL Warehouse | `sql_warehouse` |
+| `unity-catalog` | Access to Unity Catalog | `unity_catalog_schema` |
+| `serving` | Access to Model Serving Endpoint | `serving_endpoint` |
+| `vector-search` | Access to Vector Search Index | `vector_search_index` |
+| `genie` | Access to Genie Space | `genie_space` |
+| `jobs` | Access to Jobs | `job` |
+| `secrets` | Access to Secret Scope | `secret_scope` |
+
+### resources Configuration Examples (when referencing IDs via environment variables)
 
 ```bash
-# SQL Warehouse + Unity Catalog の設定
+# SQL Warehouse + Unity Catalog (referencing IDs via env vars)
 databricks apps update $SESSION_APP_NAME --json '{
   "user_api_scopes": ["sql", "unity-catalog"],
   "resources": [
@@ -100,7 +119,7 @@ databricks apps update $SESSION_APP_NAME --json '{
 ```
 
 ```bash
-# Serving Endpoint の設定
+# Serving Endpoint (referencing name via env var)
 databricks apps update $SESSION_APP_NAME --json '{
   "user_api_scopes": ["serving"],
   "resources": [
@@ -116,7 +135,7 @@ databricks apps update $SESSION_APP_NAME --json '{
 ```
 
 ```bash
-# Vector Search Index の設定
+# Vector Search Index (referencing name via env var)
 databricks apps update $SESSION_APP_NAME --json '{
   "user_api_scopes": ["vector-search"],
   "resources": [
@@ -131,12 +150,13 @@ databricks apps update $SESSION_APP_NAME --json '{
 }'
 ```
 
-### Service Principal 用のリソース設定
+### Service Principal Resource Configuration
 
-Service Principal を使用する場合も `databricks apps update` でリソースを紐付け、その後 Service Principal に権限を付与します。
+When using Service Principal, binding `resources` via `databricks apps update` is **required**. Then grant permissions to the Service Principal.
 
 ```bash
-# リソースの紐付け（user_api_scopes なし）
+# Resource binding (without user_api_scopes - for Service Principal)
+# Note: When using Service Principal, resources configuration is required
 databricks apps update $SESSION_APP_NAME --json '{
   "resources": [
     {
@@ -149,7 +169,7 @@ databricks apps update $SESSION_APP_NAME --json '{
   ]
 }'
 
-# Service Principal への権限付与
+# Grant permissions to Service Principal
 databricks warehouses update-permissions WAREHOUSE_ID --json '{
   "access_control_list": [
     {
@@ -160,14 +180,14 @@ databricks warehouses update-permissions WAREHOUSE_ID --json '{
 }'
 ```
 
-### よくある設定漏れ
+### Common Configuration Mistakes
 
-| 問題 | 原因 | 解決策 |
-|-----|------|-------|
-| ユーザー代理認可が動作しない | `user_api_scopes` の設定漏れ | `databricks apps update` で scope を追加 |
-| 特定のリソースにアクセスできない | `resources` の設定漏れ | `databricks apps update` で resource を追加 |
-| scope と resource の不一致 | `sql` scope があるのに `sql_warehouse` resource がない | 両方を正しく設定 |
-| app.yaml で設定しようとしている | app.yaml では認可設定不可 | `databricks apps update` を使用 |
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| User-on-behalf-of authorization not working | Missing `user_api_scopes` | Add scope via `databricks apps update` |
+| Service Principal cannot access resource | Missing `resources` | Add resource via `databricks apps update` (required for Service Principal) |
+| Cannot get resource ID via environment variable | Missing `resources` | Add resource via `databricks apps update` |
+| Trying to configure in app.yaml | Authorization settings not supported in app.yaml | Use `databricks apps update` |
 
 ## Environment
 
@@ -181,43 +201,43 @@ echo $SESSION_APP_NAME
 
 When `APP_AUTO_DEPLOY=true`, the app is automatically deployed to `SESSION_APP_NAME` via hooks when the Claude Code session stops. Manual deployment is not required in this case.
 
-## 必須: CLI による状態確認
+## Required: Verify State via CLI
 
-**作業を始める前に必ず CLI で現在の状態を確認してください。** 推測で作業を進めないでください。
+**Always verify current state via CLI before starting work.** Do not proceed based on assumptions.
 
-### 1. アプリの状態確認（必須）
+### 1. Check App State (Required)
 
 ```bash
-# アプリ情報を取得（state, service principal, URL, active deployment, resources, user_api_scopes）
+# Get app info (state, service principal, URL, active deployment, resources, user_api_scopes)
 databricks apps get $SESSION_APP_NAME -o json
 ```
 
-確認すべきフィールド:
+Fields to check:
 - `compute_status.state`: ACTIVE, STOPPED, ERROR
 - `active_deployment.status.state`: SUCCEEDED, FAILED, IN_PROGRESS
-- `resources`: 設定されているリソース
-- `user_api_scopes`: 設定されているユーザー代理認可スコープ
-- `service_principal_name`: 権限付与に必要（ユーザー代理認可で対応できない場合のみ）
+- `resources`: Configured resources
+- `user_api_scopes`: Configured user-on-behalf-of authorization scopes
+- `service_principal_name`: Needed for permission grants (only when user-on-behalf-of cannot handle the operation)
 
-### 2. デプロイメント履歴の確認
+### 2. Check Deployment History
 
 ```bash
-# 最近のデプロイメント一覧
+# List recent deployments
 databricks apps list-deployments $SESSION_APP_NAME -o json
 ```
 
-### 3. ログの確認（問題発生時は必須）
+### 3. Check Logs (Required when issues occur)
 
 ```bash
-# アプリのログ
+# App logs
 databricks api get /api/2.0/apps/$SESSION_APP_NAME/logs
 
-# デプロイメントのログ
+# Deployment logs
 databricks apps get-deployment $SESSION_APP_NAME DEPLOYMENT_ID -o json
 databricks api get /api/2.0/apps/$SESSION_APP_NAME/deployments/DEPLOYMENT_ID/logs
 ```
 
-**重要**: エラーが発生した場合、ログを確認せずに原因を推測しないでください。
+**Important**: When errors occur, do not guess the cause without checking logs.
 
 ## Common Tasks
 
@@ -237,13 +257,13 @@ databricks apps stop $SESSION_APP_NAME --no-wait
 databricks apps start $SESSION_APP_NAME
 ```
 
-### ユーザー代理認可で SQL Warehouse にアクセス
+### Access SQL Warehouse via User-on-behalf-of Authorization
 
 ```bash
-# 1. 現在の設定を確認
+# 1. Check current settings
 databricks apps get $SESSION_APP_NAME -o json
 
-# 2. user_api_scopes と resources を設定
+# 2. Set user_api_scopes and resources
 databricks apps update $SESSION_APP_NAME --json '{
   "user_api_scopes": ["sql"],
   "resources": [
@@ -257,18 +277,18 @@ databricks apps update $SESSION_APP_NAME --json '{
   ]
 }'
 
-# 3. アプリを再起動して設定を反映
+# 3. Restart app to apply settings
 databricks apps stop $SESSION_APP_NAME --no-wait
 databricks apps start $SESSION_APP_NAME
 ```
 
-### ユーザー代理認可で Unity Catalog にアクセス
+### Access Unity Catalog via User-on-behalf-of Authorization
 
 ```bash
-# 1. 現在の設定を確認
+# 1. Check current settings
 databricks apps get $SESSION_APP_NAME -o json
 
-# 2. user_api_scopes と resources を設定
+# 2. Set user_api_scopes and resources
 databricks apps update $SESSION_APP_NAME --json '{
   "user_api_scopes": ["sql", "unity-catalog"],
   "resources": [
@@ -290,15 +310,15 @@ databricks apps update $SESSION_APP_NAME --json '{
   ]
 }'
 
-# 3. アプリを再起動して設定を反映
+# 3. Restart app to apply settings
 databricks apps stop $SESSION_APP_NAME --no-wait
 databricks apps start $SESSION_APP_NAME
 ```
 
-### Grant SQL Warehouse Access（Service Principal - ユーザー代理認可で対応できない場合のみ）
+### Grant SQL Warehouse Access (Service Principal - only when user-on-behalf-of cannot handle)
 
 ```bash
-# 1. リソースを紐付け
+# 1. Bind resource
 databricks apps update $SESSION_APP_NAME --json '{
   "resources": [
     {
@@ -311,10 +331,10 @@ databricks apps update $SESSION_APP_NAME --json '{
   ]
 }'
 
-# 2. Service Principal 名を取得
+# 2. Get Service Principal name
 databricks apps get $SESSION_APP_NAME -o json | jq -r '.service_principal_name'
 
-# 3. Service Principal に権限付与
+# 3. Grant permissions to Service Principal
 databricks warehouses update-permissions WAREHOUSE_ID --json '{
   "access_control_list": [
     {
@@ -325,10 +345,10 @@ databricks warehouses update-permissions WAREHOUSE_ID --json '{
 }'
 ```
 
-### Grant Unity Catalog Access（Service Principal - ユーザー代理認可で対応できない場合のみ）
+### Grant Unity Catalog Access (Service Principal - only when user-on-behalf-of cannot handle)
 
 ```bash
-# 1. リソースを紐付け
+# 1. Bind resource
 databricks apps update $SESSION_APP_NAME --json '{
   "resources": [
     {
@@ -342,7 +362,7 @@ databricks apps update $SESSION_APP_NAME --json '{
   ]
 }'
 
-# 2. Service Principal に SQL で権限付与
+# 2. Grant permissions to Service Principal via SQL
 ```
 
 ```sql
@@ -354,26 +374,26 @@ GRANT SELECT ON TABLE catalog_name.schema_name.table_name TO `service_principal_
 ## Troubleshooting Decision Tree
 
 1. **Deployment failed?**
-   - **必ずログを確認**: `databricks api get /api/2.0/apps/$SESSION_APP_NAME/deployments/DEPLOYMENT_ID/logs`
+   - **Always check logs**: `databricks api get /api/2.0/apps/$SESSION_APP_NAME/deployments/DEPLOYMENT_ID/logs`
    - Check deployment status message
    - Verify app.yaml syntax
    - Check requirements.txt completeness
    - See [troubleshooting.md](references/troubleshooting.md)
 
 2. **Permission errors?**
-   - **まず `databricks apps get` で `user_api_scopes` と `resources` を確認**
-   - scope 設定が正しいか確認
-   - resources 設定が正しいか確認
-   - **ユーザー代理認可で対応できない場合のみ** Service Principal への権限付与を検討
+   - **First check `user_api_scopes` and `resources` via `databricks apps get`**
+   - Verify scope settings are correct
+   - Verify resources settings are correct
+   - **Only consider Service Principal permission grants when user-on-behalf-of cannot handle**
 
 3. **App not accessible?**
-   - **CLI で状態確認**: `databricks apps get $SESSION_APP_NAME -o json`
+   - **Check state via CLI**: `databricks apps get $SESSION_APP_NAME -o json`
    - Check `compute_status.state` is ACTIVE
    - Verify deployment succeeded
    - Try restarting the app
 
 4. **App crashes on startup?**
-   - **ログを確認**: `databricks api get /api/2.0/apps/$SESSION_APP_NAME/logs`
+   - **Check logs**: `databricks api get /api/2.0/apps/$SESSION_APP_NAME/logs`
    - Verify app binds to `APP_PORT` env var
    - Check for import errors in code
    - Review app.yaml command configuration

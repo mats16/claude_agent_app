@@ -409,6 +409,21 @@ body {
   margin: 0.75em 0;
 }
 
+/* Terminal Container - ensure ghostty-web fills available space */
+.terminal-container {
+  position: relative;
+}
+
+.terminal-container > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.terminal-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* Claude Code Settings Modal */
 .claude-code-settings-modal .ant-modal-content {
   background-color: var(--color-background) !important;

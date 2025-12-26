@@ -51,6 +51,8 @@ export default function TerminalPage() {
   const terminalInstanceRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  // Connection ID to track and invalidate stale connections (StrictMode protection)
+  const connectionIdRef = useRef(0);
   const [isConnected, setIsConnected] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [cwd, setCwd] = useState<string>('');
@@ -59,12 +61,44 @@ export default function TerminalPage() {
   const connect = useCallback(async () => {
     if (!sessionId || !terminalRef.current) return;
 
+    // Increment connection ID to invalidate any previous connection's events
+    const thisConnectionId = ++connectionIdRef.current;
+    console.log(`Terminal starting connection #${thisConnectionId}`);
+
     setIsInitializing(true);
     setError(null);
+
+    // Clean up any existing instances before creating new ones
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+    if (terminalInstanceRef.current) {
+      terminalInstanceRef.current.dispose();
+      terminalInstanceRef.current = null;
+    }
+    if (wsRef.current) {
+      // Remove handlers before closing to prevent stale events
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    // Clear the container
+    terminalRef.current.innerHTML = '';
 
     try {
       // Initialize ghostty-web WASM
       await init();
+
+      // Check if this connection is still valid (not superseded by a newer one)
+      if (thisConnectionId !== connectionIdRef.current) {
+        console.log(
+          `Terminal connection #${thisConnectionId} superseded, aborting`
+        );
+        return;
+      }
 
       // Create terminal instance
       const term = new Terminal({
@@ -85,10 +119,14 @@ export default function TerminalPage() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('Terminal WebSocket connected');
+        if (thisConnectionId !== connectionIdRef.current) return;
+        console.log(`Terminal WebSocket connected (#${thisConnectionId})`);
       };
 
       ws.onmessage = (event) => {
+        // Ignore messages from stale connections
+        if (thisConnectionId !== connectionIdRef.current) return;
+
         try {
           const message = JSON.parse(event.data) as TerminalMessage;
 
@@ -128,6 +166,7 @@ export default function TerminalPage() {
       };
 
       ws.onerror = (event) => {
+        if (thisConnectionId !== connectionIdRef.current) return;
         console.error('Terminal WebSocket error:', event);
         setError('Connection error');
         setIsConnected(false);
@@ -135,12 +174,15 @@ export default function TerminalPage() {
       };
 
       ws.onclose = () => {
-        console.log('Terminal WebSocket closed');
+        if (thisConnectionId !== connectionIdRef.current) return;
+        console.log(`Terminal WebSocket closed (#${thisConnectionId})`);
         setIsConnected(false);
       };
 
       // Send terminal input to WebSocket
       term.onData((data: string) => {
+        // Only send if this is still the active connection
+        if (thisConnectionId !== connectionIdRef.current) return;
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'input', data }));
         }
@@ -148,7 +190,8 @@ export default function TerminalPage() {
 
       // Handle terminal resize
       const sendResize = () => {
-        if (ws.readyState === WebSocket.OPEN && terminalRef.current) {
+        if (thisConnectionId !== connectionIdRef.current) return;
+        if (terminalRef.current) {
           // Get the terminal dimensions
           const container = terminalRef.current;
           const style = getComputedStyle(container);
@@ -168,7 +211,17 @@ export default function TerminalPage() {
           const rows = Math.floor(height / charHeight);
 
           if (cols > 0 && rows > 0) {
-            ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+            // Resize the terminal view
+            try {
+              term.resize(cols, rows);
+            } catch (e) {
+              // Ignore resize errors
+            }
+
+            // Send resize to backend PTY
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+            }
           }
         }
       };
@@ -179,8 +232,10 @@ export default function TerminalPage() {
       });
       resizeObserverRef.current.observe(terminalRef.current);
 
-      // Initial resize after connection
+      // Initial resize - call immediately and also with a delay to ensure it takes effect
+      sendResize();
       setTimeout(sendResize, 100);
+      setTimeout(sendResize, 500);
     } catch (e) {
       console.error('Failed to initialize terminal:', e);
       setError('Failed to initialize terminal');
@@ -190,12 +245,18 @@ export default function TerminalPage() {
 
   // Cleanup function
   const cleanup = useCallback(() => {
+    // Invalidate any active connection
+    connectionIdRef.current++;
+
     if (resizeObserverRef.current) {
       resizeObserverRef.current.disconnect();
       resizeObserverRef.current = null;
     }
 
     if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onmessage = null;
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -211,10 +272,6 @@ export default function TerminalPage() {
   // Reconnect function
   const handleReconnect = useCallback(() => {
     cleanup();
-    // Clear the terminal container
-    if (terminalRef.current) {
-      terminalRef.current.innerHTML = '';
-    }
     connect();
   }, [cleanup, connect]);
 
@@ -337,6 +394,7 @@ export default function TerminalPage() {
 
         <div
           ref={terminalRef}
+          className="terminal-container"
           style={{
             width: '100%',
             height: '100%',

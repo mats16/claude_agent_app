@@ -44,13 +44,68 @@ const terminalWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Get the agent's local working directory
-      // Validate that the directory exists, fallback to HOME
-      let cwd = session.agentLocalPath || process.env.HOME;
-      if (!cwd || !fs.existsSync(cwd)) {
-        console.warn(
-          `Terminal cwd does not exist: ${cwd}, falling back to HOME`
+      // Validate that the directory exists, recreate if needed, fallback to HOME
+      const agentPath = session.agentLocalPath;
+      const homePath = process.env.HOME;
+      let cwd: string;
+
+      // Helper to check if a path is a valid, accessible directory
+      const isValidDirectory = (p: string | undefined): p is string => {
+        if (!p) return false;
+        try {
+          const stat = fs.statSync(p);
+          return stat.isDirectory();
+        } catch {
+          return false;
+        }
+      };
+
+      if (isValidDirectory(agentPath)) {
+        cwd = agentPath;
+        console.log(`Terminal using agentLocalPath: "${cwd}"`);
+      } else if (agentPath) {
+        // agentLocalPath is set but doesn't exist - try to recreate it
+        try {
+          fs.mkdirSync(agentPath, { recursive: true });
+          cwd = agentPath;
+          console.log(`Terminal recreated agentLocalPath: "${cwd}"`);
+        } catch (mkdirError) {
+          console.warn(
+            `Terminal failed to recreate agentLocalPath: ${agentPath}`,
+            mkdirError
+          );
+          cwd = homePath || '/tmp';
+        }
+      } else {
+        cwd = homePath || '/tmp';
+        console.log(`Terminal using fallback HOME: "${cwd}"`);
+      }
+
+      // Final validation
+      if (!isValidDirectory(cwd)) {
+        console.error(`Terminal final cwd is not a valid directory: "${cwd}"`);
+        socket.send(
+          JSON.stringify({
+            type: 'error',
+            error: `Working directory is not accessible: ${cwd}`,
+          })
         );
-        cwd = process.env.HOME!;
+        socket.close();
+        return;
+      }
+
+      // Determine shell to use
+      const shell = process.env.SHELL || '/bin/bash';
+      if (!fs.existsSync(shell)) {
+        console.error(`Terminal shell does not exist: ${shell}`);
+        socket.send(
+          JSON.stringify({
+            type: 'error',
+            error: `Shell not found: ${shell}`,
+          })
+        );
+        socket.close();
+        return;
       }
 
       // Check if terminal session already exists for this session
@@ -58,31 +113,70 @@ const terminalWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!terminalSession) {
         // Create new PTY
-        const shell = process.env.SHELL || '/bin/bash';
-
         let ptyProcess: pty.IPty;
-        try {
-          ptyProcess = pty.spawn(shell, [], {
+        let usedCwd = cwd;
+
+        const spawnPty = (workingDir: string): pty.IPty => {
+          console.log(
+            `Terminal spawning PTY: shell="${shell}", cwd="${workingDir}"`
+          );
+          return pty.spawn(shell, [], {
             name: 'xterm-256color',
             cols: 80,
             rows: 24,
-            cwd,
+            cwd: workingDir,
             env: {
               ...process.env,
               TERM: 'xterm-256color',
             } as Record<string, string>,
           });
+        };
+
+        try {
+          ptyProcess = spawnPty(cwd);
         } catch (spawnError: any) {
-          console.error('Failed to spawn PTY:', spawnError);
-          socket.send(
-            JSON.stringify({
-              type: 'error',
-              error: `Failed to start terminal: ${spawnError.message}`,
-            })
+          console.error(
+            `Failed to spawn PTY with cwd="${cwd}":`,
+            spawnError.message
           );
-          socket.close();
-          return;
+
+          // Try fallback to HOME if different from original cwd
+          const fallbackCwd = process.env.HOME || '/tmp';
+          if (fallbackCwd !== cwd && isValidDirectory(fallbackCwd)) {
+            try {
+              console.log(
+                `Retrying PTY spawn with fallback cwd="${fallbackCwd}"`
+              );
+              ptyProcess = spawnPty(fallbackCwd);
+              usedCwd = fallbackCwd;
+            } catch (fallbackError: any) {
+              console.error(
+                `Failed to spawn PTY with fallback cwd="${fallbackCwd}":`,
+                fallbackError.message
+              );
+              socket.send(
+                JSON.stringify({
+                  type: 'error',
+                  error: `Failed to start terminal: ${fallbackError.message}`,
+                })
+              );
+              socket.close();
+              return;
+            }
+          } else {
+            socket.send(
+              JSON.stringify({
+                type: 'error',
+                error: `Failed to start terminal: ${spawnError.message}`,
+              })
+            );
+            socket.close();
+            return;
+          }
         }
+
+        // Update cwd to what was actually used
+        cwd = usedCwd;
 
         terminalSession = {
           pty: ptyProcess,

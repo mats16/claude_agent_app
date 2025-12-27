@@ -1,34 +1,48 @@
 /**
  * Preset subagent import modal component
- * Displays list of available presets for import
+ * Displays list of available agents from Databricks GitHub repository
  */
 
 import { useTranslation } from 'react-i18next';
-import { Modal, List, Flex, Spin, Typography, Empty, Tag } from 'antd';
-import type { PresetSubagent } from '../../hooks/useSubagents';
+import {
+  Modal,
+  List,
+  Flex,
+  Spin,
+  Typography,
+  Empty,
+  Tag,
+  Alert,
+} from 'antd';
+import { GithubOutlined } from '@ant-design/icons';
+import type { GitHubSubagent } from '../../hooks/useSubagents';
 import { colors, spacing } from '../../styles/theme';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 interface PresetSubagentImportModalProps {
   isOpen: boolean;
-  presetSubagents: PresetSubagent[];
-  selectedPreset: string | null;
+  databricksAgents: GitHubSubagent[];
+  selectedAgent: string | null;
   loading: boolean;
+  error: string | null;
+  cached: boolean;
   isSaving: boolean;
   onClose: () => void;
-  onSelectPreset: (presetName: string) => void;
+  onSelectAgent: (agentName: string) => void;
   onImport: () => void;
 }
 
 export default function PresetSubagentImportModal({
   isOpen,
-  presetSubagents,
-  selectedPreset,
+  databricksAgents,
+  selectedAgent,
   loading,
+  error,
+  cached,
   isSaving,
   onClose,
-  onSelectPreset,
+  onSelectAgent,
   onImport,
 }: PresetSubagentImportModalProps) {
   const { t } = useTranslation();
@@ -41,26 +55,51 @@ export default function PresetSubagentImportModal({
       onOk={onImport}
       okText={t('subagentModal.import')}
       cancelText={t('subagentModal.cancel')}
-      okButtonProps={{ disabled: !selectedPreset, loading: isSaving }}
+      okButtonProps={{ disabled: !selectedAgent, loading: isSaving }}
       cancelButtonProps={{ disabled: isSaving }}
       width={600}
     >
+      <Flex align="center" gap={spacing.sm} style={{ marginBottom: spacing.md }}>
+        <GithubOutlined />
+        <Title level={5} style={{ margin: 0 }}>
+          {t('subagentModal.databricksAgents')}
+        </Title>
+        {cached && (
+          <Text type="secondary" style={{ fontSize: '11px' }}>
+            {t('subagentModal.cachedData')}
+          </Text>
+        )}
+      </Flex>
+
+      {error && (
+        <Alert
+          type="error"
+          message={
+            error === 'RATE_LIMITED'
+              ? t('subagentModal.rateLimitError')
+              : t('subagentModal.networkError')
+          }
+          style={{ marginBottom: spacing.md }}
+        />
+      )}
+
       {loading ? (
         <Flex justify="center" align="center" style={{ padding: spacing.xxl }}>
           <Spin />
         </Flex>
-      ) : presetSubagents.length === 0 ? (
-        <Empty description={t('subagentModal.noPresets')} />
+      ) : databricksAgents.length === 0 ? (
+        <Empty description={t('subagentModal.noDatabricksAgents')} />
       ) : (
         <List
-          dataSource={presetSubagents}
-          renderItem={(preset) => {
-            const isSelected = selectedPreset === preset.name;
+          dataSource={databricksAgents}
+          style={{ maxHeight: 400, overflowY: 'auto' }}
+          renderItem={(agent) => {
+            const isSelected = selectedAgent === agent.name;
 
             return (
               <List.Item
-                key={preset.name}
-                onClick={() => onSelectPreset(preset.name)}
+                key={agent.name}
+                onClick={() => onSelectAgent(agent.name)}
                 style={{
                   cursor: 'pointer',
                   padding: `${spacing.md}px ${spacing.lg}px`,
@@ -79,19 +118,19 @@ export default function PresetSubagentImportModal({
                         strong={isSelected}
                         style={{ fontFamily: 'monospace' }}
                       >
-                        {preset.name}
+                        {agent.name}
                       </Text>
-                      {preset.model && (
+                      {agent.model && (
                         <Tag color="blue" style={{ marginLeft: spacing.xs }}>
-                          {preset.model}
+                          {agent.model}
                         </Tag>
                       )}
                     </Flex>
                   }
                   description={
                     <div>
-                      <div>{preset.description}</div>
-                      {preset.tools && (
+                      <div>{agent.description}</div>
+                      {agent.tools && (
                         <Text
                           type="secondary"
                           style={{
@@ -101,7 +140,7 @@ export default function PresetSubagentImportModal({
                             display: 'block',
                           }}
                         >
-                          Tools: {preset.tools}
+                          Tools: {agent.tools}
                         </Text>
                       )}
                     </div>

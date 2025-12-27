@@ -321,7 +321,11 @@ export async function importPresetSkill(
   presetName: string
 ): Promise<Skill> {
   // Use importGitHubSkill with this repository's skills path
-  return importGitHubSkill(user, PRESET_REPO, `${PRESET_SKILLS_PATH}/${presetName}`);
+  return importGitHubSkill(
+    user,
+    PRESET_REPO,
+    `${PRESET_SKILLS_PATH}/${presetName}`
+  );
 }
 
 // Validate skill name format

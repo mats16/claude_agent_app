@@ -1,79 +1,82 @@
 /**
  * Preset skill import modal component
- * Displays list of available presets and GitHub skills for import
+ * Displays list of available skills from Databricks and Anthropic GitHub repositories
  */
 
 import { useTranslation } from 'react-i18next';
 import { Modal, List, Flex, Spin, Typography, Empty, Tabs, Alert } from 'antd';
-import { GithubOutlined, FolderOutlined } from '@ant-design/icons';
-import type { PresetSkill, GitHubSkill } from '../../hooks/useSkills';
+import { GithubOutlined } from '@ant-design/icons';
+import type { GitHubSkill } from '../../hooks/useSkills';
 import { colors, spacing } from '../../styles/theme';
 
 const { Text } = Typography;
 
-export type ImportTab = 'local' | 'github';
+export type ImportTab = 'databricks' | 'anthropic';
 
 interface PresetImportModalProps {
   isOpen: boolean;
-  // Local presets
-  presetSkills: PresetSkill[];
-  selectedPreset: string | null;
-  loading: boolean;
-  // GitHub skills
-  githubSkills: GitHubSkill[];
-  selectedGitHubSkill: string | null;
-  githubLoading: boolean;
-  githubError: string | null;
-  githubCached: boolean;
+  // Databricks skills
+  databricksSkills: GitHubSkill[];
+  selectedDatabricksSkill: string | null;
+  databricksLoading: boolean;
+  databricksError: string | null;
+  databricksCached: boolean;
+  // Anthropic skills
+  anthropicSkills: GitHubSkill[];
+  selectedAnthropicSkill: string | null;
+  anthropicLoading: boolean;
+  anthropicError: string | null;
+  anthropicCached: boolean;
   // Common
   isSaving: boolean;
   activeTab: ImportTab;
   onClose: () => void;
-  onSelectPreset: (presetName: string) => void;
-  onSelectGitHubSkill: (skillName: string) => void;
-  onImportPreset: () => void;
-  onImportGitHubSkill: () => void;
+  onSelectDatabricksSkill: (skillName: string) => void;
+  onSelectAnthropicSkill: (skillName: string) => void;
+  onImportDatabricksSkill: () => void;
+  onImportAnthropicSkill: () => void;
   onTabChange: (tab: ImportTab) => void;
 }
 
 export default function PresetImportModal({
   isOpen,
-  presetSkills,
-  selectedPreset,
-  loading,
-  githubSkills,
-  selectedGitHubSkill,
-  githubLoading,
-  githubError,
-  githubCached,
+  databricksSkills,
+  selectedDatabricksSkill,
+  databricksLoading,
+  databricksError,
+  databricksCached,
+  anthropicSkills,
+  selectedAnthropicSkill,
+  anthropicLoading,
+  anthropicError,
+  anthropicCached,
   isSaving,
   activeTab,
   onClose,
-  onSelectPreset,
-  onSelectGitHubSkill,
-  onImportPreset,
-  onImportGitHubSkill,
+  onSelectDatabricksSkill,
+  onSelectAnthropicSkill,
+  onImportDatabricksSkill,
+  onImportAnthropicSkill,
   onTabChange,
 }: PresetImportModalProps) {
   const { t } = useTranslation();
 
   const handleImport = () => {
-    if (activeTab === 'local') {
-      onImportPreset();
+    if (activeTab === 'databricks') {
+      onImportDatabricksSkill();
     } else {
-      onImportGitHubSkill();
+      onImportAnthropicSkill();
     }
   };
 
   const isImportDisabled =
-    activeTab === 'local' ? !selectedPreset : !selectedGitHubSkill;
+    activeTab === 'databricks' ? !selectedDatabricksSkill : !selectedAnthropicSkill;
 
   const renderSkillList = (
-    skills: (PresetSkill | GitHubSkill)[],
+    skills: GitHubSkill[],
     selectedName: string | null,
     onSelect: (name: string) => void,
-    emptyMessage: string,
-    showVersion: boolean = true
+    emptyMessage: string
   ) => {
     if (skills.length === 0) {
       return <Empty description={emptyMessage} />;
@@ -110,7 +113,7 @@ export default function PresetImportModal({
                     >
                       {skill.name}
                     </Text>
-                    {showVersion && (
+                    {skill.version && (
                       <Text
                         type="secondary"
                         style={{ fontSize: '12px', fontFamily: 'monospace' }}
@@ -131,34 +134,12 @@ export default function PresetImportModal({
 
   const tabItems = [
     {
-      key: 'local',
-      label: (
-        <Flex align="center" gap={spacing.xs}>
-          <FolderOutlined />
-          {t('skillsModal.localPresets')}
-        </Flex>
-      ),
-      children: loading ? (
-        <Flex justify="center" align="center" style={{ padding: spacing.xxl }}>
-          <Spin />
-        </Flex>
-      ) : (
-        renderSkillList(
-          presetSkills,
-          selectedPreset,
-          onSelectPreset,
-          t('skillsModal.noPresets'),
-          true
-        )
-      ),
-    },
-    {
-      key: 'github',
+      key: 'databricks',
       label: (
         <Flex align="center" gap={spacing.xs}>
           <GithubOutlined />
-          {t('skillsModal.githubSkills')}
-          {githubCached && (
+          {t('skillsModal.databricksSkills')}
+          {databricksCached && (
             <Text
               type="secondary"
               style={{ fontSize: '11px', marginLeft: spacing.xs }}
@@ -170,18 +151,18 @@ export default function PresetImportModal({
       ),
       children: (
         <>
-          {githubError && (
+          {databricksError && (
             <Alert
               type="error"
               message={
-                githubError === 'RATE_LIMITED'
+                databricksError === 'RATE_LIMITED'
                   ? t('skillsModal.rateLimitError')
                   : t('skillsModal.networkError')
               }
               style={{ marginBottom: spacing.md }}
             />
           )}
-          {githubLoading ? (
+          {databricksLoading ? (
             <Flex
               justify="center"
               align="center"
@@ -191,11 +172,58 @@ export default function PresetImportModal({
             </Flex>
           ) : (
             renderSkillList(
-              githubSkills,
-              selectedGitHubSkill,
-              onSelectGitHubSkill,
-              t('skillsModal.noGitHubSkills'),
-              false
+              databricksSkills,
+              selectedDatabricksSkill,
+              onSelectDatabricksSkill,
+              t('skillsModal.noDatabricksSkills')
+            )
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'anthropic',
+      label: (
+        <Flex align="center" gap={spacing.xs}>
+          <GithubOutlined />
+          {t('skillsModal.anthropicSkills')}
+          {anthropicCached && (
+            <Text
+              type="secondary"
+              style={{ fontSize: '11px', marginLeft: spacing.xs }}
+            >
+              {t('skillsModal.cachedData')}
+            </Text>
+          )}
+        </Flex>
+      ),
+      children: (
+        <>
+          {anthropicError && (
+            <Alert
+              type="error"
+              message={
+                anthropicError === 'RATE_LIMITED'
+                  ? t('skillsModal.rateLimitError')
+                  : t('skillsModal.networkError')
+              }
+              style={{ marginBottom: spacing.md }}
+            />
+          )}
+          {anthropicLoading ? (
+            <Flex
+              justify="center"
+              align="center"
+              style={{ padding: spacing.xxl }}
+            >
+              <Spin />
+            </Flex>
+          ) : (
+            renderSkillList(
+              anthropicSkills,
+              selectedAnthropicSkill,
+              onSelectAnthropicSkill,
+              t('skillsModal.noAnthropicSkills')
             )
           )}
         </>

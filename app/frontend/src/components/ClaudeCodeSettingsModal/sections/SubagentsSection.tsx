@@ -22,15 +22,20 @@ export default function SubagentsSection({ isVisible }: SubagentsSectionProps) {
   const { t } = useTranslation();
   const {
     subagents,
-    presetSubagents,
     loading,
     error,
+    // Databricks agents
+    databricksAgents,
+    databricksLoading,
+    databricksError,
+    databricksCached,
+    // Actions
     fetchSubagents,
     createSubagent,
     updateSubagent,
     deleteSubagent,
-    fetchPresetSubagents,
-    importPresetSubagent,
+    fetchDatabricksAgents,
+    importDatabricksAgent,
   } = useSubagents();
 
   // Selection state
@@ -52,7 +57,9 @@ export default function SubagentsSection({ isVisible }: SubagentsSectionProps) {
   // UI state
   const [isSaving, setIsSaving] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [selectedDatabricksAgent, setSelectedDatabricksAgent] = useState<
+    string | null
+  >(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Fetch subagents when section becomes visible
@@ -62,12 +69,12 @@ export default function SubagentsSection({ isVisible }: SubagentsSectionProps) {
     }
   }, [isVisible, fetchSubagents]);
 
-  // Fetch preset subagents when import modal opens
+  // Fetch Databricks agents when import modal opens
   useEffect(() => {
     if (isImportModalOpen) {
-      fetchPresetSubagents();
+      fetchDatabricksAgents();
     }
-  }, [isImportModalOpen, fetchPresetSubagents]);
+  }, [isImportModalOpen, fetchDatabricksAgents]);
 
   // Update edited fields when selected subagent changes
   useEffect(() => {
@@ -234,30 +241,26 @@ export default function SubagentsSection({ isVisible }: SubagentsSectionProps) {
     }
   }, [isCreating, selectedSubagent]);
 
-  const handleImportPreset = useCallback(async () => {
-    if (!selectedPreset) return;
+  const handleImportDatabricksAgent = useCallback(async () => {
+    if (!selectedDatabricksAgent) return;
 
     setIsSaving(true);
-    const success = await importPresetSubagent(selectedPreset);
+    const success = await importDatabricksAgent(selectedDatabricksAgent);
     setIsSaving(false);
 
     if (success) {
       message.success(t('subagentModal.importSuccess'));
       setIsImportModalOpen(false);
-      setSelectedPreset(null);
-      // Select the newly imported subagent
-      const importedSubagent = subagents.find((s) => s.name === selectedPreset);
-      if (importedSubagent) {
-        setSelectedSubagent(importedSubagent);
-      }
+      setSelectedDatabricksAgent(null);
+      await fetchSubagents();
     } else {
       message.error(t('subagentModal.importFailed'));
     }
-  }, [selectedPreset, importPresetSubagent, subagents, t]);
+  }, [selectedDatabricksAgent, importDatabricksAgent, fetchSubagents, t]);
 
   const handleCloseImportModal = useCallback(() => {
     setIsImportModalOpen(false);
-    setSelectedPreset(null);
+    setSelectedDatabricksAgent(null);
   }, []);
 
   const hasChanges = isCreating
@@ -310,13 +313,15 @@ export default function SubagentsSection({ isVisible }: SubagentsSectionProps) {
 
       <PresetSubagentImportModal
         isOpen={isImportModalOpen}
-        presetSubagents={presetSubagents}
-        selectedPreset={selectedPreset}
-        loading={loading}
+        databricksAgents={databricksAgents}
+        selectedAgent={selectedDatabricksAgent}
+        loading={databricksLoading}
+        error={databricksError}
+        cached={databricksCached}
         isSaving={isSaving}
         onClose={handleCloseImportModal}
-        onSelectPreset={setSelectedPreset}
-        onImport={handleImportPreset}
+        onSelectAgent={setSelectedDatabricksAgent}
+        onImport={handleImportDatabricksAgent}
       />
     </>
   );

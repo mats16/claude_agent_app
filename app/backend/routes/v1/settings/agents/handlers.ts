@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../../utils/headers.js';
 import * as subagentService from '../../../../services/subagentService.js';
+import { parseGitHubRepo } from '../../../../services/gitHubClient.js';
 
 // List all subagents
 export async function listSubagentsHandler(
@@ -224,9 +225,11 @@ export async function listPresetSubagentsHandler(
   }
 }
 
-// Import a preset subagent to user's subagents
-export async function importPresetSubagentHandler(
-  request: FastifyRequest<{ Params: { presetName: string } }>,
+// Import a subagent from GitHub repository
+export async function importGitHubSubagentHandler(
+  request: FastifyRequest<{
+    Body: { repo: string; path?: string; branch?: string };
+  }>,
   reply: FastifyReply
 ) {
   let context;
@@ -236,24 +239,37 @@ export async function importPresetSubagentHandler(
     return reply.status(400).send({ error: error.message });
   }
 
-  const { presetName } = request.params;
+  const { repo, path = '', branch } = request.body;
 
-  // Validate preset name
-  if (!subagentService.isValidSubagentName(presetName)) {
-    return reply.status(400).send({ error: 'Invalid preset name' });
+  // Validate required fields
+  if (!repo || typeof repo !== 'string') {
+    return reply.status(400).send({ error: 'repo is required' });
+  }
+
+  // Parse and validate repository URL
+  const repoName = parseGitHubRepo(repo);
+  if (!repoName) {
+    return reply
+      .status(400)
+      .send({ error: 'Invalid repo format. Use https://github.com/owner/repo' });
   }
 
   try {
-    const subagent = await subagentService.importPresetSubagent(
+    const subagent = await subagentService.importGitHubSubagent(
       context.user,
-      presetName
+      repoName,
+      path,
+      branch
     );
     return subagent;
   } catch (error: any) {
-    if (error.message === 'Preset subagent not found') {
+    if (
+      error.message === 'Agent file not found' ||
+      error.message === 'Subagent not found in repository'
+    ) {
       return reply.status(404).send({ error: error.message });
     }
-    console.error('Failed to import preset subagent:', error);
+    console.error('Failed to import GitHub subagent:', error);
     return reply.status(500).send({ error: error.message });
   }
 }

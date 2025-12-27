@@ -2,12 +2,9 @@
   "hooks": {
     "Stop": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd app && npm run format"
-          }
-        ]
+        "type": "command",
+        "command": "npm run format",
+        "cwd": "app"
       }
     ]
   }

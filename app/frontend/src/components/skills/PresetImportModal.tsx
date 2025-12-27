@@ -1,164 +1,242 @@
 /**
  * Preset skill import modal component
- * Displays list of available presets and GitHub skills for import
+ * Displays list of available skills from Databricks and Anthropic GitHub repositories
+ * Shows detail view when a skill is selected, with import option
  */
 
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, List, Flex, Spin, Typography, Empty, Tabs, Alert } from 'antd';
-import { GithubOutlined, FolderOutlined } from '@ant-design/icons';
-import type { PresetSkill, GitHubSkill } from '../../hooks/useSkills';
-import { colors, spacing } from '../../styles/theme';
+import {
+  Modal,
+  List,
+  Flex,
+  Spin,
+  Typography,
+  Empty,
+  Tabs,
+  Alert,
+  Button,
+  Descriptions,
+} from 'antd';
+import { GithubOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import type { PublicSkillDetail } from '../../hooks/useSkills';
+import { spacing } from '../../styles/theme';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
-export type ImportTab = 'local' | 'github';
+export type ImportTab = 'databricks' | 'anthropic';
 
 interface PresetImportModalProps {
   isOpen: boolean;
-  // Local presets
-  presetSkills: PresetSkill[];
-  selectedPreset: string | null;
-  loading: boolean;
-  // GitHub skills
-  githubSkills: GitHubSkill[];
-  selectedGitHubSkill: string | null;
-  githubLoading: boolean;
-  githubError: string | null;
-  githubCached: boolean;
+  // Databricks skills
+  databricksSkillNames: string[];
+  databricksLoading: boolean;
+  databricksError: string | null;
+  databricksCached: boolean;
+  // Anthropic skills
+  anthropicSkillNames: string[];
+  anthropicLoading: boolean;
+  anthropicError: string | null;
+  anthropicCached: boolean;
   // Common
   isSaving: boolean;
   activeTab: ImportTab;
   onClose: () => void;
-  onSelectPreset: (presetName: string) => void;
-  onSelectGitHubSkill: (skillName: string) => void;
-  onImportPreset: () => void;
-  onImportGitHubSkill: () => void;
   onTabChange: (tab: ImportTab) => void;
+  onFetchDetail: (
+    source: 'databricks' | 'anthropic',
+    skillName: string
+  ) => Promise<PublicSkillDetail | null>;
+  onImport: (detail: PublicSkillDetail) => Promise<boolean>;
 }
 
 export default function PresetImportModal({
   isOpen,
-  presetSkills,
-  selectedPreset,
-  loading,
-  githubSkills,
-  selectedGitHubSkill,
-  githubLoading,
-  githubError,
-  githubCached,
+  databricksSkillNames,
+  databricksLoading,
+  databricksError,
+  databricksCached,
+  anthropicSkillNames,
+  anthropicLoading,
+  anthropicError,
+  anthropicCached,
   isSaving,
   activeTab,
   onClose,
-  onSelectPreset,
-  onSelectGitHubSkill,
-  onImportPreset,
-  onImportGitHubSkill,
   onTabChange,
+  onFetchDetail,
+  onImport,
 }: PresetImportModalProps) {
   const { t } = useTranslation();
+  const [selectedDetail, setSelectedDetail] =
+    useState<PublicSkillDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
-  const handleImport = () => {
-    if (activeTab === 'local') {
-      onImportPreset();
+  const handleSelectSkill = async (skillName: string) => {
+    setDetailLoading(true);
+    setDetailError(null);
+
+    const detail = await onFetchDetail(activeTab, skillName);
+    if (detail) {
+      setSelectedDetail(detail);
     } else {
-      onImportGitHubSkill();
+      setDetailError(t('skillsModal.fetchDetailError'));
+    }
+    setDetailLoading(false);
+  };
+
+  const handleBack = () => {
+    setSelectedDetail(null);
+    setDetailError(null);
+  };
+
+  const handleImport = async () => {
+    if (selectedDetail) {
+      const success = await onImport(selectedDetail);
+      if (success) {
+        setSelectedDetail(null);
+        onClose();
+      }
     }
   };
 
-  const isImportDisabled =
-    activeTab === 'local' ? !selectedPreset : !selectedGitHubSkill;
+  const handleClose = () => {
+    setSelectedDetail(null);
+    setDetailError(null);
+    onClose();
+  };
 
   const renderSkillList = (
-    skills: (PresetSkill | GitHubSkill)[],
-    selectedName: string | null,
-    onSelect: (name: string) => void,
+    skillNames: string[],
     emptyMessage: string,
-    showVersion: boolean = true
+    loading: boolean,
+    error: string | null
   ) => {
-    if (skills.length === 0) {
+    if (error) {
+      return (
+        <Alert
+          type="error"
+          message={
+            error === 'RATE_LIMITED'
+              ? t('skillsModal.rateLimitError')
+              : t('skillsModal.networkError')
+          }
+          style={{ marginBottom: spacing.md }}
+        />
+      );
+    }
+
+    if (loading) {
+      return (
+        <Flex justify="center" align="center" style={{ padding: spacing.xxl }}>
+          <Spin />
+        </Flex>
+      );
+    }
+
+    if (skillNames.length === 0) {
       return <Empty description={emptyMessage} />;
     }
 
     return (
       <List
-        dataSource={skills}
+        dataSource={skillNames}
         style={{ maxHeight: 400, overflowY: 'auto' }}
-        renderItem={(skill) => {
-          const isSelected = selectedName === skill.name;
-
-          return (
-            <List.Item
-              key={skill.name}
-              onClick={() => onSelect(skill.name)}
-              style={{
-                cursor: 'pointer',
-                padding: `${spacing.md}px ${spacing.lg}px`,
-                background: isSelected
-                  ? colors.backgroundSecondary
-                  : 'transparent',
-                borderLeft: isSelected
-                  ? `3px solid ${colors.brand}`
-                  : '3px solid transparent',
-              }}
-            >
-              <List.Item.Meta
-                title={
-                  <Flex align="center" gap={spacing.sm}>
-                    <Text
-                      strong={isSelected}
-                      style={{ fontFamily: 'monospace' }}
-                    >
-                      {skill.name}
-                    </Text>
-                    {showVersion && (
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: '12px', fontFamily: 'monospace' }}
-                      >
-                        v{skill.version}
-                      </Text>
-                    )}
-                  </Flex>
-                }
-                description={skill.description}
-              />
-            </List.Item>
-          );
-        }}
+        renderItem={(name) => (
+          <List.Item
+            key={name}
+            onClick={() => handleSelectSkill(name)}
+            style={{
+              cursor: 'pointer',
+              padding: `${spacing.md}px ${spacing.lg}px`,
+            }}
+            className="skill-list-item"
+          >
+            <Text style={{ fontFamily: 'monospace' }}>{name}</Text>
+          </List.Item>
+        )}
       />
+    );
+  };
+
+  const renderDetailView = () => {
+    if (detailLoading) {
+      return (
+        <Flex justify="center" align="center" style={{ padding: spacing.xxl }}>
+          <Spin />
+        </Flex>
+      );
+    }
+
+    if (detailError) {
+      return (
+        <>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={handleBack}
+            style={{ marginBottom: spacing.md }}
+          >
+            {t('skillsModal.back')}
+          </Button>
+          <Alert type="error" message={detailError} />
+        </>
+      );
+    }
+
+    if (!selectedDetail) {
+      return null;
+    }
+
+    return (
+      <>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={handleBack}
+          style={{ marginBottom: spacing.md }}
+        >
+          {t('skillsModal.back')}
+        </Button>
+        <Title level={5} style={{ marginBottom: spacing.md }}>
+          {selectedDetail.name}
+        </Title>
+        <Descriptions column={1} size="small" bordered>
+          <Descriptions.Item label={t('skillsModal.detailName')}>
+            <Text style={{ fontFamily: 'monospace' }}>
+              {selectedDetail.name}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label={t('skillsModal.detailDescription')}>
+            {selectedDetail.description || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label={t('skillsModal.detailVersion')}>
+            <Text style={{ fontFamily: 'monospace' }}>
+              {selectedDetail.version}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label={t('skillsModal.detailRepo')}>
+            <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+              {selectedDetail.repo}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label={t('skillsModal.detailPath')}>
+            <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+              {selectedDetail.path}
+            </Text>
+          </Descriptions.Item>
+        </Descriptions>
+      </>
     );
   };
 
   const tabItems = [
     {
-      key: 'local',
-      label: (
-        <Flex align="center" gap={spacing.xs}>
-          <FolderOutlined />
-          {t('skillsModal.localPresets')}
-        </Flex>
-      ),
-      children: loading ? (
-        <Flex justify="center" align="center" style={{ padding: spacing.xxl }}>
-          <Spin />
-        </Flex>
-      ) : (
-        renderSkillList(
-          presetSkills,
-          selectedPreset,
-          onSelectPreset,
-          t('skillsModal.noPresets'),
-          true
-        )
-      ),
-    },
-    {
-      key: 'github',
+      key: 'databricks',
       label: (
         <Flex align="center" gap={spacing.xs}>
           <GithubOutlined />
-          {t('skillsModal.githubSkills')}
-          {githubCached && (
+          {t('skillsModal.databricksSkills')}
+          {databricksCached && (
             <Text
               type="secondary"
               style={{ fontSize: '11px', marginLeft: spacing.xs }}
@@ -168,58 +246,72 @@ export default function PresetImportModal({
           )}
         </Flex>
       ),
-      children: (
-        <>
-          {githubError && (
-            <Alert
-              type="error"
-              message={
-                githubError === 'RATE_LIMITED'
-                  ? t('skillsModal.rateLimitError')
-                  : t('skillsModal.networkError')
-              }
-              style={{ marginBottom: spacing.md }}
-            />
-          )}
-          {githubLoading ? (
-            <Flex
-              justify="center"
-              align="center"
-              style={{ padding: spacing.xxl }}
+      children: renderSkillList(
+        databricksSkillNames,
+        t('skillsModal.noDatabricksSkills'),
+        databricksLoading,
+        databricksError
+      ),
+    },
+    {
+      key: 'anthropic',
+      label: (
+        <Flex align="center" gap={spacing.xs}>
+          <GithubOutlined />
+          {t('skillsModal.anthropicSkills')}
+          {anthropicCached && (
+            <Text
+              type="secondary"
+              style={{ fontSize: '11px', marginLeft: spacing.xs }}
             >
-              <Spin />
-            </Flex>
-          ) : (
-            renderSkillList(
-              githubSkills,
-              selectedGitHubSkill,
-              onSelectGitHubSkill,
-              t('skillsModal.noGitHubSkills'),
-              false
-            )
+              {t('skillsModal.cachedData')}
+            </Text>
           )}
-        </>
+        </Flex>
+      ),
+      children: renderSkillList(
+        anthropicSkillNames,
+        t('skillsModal.noAnthropicSkills'),
+        anthropicLoading,
+        anthropicError
       ),
     },
   ];
+
+  const isDetailView = selectedDetail !== null || detailLoading || detailError;
 
   return (
     <Modal
       title={t('skillsModal.importPresetTitle')}
       open={isOpen}
-      onCancel={onClose}
+      onCancel={handleClose}
       onOk={handleImport}
       okText={t('skillsModal.import')}
       cancelText={t('skillsModal.cancel')}
-      okButtonProps={{ disabled: isImportDisabled, loading: isSaving }}
+      okButtonProps={{
+        disabled: !selectedDetail,
+        loading: isSaving,
+        style: { display: isDetailView && selectedDetail ? 'inline' : 'none' },
+      }}
       cancelButtonProps={{ disabled: isSaving }}
       width={600}
+      footer={
+        isDetailView && selectedDetail
+          ? undefined
+          : isDetailView
+            ? null
+            : undefined
+      }
     >
-      <Tabs
-        activeKey={activeTab}
-        onChange={(key) => onTabChange(key as ImportTab)}
-        items={tabItems}
-      />
+      {isDetailView ? (
+        renderDetailView()
+      ) : (
+        <Tabs
+          activeKey={activeTab}
+          onChange={(key) => onTabChange(key as ImportTab)}
+          items={tabItems}
+        />
+      )}
     </Modal>
   );
 }

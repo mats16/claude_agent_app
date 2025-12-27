@@ -24,12 +24,12 @@ export interface SkillListResult {
 
 export interface PresetListResult {
   presets: Skill[];
+  errors?: Array<{ name: string; error: string }>;
 }
 
-// Get preset skills directory path
-function getPresetSkillsPath(): string {
-  return path.join(__dirname, '../preset-settings/skills');
-}
+// GitHub repository for preset skills
+const PRESET_REPO = 'mats16/claude-agent-databricks';
+const PRESET_SKILLS_PATH = 'skills';
 
 // Copy directory recursively
 function copyDirectoryRecursive(src: string, dest: string): void {
@@ -40,6 +40,22 @@ function copyDirectoryRecursive(src: string, dest: string): void {
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
       copyDirectoryRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+// Copy directory recursively, excluding .git directory
+function copyDirectoryRecursiveExcludeGit(src: string, dest: string): void {
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === '.git') continue;
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryRecursiveExcludeGit(srcPath, destPath);
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
@@ -267,80 +283,82 @@ export async function deleteSkill(
   });
 }
 
-// List all preset skills
+// List all preset skills from GitHub
 export async function listPresetSkills(): Promise<PresetListResult> {
-  const presetSkillsPath = getPresetSkillsPath();
+  const branch = await getDefaultBranch(PRESET_REPO);
 
-  // Ensure preset-skills directory exists
-  if (!fs.existsSync(presetSkillsPath)) {
-    return { presets: [] };
+  // Get list of directories in skills folder
+  const response = await fetch(
+    `https://api.github.com/repos/${PRESET_REPO}/contents/${PRESET_SKILLS_PATH}?ref=${branch}`,
+    { headers: { Accept: 'application/vnd.github.v3+json' } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch preset skills: ${response.status}`);
   }
 
-  // Read all subdirectories containing SKILL.md
-  const entries = fs.readdirSync(presetSkillsPath, { withFileTypes: true });
-  const presets = entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const skillFilePath = path.join(presetSkillsPath, entry.name, 'SKILL.md');
-      if (fs.existsSync(skillFilePath)) {
-        const fileContent = fs.readFileSync(skillFilePath, 'utf-8');
-        const parsed = parseSkillContent(fileContent);
-        return {
-          name: parsed.name,
-          description: parsed.description,
-          version: parsed.version,
-          content: parsed.content,
-        };
-      }
-      return null;
-    })
-    .filter((preset): preset is Skill => preset !== null && !!preset.name);
+  const contents = (await response.json()) as Array<{
+    name: string;
+    type: string;
+  }>;
 
-  return { presets };
+  // Filter directories only
+  const skillDirs = contents.filter((item) => item.type === 'dir');
+
+  // Fetch SKILL.md for each skill directory in parallel
+  const results = await Promise.all(
+    skillDirs.map(async (dir) => {
+      try {
+        const skillMdResponse = await fetch(
+          `https://raw.githubusercontent.com/${PRESET_REPO}/${branch}/${PRESET_SKILLS_PATH}/${dir.name}/SKILL.md`
+        );
+        if (!skillMdResponse.ok) {
+          return { error: { name: dir.name, error: `HTTP ${skillMdResponse.status}` } };
+        }
+        const fileContent = await skillMdResponse.text();
+        const parsed = parseSkillContent(fileContent);
+        if (parsed.name) {
+          return {
+            preset: {
+              name: parsed.name,
+              description: parsed.description,
+              version: parsed.version,
+              content: parsed.content,
+            },
+          };
+        }
+        return { error: { name: dir.name, error: 'Invalid SKILL.md format' } };
+      } catch (err: any) {
+        return { error: { name: dir.name, error: err.message || 'Unknown error' } };
+      }
+    })
+  );
+
+  const presets: Skill[] = [];
+  const errors: Array<{ name: string; error: string }> = [];
+
+  for (const result of results) {
+    if ('preset' in result && result.preset) {
+      presets.push(result.preset);
+    } else if ('error' in result && result.error) {
+      errors.push(result.error);
+    }
+  }
+
+  return errors.length > 0 ? { presets, errors } : { presets };
 }
 
-// Import a preset skill to user's skills
+// Import a preset skill to user's skills (from GitHub)
 export async function importPresetSkill(
   user: RequestUser,
   presetName: string
 ): Promise<Skill> {
-  const presetSkillsPath = getPresetSkillsPath();
-  const presetDirPath = path.join(presetSkillsPath, presetName);
-  const presetFilePath = path.join(presetDirPath, 'SKILL.md');
-
-  // Check if preset exists
-  if (!fs.existsSync(presetFilePath)) {
-    throw new Error('Preset skill not found');
-  }
-
-  // Read preset file for metadata
-  const presetContent = fs.readFileSync(presetFilePath, 'utf-8');
-  const parsed = parseSkillContent(presetContent);
-
-  const skillsPath = user.skillsPath;
-  const skillDirPath = path.join(skillsPath, parsed.name);
-
-  // If skill already exists, remove it first (overwrite)
-  if (fs.existsSync(skillDirPath)) {
-    fs.rmSync(skillDirPath, { recursive: true, force: true });
-  }
-
-  // Copy entire preset directory (includes SKILL.md and any additional files)
-  copyDirectoryRecursive(presetDirPath, skillDirPath);
-
-  // Sync to workspace (fire-and-forget)
-  syncSkillToWorkspace(user, parsed.name).catch((err: Error) => {
-    console.error(
-      `[Preset Skills] Failed to sync after import: ${err.message}`
-    );
-  });
-
-  return {
-    name: parsed.name,
-    description: parsed.description,
-    version: parsed.version,
-    content: parsed.content,
-  };
+  // Use importGitHubSkill with this repository's skills path
+  return importGitHubSkill(
+    user,
+    PRESET_REPO,
+    `${PRESET_SKILLS_PATH}/${presetName}`
+  );
 }
 
 // Validate skill name format
@@ -363,8 +381,8 @@ async function getDefaultBranch(repoName: string): Promise<string> {
 }
 
 // Import a skill from GitHub repository
-// name: repository name (e.g., "anthropics/skills")
-// skillPath: path to skill directory (e.g., "skills/skill-creator")
+// repoName: repository name (e.g., "anthropics/skills")
+// skillPath: path to skill directory (e.g., "skills/skill-creator"), empty for repo root
 // branch: branch name (optional, defaults to repository's default branch)
 export async function importGitHubSkill(
   user: RequestUser,
@@ -373,7 +391,9 @@ export async function importGitHubSkill(
   branch?: string
 ): Promise<Skill> {
   const repoUrl = `https://github.com/${repoName}.git`;
-  const skillName = skillPath.split('/').pop() || '';
+  // Use last part of path, or repo name if path is empty
+  const skillName =
+    skillPath.split('/').pop() || repoName.split('/').pop() || '';
 
   if (!skillName) {
     throw new Error('Invalid skill path');
@@ -386,18 +406,24 @@ export async function importGitHubSkill(
   const tmpDir = path.join('/tmp', `skill-import-${randomUUID()}`);
 
   try {
-    // Clone with depth 1 and sparse checkout for efficiency
-    execSync(
-      `git clone --depth 1 --filter=blob:none --sparse -b ${targetBranch} ${repoUrl} ${tmpDir}`,
-      { stdio: 'pipe' }
-    );
+    if (skillPath) {
+      // Clone with sparse checkout for specific path
+      execSync(
+        `git clone --depth 1 --filter=blob:none --sparse -b ${targetBranch} ${repoUrl} ${tmpDir}`,
+        { stdio: 'pipe' }
+      );
+      execSync(`git -C ${tmpDir} sparse-checkout set ${skillPath}`, {
+        stdio: 'pipe',
+      });
+    } else {
+      // Clone entire repo (shallow) for root-level skill
+      execSync(
+        `git clone --depth 1 -b ${targetBranch} ${repoUrl} ${tmpDir}`,
+        { stdio: 'pipe' }
+      );
+    }
 
-    // Set up sparse checkout for the skill directory
-    execSync(`git -C ${tmpDir} sparse-checkout set ${skillPath}`, {
-      stdio: 'pipe',
-    });
-
-    const clonedSkillPath = path.join(tmpDir, skillPath);
+    const clonedSkillPath = skillPath ? path.join(tmpDir, skillPath) : tmpDir;
 
     // Check if skill directory exists
     if (!fs.existsSync(clonedSkillPath)) {
@@ -422,8 +448,12 @@ export async function importGitHubSkill(
       fs.rmSync(skillDirPath, { recursive: true, force: true });
     }
 
-    // Copy skill directory
-    copyDirectoryRecursive(clonedSkillPath, skillDirPath);
+    // Copy skill directory (exclude .git for root-level import)
+    if (skillPath) {
+      copyDirectoryRecursive(clonedSkillPath, skillDirPath);
+    } else {
+      copyDirectoryRecursiveExcludeGit(clonedSkillPath, skillDirPath);
+    }
 
     const finalSkillName = parsed.name || skillName;
 

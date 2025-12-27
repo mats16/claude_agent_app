@@ -6,7 +6,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flex, Typography, message } from 'antd';
-import { useSkills, type Skill } from '../../../hooks/useSkills';
+import {
+  useSkills,
+  type Skill,
+  type PublicSkillDetail,
+} from '../../../hooks/useSkills';
 import SkillsList from '../../skills/SkillsList';
 import SkillEditor from '../../skills/SkillEditor';
 import PresetImportModal, {
@@ -24,21 +28,27 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
   const { t } = useTranslation();
   const {
     skills,
-    presetSkills,
-    githubSkills,
     loading,
     error,
-    githubLoading,
-    githubError,
-    githubCached,
+    // Databricks skill names
+    databricksSkillNames,
+    databricksLoading,
+    databricksError,
+    databricksCached,
+    // Anthropic skill names
+    anthropicSkillNames,
+    anthropicLoading,
+    anthropicError,
+    anthropicCached,
+    // Actions
     fetchSkills,
     createSkill,
     updateSkill,
     deleteSkill,
-    fetchPresetSkills,
-    importPresetSkill,
-    fetchGitHubSkills,
-    importGitHubSkill,
+    fetchDatabricksSkillNames,
+    fetchAnthropicSkillNames,
+    fetchSkillDetail,
+    importSkill,
   } = useSkills();
 
   // Selection state
@@ -55,11 +65,8 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
   // UI state
   const [isSaving, setIsSaving] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [selectedGitHubSkill, setSelectedGitHubSkill] = useState<string | null>(
-    null
-  );
-  const [activeImportTab, setActiveImportTab] = useState<ImportTab>('local');
+  const [activeImportTab, setActiveImportTab] =
+    useState<ImportTab>('databricks');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Fetch skills when section becomes visible
@@ -69,19 +76,19 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
     }
   }, [isVisible, fetchSkills]);
 
-  // Fetch preset skills when import modal opens (local tab)
+  // Fetch Databricks skill names when import modal opens (databricks tab)
   useEffect(() => {
-    if (isImportModalOpen && activeImportTab === 'local') {
-      fetchPresetSkills();
+    if (isImportModalOpen && activeImportTab === 'databricks') {
+      fetchDatabricksSkillNames();
     }
-  }, [isImportModalOpen, activeImportTab, fetchPresetSkills]);
+  }, [isImportModalOpen, activeImportTab, fetchDatabricksSkillNames]);
 
-  // Fetch GitHub skills when import modal opens (github tab)
+  // Fetch Anthropic skill names when import modal opens (anthropic tab)
   useEffect(() => {
-    if (isImportModalOpen && activeImportTab === 'github') {
-      fetchGitHubSkills();
+    if (isImportModalOpen && activeImportTab === 'anthropic') {
+      fetchAnthropicSkillNames();
     }
-  }, [isImportModalOpen, activeImportTab, fetchGitHubSkills]);
+  }, [isImportModalOpen, activeImportTab, fetchAnthropicSkillNames]);
 
   // Update edited fields when selected skill changes
   useEffect(() => {
@@ -242,56 +249,30 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
     }
   }, [isCreating, selectedSkill]);
 
-  const handleImportPreset = useCallback(async () => {
-    if (!selectedPreset) return;
+  const handleImportSkill = useCallback(
+    async (detail: PublicSkillDetail): Promise<boolean> => {
+      setIsSaving(true);
+      const success = await importSkill(detail);
+      setIsSaving(false);
 
-    setIsSaving(true);
-    const success = await importPresetSkill(selectedPreset);
-    setIsSaving(false);
-
-    if (success) {
-      message.success(t('skillsModal.importSuccess'));
-      setIsImportModalOpen(false);
-      setSelectedPreset(null);
-      // Select the newly imported skill
-      const importedSkill = skills.find((s) => s.name === selectedPreset);
-      if (importedSkill) {
-        setSelectedSkill(importedSkill);
+      if (success) {
+        message.success(t('skillsModal.importSuccess'));
+        await fetchSkills();
+        return true;
+      } else {
+        message.error(t('skillsModal.importFailed'));
+        return false;
       }
-    } else {
-      message.error(t('skillsModal.importFailed'));
-    }
-  }, [selectedPreset, importPresetSkill, skills, t]);
-
-  const handleImportGitHubSkill = useCallback(async () => {
-    if (!selectedGitHubSkill) return;
-
-    setIsSaving(true);
-    const success = await importGitHubSkill(selectedGitHubSkill);
-    setIsSaving(false);
-
-    if (success) {
-      message.success(t('skillsModal.importGitHubSuccess'));
-      setIsImportModalOpen(false);
-      setSelectedGitHubSkill(null);
-      // Refresh skills list to get the imported skill
-      await fetchSkills();
-    } else {
-      message.error(t('skillsModal.importGitHubFailed'));
-    }
-  }, [selectedGitHubSkill, importGitHubSkill, fetchSkills, t]);
+    },
+    [importSkill, fetchSkills, t]
+  );
 
   const handleCloseImportModal = useCallback(() => {
     setIsImportModalOpen(false);
-    setSelectedPreset(null);
-    setSelectedGitHubSkill(null);
   }, []);
 
   const handleTabChange = useCallback((tab: ImportTab) => {
     setActiveImportTab(tab);
-    // Clear selections when switching tabs
-    setSelectedPreset(null);
-    setSelectedGitHubSkill(null);
   }, []);
 
   const hasChanges = isCreating
@@ -342,22 +323,20 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
 
       <PresetImportModal
         isOpen={isImportModalOpen}
-        presetSkills={presetSkills}
-        selectedPreset={selectedPreset}
-        loading={loading}
-        githubSkills={githubSkills}
-        selectedGitHubSkill={selectedGitHubSkill}
-        githubLoading={githubLoading}
-        githubError={githubError}
-        githubCached={githubCached}
+        databricksSkillNames={databricksSkillNames}
+        databricksLoading={databricksLoading}
+        databricksError={databricksError}
+        databricksCached={databricksCached}
+        anthropicSkillNames={anthropicSkillNames}
+        anthropicLoading={anthropicLoading}
+        anthropicError={anthropicError}
+        anthropicCached={anthropicCached}
         isSaving={isSaving}
         activeTab={activeImportTab}
         onClose={handleCloseImportModal}
-        onSelectPreset={setSelectedPreset}
-        onSelectGitHubSkill={setSelectedGitHubSkill}
-        onImportPreset={handleImportPreset}
-        onImportGitHubSkill={handleImportGitHubSkill}
         onTabChange={handleTabChange}
+        onFetchDetail={fetchSkillDetail}
+        onImport={handleImportSkill}
       />
     </>
   );

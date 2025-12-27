@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../../utils/headers.js';
 import * as skillService from '../../../../services/skillService.js';
+import { parseGitHubRepo } from '../../../../services/gitHubClient.js';
 
 // List all skills
 export async function listSkillsHandler(
@@ -236,7 +237,7 @@ export async function importPresetSkillHandler(
 // Import a skill from GitHub repository
 export async function importGitHubSkillHandler(
   request: FastifyRequest<{
-    Body: { name: string; path: string; branch?: string };
+    Body: { repo: string; path?: string; branch?: string };
   }>,
   reply: FastifyReply
 ) {
@@ -247,26 +248,25 @@ export async function importGitHubSkillHandler(
     return reply.status(400).send({ error: error.message });
   }
 
-  const { name, path, branch } = request.body;
+  const { repo, path = '', branch } = request.body;
 
   // Validate required fields
-  if (!name || typeof name !== 'string') {
-    return reply.status(400).send({ error: 'name is required' });
+  if (!repo || typeof repo !== 'string') {
+    return reply.status(400).send({ error: 'repo is required' });
   }
 
-  if (!path || typeof path !== 'string') {
-    return reply.status(400).send({ error: 'path is required' });
-  }
-
-  // Validate repository name format (owner/repo)
-  if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(name)) {
-    return reply.status(400).send({ error: 'Invalid repository name format' });
+  // Parse and validate repository URL
+  const repoName = parseGitHubRepo(repo);
+  if (!repoName) {
+    return reply
+      .status(400)
+      .send({ error: 'Invalid repo format. Use https://github.com/owner/repo' });
   }
 
   try {
     const skill = await skillService.importGitHubSkill(
       context.user,
-      name,
+      repoName,
       path,
       branch
     );

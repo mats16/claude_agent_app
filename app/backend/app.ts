@@ -17,11 +17,16 @@ import skillRoutes from './routes/v1/settings/skills/index.js';
 import agentRoutes from './routes/v1/settings/agents/index.js';
 import spPermissionRoutes from './routes/v1/settings/sp-permission/index.js';
 import patRoutes from './routes/v1/settings/pat/index.js';
-import presetSettingsRoutes from './routes/v1/preset-settings/index.js';
 import workspaceRoutes from './routes/v1/workspace/index.js';
 import queueRoutes from './routes/v1/queues/index.js';
 import reposRoutes from './routes/v1/repos/index.js';
 import jobsRoutes from './routes/v1/jobs/index.js';
+import publicSkillsRoutes from './routes/v1/skills/public/index.js';
+import publicAgentsRoutes from './routes/v1/agents/public/index.js';
+import {
+  startCacheCleanup,
+  stopCacheCleanup,
+} from './services/gitHubClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,14 +74,22 @@ export async function buildApp() {
     prefix: '/api/v1/settings/sp-permission',
   });
   await fastify.register(patRoutes, { prefix: '/api/v1/settings/pat' });
-  await fastify.register(presetSettingsRoutes, {
-    prefix: '/api/v1/preset-settings',
-  });
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/Workspace' });
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/workspace' });
   await fastify.register(queueRoutes, { prefix: '/api/v1/queues' });
   await fastify.register(reposRoutes, { prefix: '/api/v1/repos' });
   await fastify.register(jobsRoutes, { prefix: '/api/v1/jobs' });
+  await fastify.register(publicSkillsRoutes, { prefix: '/api/v1/skills/public' });
+  await fastify.register(publicAgentsRoutes, { prefix: '/api/v1/agents/public' });
+
+  // Register cleanup hook first, then start cache cleanup
+  // This ensures cleanup runs even if startup fails after cache init
+  fastify.addHook('onClose', () => {
+    stopCacheCleanup();
+  });
+
+  // Initialize GitHub client cache cleanup (once at startup)
+  startCacheCleanup();
 
   return fastify;
 }

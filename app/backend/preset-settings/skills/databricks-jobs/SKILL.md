@@ -10,6 +10,8 @@ description: |
 
 ## Quick Reference
 
+Extract `job_id` and `run_id` from URLs first (see [Extracting IDs from URLs](#extracting-ids-from-urls)).
+
 | Operation | Tool | Command/Table |
 |-----------|------|---------------|
 | Real-time status | CLI | `databricks jobs get-run <run_id>` |
@@ -179,7 +181,7 @@ ORDER BY r.period_start_time DESC;
 SELECT run_id, result_state, period_start_time,
   TIMESTAMPDIFF(MINUTE, period_start_time, period_end_time) AS duration_min
 FROM system.lakeflow.job_run_timeline
-WHERE job_id = <job_id>  -- URLから抽出したjob_idを使用
+WHERE job_id = <job_id>  -- Use job_id extracted from URL
 ORDER BY period_start_time DESC
 LIMIT 20;
 ```

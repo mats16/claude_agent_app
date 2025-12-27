@@ -53,7 +53,7 @@ SELECT
   period_end_time,
   TIMESTAMPDIFF(MINUTE, period_start_time, period_end_time) AS duration_minutes
 FROM system.lakeflow.job_run_timeline
-WHERE job_id = <job_id>  -- URLから抽出したjob_idを使用 (例: 987402714328091)
+WHERE job_id = <job_id>  -- Use job_id extracted from URL (e.g., 987402714328091)
 ORDER BY period_start_time DESC
 LIMIT 20;
 ```
@@ -188,7 +188,7 @@ SELECT
   ROUND(AVG(TIMESTAMPDIFF(MINUTE, r.period_start_time, r.period_end_time)), 1) AS avg_minutes,
   MAX(TIMESTAMPDIFF(MINUTE, r.period_start_time, r.period_end_time)) AS max_minutes
 FROM system.lakeflow.job_run_timeline r
-WHERE r.job_id = <job_id>  -- URLから抽出したjob_idを使用
+WHERE r.job_id = <job_id>  -- Use job_id extracted from URL
   AND r.result_state = 'SUCCESS'
   AND r.period_start_time >= CURRENT_DATE - INTERVAL 30 DAY
 GROUP BY DATE(r.period_start_time)
@@ -281,8 +281,8 @@ WHERE r.result_state = 'RUNNING'
 
 ```sql
 -- Jobs with 3+ consecutive failures
--- Note: このクエリは過去7日間のデータのみをスキャンします
--- より長い期間を分析する場合は、INTERVAL の値を調整してください
+-- Note: This query scans only the last 7 days of data
+-- Adjust the INTERVAL value to analyze a longer period
 WITH ranked_runs AS (
   SELECT
     job_id,

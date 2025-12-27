@@ -155,7 +155,8 @@ function checkRateLimit(response: Response): void {
     const remaining = response.headers.get('X-RateLimit-Remaining');
     if (remaining === '0') {
       const resetHeader = response.headers.get('X-RateLimit-Reset');
-      const resetTimestamp = resetHeader ? parseInt(resetHeader, 10) : Math.floor(Date.now() / 1000) + 3600;
+      // Fallback to 5 minutes if reset header is missing
+      const resetTimestamp = resetHeader ? parseInt(resetHeader, 10) : Math.floor(Date.now() / 1000) + 300;
       throw new GitHubRateLimitError(resetTimestamp);
     }
   }
@@ -249,7 +250,8 @@ export function parseFrontmatter(
   const body = frontmatterMatch[2].trim();
 
   try {
-    const parsed = yaml.load(yamlContent);
+    // Use JSON schema to prevent code execution vulnerabilities (CVE-2013-4660)
+    const parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
     if (typeof parsed === 'object' && parsed !== null) {
       return { frontmatter: parsed as Record<string, unknown>, body };
     }

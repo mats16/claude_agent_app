@@ -82,13 +82,14 @@ export async function buildApp() {
   await fastify.register(publicSkillsRoutes, { prefix: '/api/v1/skills/public' });
   await fastify.register(publicAgentsRoutes, { prefix: '/api/v1/agents/public' });
 
-  // Initialize GitHub client cache cleanup (once at startup)
-  startCacheCleanup();
-
-  // Stop cache cleanup on server close
+  // Register cleanup hook first, then start cache cleanup
+  // This ensures cleanup runs even if startup fails after cache init
   fastify.addHook('onClose', () => {
     stopCacheCleanup();
   });
+
+  // Initialize GitHub client cache cleanup (once at startup)
+  startCacheCleanup();
 
   return fastify;
 }

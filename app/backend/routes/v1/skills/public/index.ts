@@ -39,7 +39,7 @@ setInterval(
 );
 
 // Response types
-interface PublicSkill {
+interface PublicSkillDetail {
   repo: string;
   path: string;
   name: string;
@@ -98,16 +98,16 @@ function parseSkillContent(fileContent: string): {
   return { name, description, version };
 }
 
-// Fetch skill list from repository
-async function fetchSkillList(
+// Fetch skill directory names from repository (lightweight, 1 API call)
+async function fetchSkillNames(
   repoKey: RepoKey
-): Promise<{ skills: PublicSkill[]; cached: boolean }> {
+): Promise<{ names: string[]; cached: boolean }> {
   const config = REPOS[repoKey];
-  const cacheKey = `list:${repoKey}`;
+  const cacheKey = `names:${repoKey}`;
 
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return { skills: cached.data as PublicSkill[], cached: true };
+    return { names: cached.data as string[], cached: true };
   }
 
   const branch = await fetchDefaultBranch(config.repo);
@@ -131,45 +131,25 @@ async function fetchSkillList(
   }
 
   const entries = (await response.json()) as GitHubDirectoryEntry[];
-  const skillDirs = entries.filter((entry) => entry.type === 'dir');
+  const names = entries
+    .filter((entry) => entry.type === 'dir')
+    .map((entry) => entry.name);
 
-  // Fetch SKILL.md for each skill
-  const skills: PublicSkill[] = [];
-  for (const dir of skillDirs) {
-    try {
-      const skillMdUrl = `${GITHUB_RAW_BASE}/${config.repo}/${branch}/${config.path}/${dir.name}/SKILL.md`;
-      const skillResponse = await fetch(skillMdUrl);
-      if (skillResponse.ok) {
-        const content = await skillResponse.text();
-        const parsed = parseSkillContent(content);
-        skills.push({
-          repo: `https://github.com/${config.repo}.git`,
-          path: `${config.path}/${dir.name}`,
-          name: parsed.name || dir.name,
-          description: parsed.description,
-          version: parsed.version,
-        });
-      }
-    } catch {
-      // Skip skills that fail to fetch
-    }
-  }
-
-  cache.set(cacheKey, { data: skills, timestamp: Date.now() });
-  return { skills, cached: false };
+  cache.set(cacheKey, { data: names, timestamp: Date.now() });
+  return { names, cached: false };
 }
 
 // Fetch single skill details
 async function fetchSkillDetail(
   repoKey: RepoKey,
   skillName: string
-): Promise<PublicSkill | null> {
+): Promise<PublicSkillDetail | null> {
   const config = REPOS[repoKey];
   const cacheKey = `skill:${repoKey}:${skillName}`;
 
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data as PublicSkill;
+    return cached.data as PublicSkillDetail;
   }
 
   const branch = await fetchDefaultBranch(config.repo);
@@ -183,7 +163,7 @@ async function fetchSkillDetail(
   const content = await response.text();
   const parsed = parseSkillContent(content);
 
-  const skill: PublicSkill = {
+  const skill: PublicSkillDetail = {
     repo: `https://github.com/${config.repo}.git`,
     path: `${config.path}/${skillName}`,
     name: parsed.name || skillName,
@@ -196,15 +176,15 @@ async function fetchSkillDetail(
 }
 
 const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
-  // List Anthropic skills
+  // List Anthropic skill names
   // GET /api/v1/skills/public/anthropic
   fastify.get(
     '/anthropic',
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const result = await fetchSkillList('anthropic');
+        const result = await fetchSkillNames('anthropic');
         reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
-        return { skills: result.skills };
+        return { skills: result.names };
       } catch (error: any) {
         if (error.message === 'RATE_LIMITED') {
           return reply
@@ -217,7 +197,7 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // Get single Anthropic skill
+  // Get single Anthropic skill details
   // GET /api/v1/skills/public/anthropic/:skillName
   fastify.get(
     '/anthropic/:skillName',
@@ -240,15 +220,15 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // List Databricks skills
+  // List Databricks skill names
   // GET /api/v1/skills/public/databricks
   fastify.get(
     '/databricks',
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const result = await fetchSkillList('databricks');
+        const result = await fetchSkillNames('databricks');
         reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
-        return { skills: result.skills };
+        return { skills: result.names };
       } catch (error: any) {
         if (error.message === 'RATE_LIMITED') {
           return reply
@@ -261,7 +241,7 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // Get single Databricks skill
+  // Get single Databricks skill details
   // GET /api/v1/skills/public/databricks/:skillName
   fastify.get(
     '/databricks/:skillName',

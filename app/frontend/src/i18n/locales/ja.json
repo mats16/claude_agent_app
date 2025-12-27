@@ -166,7 +166,14 @@
     "skillDescriptionPlaceholder": "このスキルは...の時に使用されます",
     "skillVersion": "バージョン",
     "skillVersionPlaceholder": "1.0.0",
-    "invalidVersion": "バージョンはセマンティックバージョニング形式で入力してください (例: 1.0.0)"
+    "invalidVersion": "バージョンはセマンティックバージョニング形式で入力してください (例: 1.0.0)",
+    "back": "戻る",
+    "fetchDetailError": "スキルの詳細取得に失敗しました",
+    "detailName": "名前",
+    "detailDescription": "説明",
+    "detailVersion": "バージョン",
+    "detailRepo": "リポジトリ",
+    "detailPath": "パス"
   },
   "subagentModal": {
     "title": "サブエージェント管理",

@@ -6,7 +6,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flex, Typography, message } from 'antd';
-import { useSkills, type Skill } from '../../../hooks/useSkills';
+import {
+  useSkills,
+  type Skill,
+  type PublicSkillDetail,
+} from '../../../hooks/useSkills';
 import SkillsList from '../../skills/SkillsList';
 import SkillEditor from '../../skills/SkillEditor';
 import PresetImportModal, {
@@ -26,13 +30,13 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
     skills,
     loading,
     error,
-    // Databricks skills
-    databricksSkills,
+    // Databricks skill names
+    databricksSkillNames,
     databricksLoading,
     databricksError,
     databricksCached,
-    // Anthropic skills
-    anthropicSkills,
+    // Anthropic skill names
+    anthropicSkillNames,
     anthropicLoading,
     anthropicError,
     anthropicCached,
@@ -41,10 +45,10 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
     createSkill,
     updateSkill,
     deleteSkill,
-    fetchDatabricksSkills,
-    importDatabricksSkill,
-    fetchAnthropicSkills,
-    importAnthropicSkill,
+    fetchDatabricksSkillNames,
+    fetchAnthropicSkillNames,
+    fetchSkillDetail,
+    importSkill,
   } = useSkills();
 
   // Selection state
@@ -61,12 +65,6 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
   // UI state
   const [isSaving, setIsSaving] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedDatabricksSkill, setSelectedDatabricksSkill] = useState<
-    string | null
-  >(null);
-  const [selectedAnthropicSkill, setSelectedAnthropicSkill] = useState<
-    string | null
-  >(null);
   const [activeImportTab, setActiveImportTab] =
     useState<ImportTab>('databricks');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -78,19 +76,19 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
     }
   }, [isVisible, fetchSkills]);
 
-  // Fetch Databricks skills when import modal opens (databricks tab)
+  // Fetch Databricks skill names when import modal opens (databricks tab)
   useEffect(() => {
     if (isImportModalOpen && activeImportTab === 'databricks') {
-      fetchDatabricksSkills();
+      fetchDatabricksSkillNames();
     }
-  }, [isImportModalOpen, activeImportTab, fetchDatabricksSkills]);
+  }, [isImportModalOpen, activeImportTab, fetchDatabricksSkillNames]);
 
-  // Fetch Anthropic skills when import modal opens (anthropic tab)
+  // Fetch Anthropic skill names when import modal opens (anthropic tab)
   useEffect(() => {
     if (isImportModalOpen && activeImportTab === 'anthropic') {
-      fetchAnthropicSkills();
+      fetchAnthropicSkillNames();
     }
-  }, [isImportModalOpen, activeImportTab, fetchAnthropicSkills]);
+  }, [isImportModalOpen, activeImportTab, fetchAnthropicSkillNames]);
 
   // Update edited fields when selected skill changes
   useEffect(() => {
@@ -251,51 +249,30 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
     }
   }, [isCreating, selectedSkill]);
 
-  const handleImportDatabricksSkill = useCallback(async () => {
-    if (!selectedDatabricksSkill) return;
+  const handleImportSkill = useCallback(
+    async (detail: PublicSkillDetail): Promise<boolean> => {
+      setIsSaving(true);
+      const success = await importSkill(detail);
+      setIsSaving(false);
 
-    setIsSaving(true);
-    const success = await importDatabricksSkill(selectedDatabricksSkill);
-    setIsSaving(false);
-
-    if (success) {
-      message.success(t('skillsModal.importSuccess'));
-      setIsImportModalOpen(false);
-      setSelectedDatabricksSkill(null);
-      await fetchSkills();
-    } else {
-      message.error(t('skillsModal.importFailed'));
-    }
-  }, [selectedDatabricksSkill, importDatabricksSkill, fetchSkills, t]);
-
-  const handleImportAnthropicSkill = useCallback(async () => {
-    if (!selectedAnthropicSkill) return;
-
-    setIsSaving(true);
-    const success = await importAnthropicSkill(selectedAnthropicSkill);
-    setIsSaving(false);
-
-    if (success) {
-      message.success(t('skillsModal.importSuccess'));
-      setIsImportModalOpen(false);
-      setSelectedAnthropicSkill(null);
-      await fetchSkills();
-    } else {
-      message.error(t('skillsModal.importFailed'));
-    }
-  }, [selectedAnthropicSkill, importAnthropicSkill, fetchSkills, t]);
+      if (success) {
+        message.success(t('skillsModal.importSuccess'));
+        await fetchSkills();
+        return true;
+      } else {
+        message.error(t('skillsModal.importFailed'));
+        return false;
+      }
+    },
+    [importSkill, fetchSkills, t]
+  );
 
   const handleCloseImportModal = useCallback(() => {
     setIsImportModalOpen(false);
-    setSelectedDatabricksSkill(null);
-    setSelectedAnthropicSkill(null);
   }, []);
 
   const handleTabChange = useCallback((tab: ImportTab) => {
     setActiveImportTab(tab);
-    // Clear selections when switching tabs
-    setSelectedDatabricksSkill(null);
-    setSelectedAnthropicSkill(null);
   }, []);
 
   const hasChanges = isCreating
@@ -346,24 +323,20 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
 
       <PresetImportModal
         isOpen={isImportModalOpen}
-        databricksSkills={databricksSkills}
-        selectedDatabricksSkill={selectedDatabricksSkill}
+        databricksSkillNames={databricksSkillNames}
         databricksLoading={databricksLoading}
         databricksError={databricksError}
         databricksCached={databricksCached}
-        anthropicSkills={anthropicSkills}
-        selectedAnthropicSkill={selectedAnthropicSkill}
+        anthropicSkillNames={anthropicSkillNames}
         anthropicLoading={anthropicLoading}
         anthropicError={anthropicError}
         anthropicCached={anthropicCached}
         isSaving={isSaving}
         activeTab={activeImportTab}
         onClose={handleCloseImportModal}
-        onSelectDatabricksSkill={setSelectedDatabricksSkill}
-        onSelectAnthropicSkill={setSelectedAnthropicSkill}
-        onImportDatabricksSkill={handleImportDatabricksSkill}
-        onImportAnthropicSkill={handleImportAnthropicSkill}
         onTabChange={handleTabChange}
+        onFetchDetail={fetchSkillDetail}
+        onImport={handleImportSkill}
       />
     </>
   );

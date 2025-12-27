@@ -166,7 +166,14 @@
     "skillDescriptionPlaceholder": "This skill should be used when...",
     "skillVersion": "Version",
     "skillVersionPlaceholder": "1.0.0",
-    "invalidVersion": "Version must be in semantic versioning format (e.g., 1.0.0)"
+    "invalidVersion": "Version must be in semantic versioning format (e.g., 1.0.0)",
+    "back": "Back",
+    "fetchDetailError": "Failed to fetch skill details",
+    "detailName": "Name",
+    "detailDescription": "Description",
+    "detailVersion": "Version",
+    "detailRepo": "Repository",
+    "detailPath": "Path"
   },
   "subagentModal": {
     "title": "Manage Subagents",

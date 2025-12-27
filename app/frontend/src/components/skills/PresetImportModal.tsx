@@ -261,10 +261,7 @@ export default function PresetImportModal({
           <GithubOutlined />
           {t('skillsModal.databricksSkills')}
           {databricksCached && (
-            <Text
-              type="secondary"
-              style={{ fontSize: '11px', marginLeft: spacing.xs }}
-            >
+            <Text type="secondary" style={{ fontSize: '11px' }}>
               {t('skillsModal.cachedData')}
             </Text>
           )}
@@ -284,10 +281,7 @@ export default function PresetImportModal({
           <GithubOutlined />
           {t('skillsModal.anthropicSkills')}
           {anthropicCached && (
-            <Text
-              type="secondary"
-              style={{ fontSize: '11px', marginLeft: spacing.xs }}
-            >
+            <Text type="secondary" style={{ fontSize: '11px' }}>
               {t('skillsModal.cachedData')}
             </Text>
           )}

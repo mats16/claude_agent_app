@@ -15,7 +15,7 @@ description: |
 |---------------|-------|-------------|
 | DBU consumption | `system.billing.usage` | `usage_date`, `sku_name`, `usage_quantity` |
 | SKU pricing | `system.billing.list_prices` | `sku_name`, `pricing.default`, `price_start_time` |
-| Job costs | `usage` + `usage_metadata.job_id` | Join with `system.lakeflow.jobs` for names |
+| Job costs | `usage` + `usage_metadata.job_id` | `job_name` available in `usage_metadata` |
 | Warehouse costs | `usage` + `usage_metadata.warehouse_id` | Join with `system.compute.warehouses` |
 | Cluster costs | `usage` + `usage_metadata.cluster_id` | Join with `system.compute.clusters` |
 

@@ -261,7 +261,8 @@ SELECT
   ROUND((d.daily_cost - s.avg_cost) / NULLIF(s.stddev_cost, 0), 2) AS z_score
 FROM daily_sku d
 JOIN stats s ON d.sku_name = s.sku_name
-WHERE s.stddev_cost > 0
+WHERE s.stddev_cost IS NOT NULL
+  AND s.stddev_cost > 0
   AND ABS((d.daily_cost - s.avg_cost) / s.stddev_cost) > 2
 ORDER BY d.usage_date DESC, z_score DESC
 ```
@@ -299,7 +300,7 @@ SELECT
   usage_date,
   daily_cost,
   AVG(daily_cost) OVER (ORDER BY usage_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS moving_avg_7d,
-  AVG(daily_cost) OVER () * 30 AS projected_monthly_cost
+  AVG(daily_cost) OVER () * DAY(LAST_DAY(CURRENT_DATE)) AS projected_monthly_cost
 FROM daily_costs
 ORDER BY usage_date DESC
 ```
@@ -333,7 +334,10 @@ SELECT
   mtd_cost,
   days_elapsed,
   days_in_month,
-  ROUND(mtd_cost / days_elapsed * days_in_month, 2) AS projected_month_total
+  CASE
+    WHEN days_elapsed = 0 THEN NULL
+    ELSE ROUND(mtd_cost / days_elapsed * days_in_month, 2)
+  END AS projected_month_total
 FROM mtd
 ```
 

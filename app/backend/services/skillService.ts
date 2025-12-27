@@ -26,10 +26,9 @@ export interface PresetListResult {
   presets: Skill[];
 }
 
-// Get preset skills directory path
-function getPresetSkillsPath(): string {
-  return path.join(__dirname, '../preset-settings/skills');
-}
+// GitHub repository for preset skills
+const PRESET_REPO = 'mats16/claude-agent-databricks';
+const PRESET_SKILLS_PATH = 'skills';
 
 // Copy directory recursively
 function copyDirectoryRecursive(src: string, dest: string): void {
@@ -267,80 +266,62 @@ export async function deleteSkill(
   });
 }
 
-// List all preset skills
+// List all preset skills from GitHub
 export async function listPresetSkills(): Promise<PresetListResult> {
-  const presetSkillsPath = getPresetSkillsPath();
+  const branch = await getDefaultBranch(PRESET_REPO);
 
-  // Ensure preset-skills directory exists
-  if (!fs.existsSync(presetSkillsPath)) {
-    return { presets: [] };
+  // Get list of directories in skills folder
+  const response = await fetch(
+    `https://api.github.com/repos/${PRESET_REPO}/contents/${PRESET_SKILLS_PATH}?ref=${branch}`,
+    { headers: { Accept: 'application/vnd.github.v3+json' } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch preset skills: ${response.status}`);
   }
 
-  // Read all subdirectories containing SKILL.md
-  const entries = fs.readdirSync(presetSkillsPath, { withFileTypes: true });
-  const presets = entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const skillFilePath = path.join(presetSkillsPath, entry.name, 'SKILL.md');
-      if (fs.existsSync(skillFilePath)) {
-        const fileContent = fs.readFileSync(skillFilePath, 'utf-8');
+  const contents = (await response.json()) as Array<{
+    name: string;
+    type: string;
+  }>;
+
+  // Filter directories only
+  const skillDirs = contents.filter((item) => item.type === 'dir');
+
+  // Fetch SKILL.md for each skill directory
+  const presets: Skill[] = [];
+  for (const dir of skillDirs) {
+    try {
+      const skillMdResponse = await fetch(
+        `https://raw.githubusercontent.com/${PRESET_REPO}/${branch}/${PRESET_SKILLS_PATH}/${dir.name}/SKILL.md`
+      );
+      if (skillMdResponse.ok) {
+        const fileContent = await skillMdResponse.text();
         const parsed = parseSkillContent(fileContent);
-        return {
-          name: parsed.name,
-          description: parsed.description,
-          version: parsed.version,
-          content: parsed.content,
-        };
+        if (parsed.name) {
+          presets.push({
+            name: parsed.name,
+            description: parsed.description,
+            version: parsed.version,
+            content: parsed.content,
+          });
+        }
       }
-      return null;
-    })
-    .filter((preset): preset is Skill => preset !== null && !!preset.name);
+    } catch (err) {
+      console.error(`Failed to fetch SKILL.md for ${dir.name}:`, err);
+    }
+  }
 
   return { presets };
 }
 
-// Import a preset skill to user's skills
+// Import a preset skill to user's skills (from GitHub)
 export async function importPresetSkill(
   user: RequestUser,
   presetName: string
 ): Promise<Skill> {
-  const presetSkillsPath = getPresetSkillsPath();
-  const presetDirPath = path.join(presetSkillsPath, presetName);
-  const presetFilePath = path.join(presetDirPath, 'SKILL.md');
-
-  // Check if preset exists
-  if (!fs.existsSync(presetFilePath)) {
-    throw new Error('Preset skill not found');
-  }
-
-  // Read preset file for metadata
-  const presetContent = fs.readFileSync(presetFilePath, 'utf-8');
-  const parsed = parseSkillContent(presetContent);
-
-  const skillsPath = user.skillsPath;
-  const skillDirPath = path.join(skillsPath, parsed.name);
-
-  // If skill already exists, remove it first (overwrite)
-  if (fs.existsSync(skillDirPath)) {
-    fs.rmSync(skillDirPath, { recursive: true, force: true });
-  }
-
-  // Copy entire preset directory (includes SKILL.md and any additional files)
-  copyDirectoryRecursive(presetDirPath, skillDirPath);
-
-  // Sync to workspace (fire-and-forget)
-  syncSkillToWorkspace(user, parsed.name).catch((err: Error) => {
-    console.error(
-      `[Preset Skills] Failed to sync after import: ${err.message}`
-    );
-  });
-
-  return {
-    name: parsed.name,
-    description: parsed.description,
-    version: parsed.version,
-    content: parsed.content,
-  };
+  // Use importGitHubSkill with this repository's skills path
+  return importGitHubSkill(user, PRESET_REPO, `${PRESET_SKILLS_PATH}/${presetName}`);
 }
 
 // Validate skill name format

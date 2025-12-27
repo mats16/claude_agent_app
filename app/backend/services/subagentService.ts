@@ -24,9 +24,22 @@ export interface PresetSubagentListResult {
   presets: Subagent[];
 }
 
-// Get preset agents directory path
-function getPresetAgentsPath(): string {
-  return path.join(__dirname, '../preset-settings/agents');
+// GitHub repository for preset agents
+const PRESET_REPO = 'mats16/claude-agent-databricks';
+const PRESET_AGENTS_PATH = 'agents';
+
+// Fetch repository's default branch from GitHub API
+async function getDefaultBranch(repoName: string): Promise<string> {
+  const response = await fetch(`https://api.github.com/repos/${repoName}`, {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch repository info: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { default_branch: string };
+  return data.default_branch;
 }
 
 // Put a single agent to workspace (fire-and-forget)
@@ -263,53 +276,76 @@ export async function deleteSubagent(
   });
 }
 
-// List all preset subagents
+// List all preset subagents from GitHub
 export async function listPresetSubagents(): Promise<PresetSubagentListResult> {
-  const presetAgentsPath = getPresetAgentsPath();
+  const branch = await getDefaultBranch(PRESET_REPO);
 
-  // Ensure preset-agents directory exists
-  if (!fs.existsSync(presetAgentsPath)) {
-    return { presets: [] };
+  // Get list of files in agents folder
+  const response = await fetch(
+    `https://api.github.com/repos/${PRESET_REPO}/contents/${PRESET_AGENTS_PATH}?ref=${branch}`,
+    { headers: { Accept: 'application/vnd.github.v3+json' } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch preset agents: ${response.status}`);
   }
 
-  // Read all .md files in the preset-agents directory
-  const files = fs.readdirSync(presetAgentsPath);
-  const presets = files
-    .filter((file) => file.endsWith('.md'))
-    .map((file): Subagent | null => {
-      const filePath = path.join(presetAgentsPath, file);
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      const parsed = parseSubagentContent(fileContent);
-      const name = parsed.name || file.replace(/\.md$/, '');
-      if (!name) return null;
-      return {
-        name,
-        description: parsed.description,
-        tools: parsed.tools,
-        model: parsed.model,
-        content: parsed.content,
-      };
-    })
-    .filter((preset): preset is Subagent => preset !== null);
+  const contents = (await response.json()) as Array<{
+    name: string;
+    type: string;
+  }>;
+
+  // Filter .md files only
+  const agentFiles = contents.filter(
+    (item) => item.type === 'file' && item.name.endsWith('.md')
+  );
+
+  // Fetch each agent file
+  const presets: Subagent[] = [];
+  for (const file of agentFiles) {
+    try {
+      const agentResponse = await fetch(
+        `https://raw.githubusercontent.com/${PRESET_REPO}/${branch}/${PRESET_AGENTS_PATH}/${file.name}`
+      );
+      if (agentResponse.ok) {
+        const fileContent = await agentResponse.text();
+        const parsed = parseSubagentContent(fileContent);
+        const name = parsed.name || file.name.replace(/\.md$/, '');
+        if (name) {
+          presets.push({
+            name,
+            description: parsed.description,
+            tools: parsed.tools,
+            model: parsed.model,
+            content: parsed.content,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to fetch agent ${file.name}:`, err);
+    }
+  }
 
   return { presets };
 }
 
-// Import a preset subagent to user's subagents
+// Import a preset subagent to user's subagents (from GitHub)
 export async function importPresetSubagent(
   user: RequestUser,
   presetName: string
 ): Promise<Subagent> {
-  const presetAgentsPath = getPresetAgentsPath();
-  const presetFilePath = path.join(presetAgentsPath, `${presetName}.md`);
+  const branch = await getDefaultBranch(PRESET_REPO);
 
-  // Check if preset exists
-  if (!fs.existsSync(presetFilePath)) {
+  // Fetch preset agent from GitHub
+  const response = await fetch(
+    `https://raw.githubusercontent.com/${PRESET_REPO}/${branch}/${PRESET_AGENTS_PATH}/${presetName}.md`
+  );
+
+  if (!response.ok) {
     throw new Error('Preset subagent not found');
   }
 
-  // Read preset file
-  const presetContent = fs.readFileSync(presetFilePath, 'utf-8');
+  const presetContent = await response.text();
   const parsed = parseSubagentContent(presetContent);
 
   const agentsPath = user.agentsPath;

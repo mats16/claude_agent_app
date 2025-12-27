@@ -1,461 +1,256 @@
 ---
 name: databricks-unity-catalog
+version: 1.0.0
 description: |
-  Unity Catalog metadata inspection, data exploration, and permission management skill. Uses SQL (MCP) to explore catalogs, schemas, tables, volumes, and functions. Essential for troubleshooting table not found errors, permission issues, data lineage, and data quality investigations.
-  Trigger examples: list catalogs, show tables, describe table, check permissions, grant access, table not found, access denied, explore schema, data lineage, table history.
-version: 0.0.1
+  Unity Catalog metadata inspection, data exploration, and permission management.
+  Triggers: list catalogs, show tables, describe table, check permissions, grant access, table not found, access denied, explore schema, data lineage, table history, data quality.
+  Uses mcp__databricks__run_sql for SQL queries. CLI fallback for operations SQL cannot perform.
 ---
 
 # Databricks Unity Catalog
 
-## Overview
+## Quick Reference
 
-Skill for Unity Catalog metadata inspection, data exploration, and permission management.
+| Operation | Command |
+|-----------|---------|
+| List catalogs | `SHOW CATALOGS` |
+| List schemas | `SHOW SCHEMAS IN <catalog>` |
+| List tables | `SHOW TABLES IN <catalog>.<schema>` |
+| Describe table | `DESCRIBE TABLE EXTENDED <catalog>.<schema>.<table>` |
+| Table details | `DESCRIBE DETAIL <catalog>.<schema>.<table>` |
+| Table history | `DESCRIBE HISTORY <catalog>.<schema>.<table>` |
+| Check grants | `SHOW GRANTS ON TABLE <catalog>.<schema>.<table>` |
+| Grant access | `GRANT SELECT ON TABLE <catalog>.<schema>.<table> TO \`user@example.com\`` |
 
-**Primary tool**: SQL via `mcp__databricks__run_sql`
-**Fallback**: Databricks CLI (when SQL is insufficient)
+**Primary tool**: `mcp__databricks__run_sql`
+**Fallback**: Databricks CLI (for API-only operations)
 
-## Catalogs
+## Catalogs and Schemas
 
 ```sql
--- List all catalogs
+-- List catalogs
 SHOW CATALOGS;
-
--- List catalogs matching a pattern
 SHOW CATALOGS LIKE 'prod*';
 
--- Show catalog metadata (name, comment, owner)
-DESCRIBE CATALOG <catalog_name>;
-
--- Show extended catalog properties
+-- Describe catalog
 DESCRIBE CATALOG EXTENDED <catalog_name>;
 
--- Show current catalog
-SELECT current_catalog();
-```
-
-## Schemas
-
-```sql
--- List all schemas in a catalog
+-- List schemas
 SHOW SCHEMAS IN <catalog_name>;
-
--- List schemas matching a pattern
 SHOW SCHEMAS IN <catalog_name> LIKE 'sales*';
 
--- Describe schema (name, description, location)
-DESCRIBE SCHEMA <catalog_name>.<schema_name>;
-
--- Describe schema with extended properties
+-- Describe schema
 DESCRIBE SCHEMA EXTENDED <catalog_name>.<schema_name>;
 
--- Show current schema
-SELECT current_schema();
+-- Current context
+SELECT current_catalog(), current_schema();
 
--- Set current catalog and schema
+-- Set context
 USE CATALOG <catalog_name>;
 USE SCHEMA <schema_name>;
--- Or combined:
-USE <catalog_name>.<schema_name>;
 ```
 
-## Tables
+## Tables and Views
 
-### Listing Tables
+### Listing and Describing
 
 ```sql
--- List all tables in a schema
-SHOW TABLES IN <catalog_name>.<schema_name>;
+-- List tables
+SHOW TABLES IN <catalog>.<schema>;
+SHOW TABLES IN <catalog>.<schema> LIKE 'customer*';
 
--- List tables matching a pattern
-SHOW TABLES IN <catalog_name>.<schema_name> LIKE 'customer*';
+-- Column definitions
+DESCRIBE TABLE <catalog>.<schema>.<table>;
 
--- Show extended table information
-SHOW TABLE EXTENDED IN <catalog_name>.<schema_name> LIKE '<table_name>';
+-- Full metadata (owner, location, properties)
+DESCRIBE TABLE EXTENDED <catalog>.<schema>.<table>;
+
+-- Delta details (size, partitions, files)
+DESCRIBE DETAIL <catalog>.<schema>.<table>;
+
+-- Table history (30-day retention)
+DESCRIBE HISTORY <catalog>.<schema>.<table>;
+
+-- Table properties and DDL
+SHOW TBLPROPERTIES <catalog>.<schema>.<table>;
+SHOW CREATE TABLE <catalog>.<schema>.<table>;
+
+-- List views
+SHOW VIEWS IN <catalog>.<schema>;
 ```
 
-### Describing Tables
+### Table Statistics
 
 ```sql
--- Show column definitions
-DESCRIBE TABLE <catalog_name>.<schema_name>.<table_name>;
+-- Row count
+SELECT COUNT(*) FROM <catalog>.<schema>.<table>;
 
--- Show extended metadata (owner, created time, location, etc.)
-DESCRIBE TABLE EXTENDED <catalog_name>.<schema_name>.<table_name>;
+-- Sample data
+SELECT * FROM <catalog>.<schema>.<table> LIMIT 10;
 
--- Show Delta table details (size, partitions, files, etc.)
-DESCRIBE DETAIL <catalog_name>.<schema_name>.<table_name>;
+-- Random sample (1%)
+SELECT * FROM <catalog>.<schema>.<table> TABLESAMPLE (1 PERCENT);
 
--- Show table history (operations, timestamps, versions)
--- History is retained for 30 days
-DESCRIBE HISTORY <catalog_name>.<schema_name>.<table_name>;
-
--- Show table properties
-SHOW TBLPROPERTIES <catalog_name>.<schema_name>.<table_name>;
-
--- Show create statement
-SHOW CREATE TABLE <catalog_name>.<schema_name>.<table_name>;
+-- Compute statistics
+ANALYZE TABLE <catalog>.<schema>.<table> COMPUTE STATISTICS FOR ALL COLUMNS;
 ```
 
-### Table Statistics and Sampling
+## Volumes and Functions
 
 ```sql
--- Get row count
-SELECT COUNT(*) FROM <catalog_name>.<schema_name>.<table_name>;
+-- List volumes
+SHOW VOLUMES IN <catalog>.<schema>;
 
--- Sample data (first N rows)
-SELECT * FROM <catalog_name>.<schema_name>.<table_name> LIMIT 10;
+-- Describe volume
+DESCRIBE VOLUME <catalog>.<schema>.<volume>;
 
--- Random sample (1% of data)
-SELECT * FROM <catalog_name>.<schema_name>.<table_name> TABLESAMPLE (1 PERCENT);
-
--- Column statistics
-ANALYZE TABLE <catalog_name>.<schema_name>.<table_name> COMPUTE STATISTICS FOR ALL COLUMNS;
-```
-
-## Views
-
-```sql
--- List all views in a schema
-SHOW VIEWS IN <catalog_name>.<schema_name>;
-
--- List views matching a pattern
-SHOW VIEWS IN <catalog_name>.<schema_name> LIKE 'v_*';
-
--- Show view definition
-SHOW CREATE TABLE <catalog_name>.<schema_name>.<view_name>;
-```
-
-## Volumes
-
-```sql
--- List all volumes in a schema
-SHOW VOLUMES IN <catalog_name>.<schema_name>;
-
--- Describe volume details
-DESCRIBE VOLUME <catalog_name>.<schema_name>.<volume_name>;
-
--- List files in a volume (using Python/SQL function)
--- Note: Direct file listing requires Databricks CLI or notebooks
-```
-
-### Volume Operations via CLI
-
-```bash
-# List volumes
-databricks volumes list --catalog-name <catalog> --schema-name <schema> -o json
-
-# Read volume details
-databricks volumes read <catalog>.<schema>.<volume> -o json
-
-# List files in volume
-databricks fs ls /Volumes/<catalog>/<schema>/<volume>/ -o json
-```
-
-## Functions
-
-```sql
--- List all functions in a schema
-SHOW FUNCTIONS IN <catalog_name>.<schema_name>;
-
--- List user-defined functions only
-SHOW USER FUNCTIONS IN <catalog_name>.<schema_name>;
+-- List functions
+SHOW USER FUNCTIONS IN <catalog>.<schema>;
 
 -- Describe function
-DESCRIBE FUNCTION <catalog_name>.<schema_name>.<function_name>;
-
--- Describe function with extended details
-DESCRIBE FUNCTION EXTENDED <catalog_name>.<schema_name>.<function_name>;
+DESCRIBE FUNCTION EXTENDED <catalog>.<schema>.<function>;
 ```
 
-## Permissions and Grants
+### Volume CLI Commands
 
-### Viewing Permissions
+```bash
+# List files in volume
+databricks fs ls /Volumes/<catalog>/<schema>/<volume>/ -o json
 
-```sql
--- Show grants on a catalog
-SHOW GRANTS ON CATALOG <catalog_name>;
-
--- Show grants on a schema
-SHOW GRANTS ON SCHEMA <catalog_name>.<schema_name>;
-
--- Show grants on a table
-SHOW GRANTS ON TABLE <catalog_name>.<schema_name>.<table_name>;
-
--- Show grants on a view
-SHOW GRANTS ON VIEW <catalog_name>.<schema_name>.<view_name>;
-
--- Show grants on a volume
-SHOW GRANTS ON VOLUME <catalog_name>.<schema_name>.<volume_name>;
-
--- Show grants on a function
-SHOW GRANTS ON FUNCTION <catalog_name>.<schema_name>.<function_name>;
-
--- Show grants to a specific principal
-SHOW GRANTS TO `user@example.com`;
-SHOW GRANTS TO `group_name`;
+# Volume details
+databricks volumes read <catalog>.<schema>.<volume> -o json
 ```
 
-### Granting Permissions
-
-```sql
--- Grant catalog-level permissions
-GRANT USE CATALOG ON CATALOG <catalog_name> TO `user@example.com`;
-GRANT CREATE SCHEMA ON CATALOG <catalog_name> TO `user@example.com`;
-
--- Grant schema-level permissions
-GRANT USE SCHEMA ON SCHEMA <catalog_name>.<schema_name> TO `user@example.com`;
-GRANT CREATE TABLE ON SCHEMA <catalog_name>.<schema_name> TO `user@example.com`;
-
--- Grant table-level permissions
-GRANT SELECT ON TABLE <catalog_name>.<schema_name>.<table_name> TO `user@example.com`;
-GRANT MODIFY ON TABLE <catalog_name>.<schema_name>.<table_name> TO `user@example.com`;
-
--- Grant all privileges
-GRANT ALL PRIVILEGES ON TABLE <catalog_name>.<schema_name>.<table_name> TO `user@example.com`;
-
--- Grant to a group
-GRANT SELECT ON TABLE <catalog_name>.<schema_name>.<table_name> TO `data_analysts`;
-```
-
-### Revoking Permissions
-
-```sql
--- Revoke permissions
-REVOKE SELECT ON TABLE <catalog_name>.<schema_name>.<table_name> FROM `user@example.com`;
-
--- Revoke all privileges
-REVOKE ALL PRIVILEGES ON TABLE <catalog_name>.<schema_name>.<table_name> FROM `user@example.com`;
-```
+## Permissions
 
 ### Permission Hierarchy
 
 ```
 CATALOG (USE CATALOG, CREATE SCHEMA)
-  └── SCHEMA (USE SCHEMA, CREATE TABLE, CREATE FUNCTION, CREATE VOLUME)
+  └── SCHEMA (USE SCHEMA, CREATE TABLE/FUNCTION/VOLUME)
         ├── TABLE (SELECT, MODIFY, ALL PRIVILEGES)
         ├── VIEW (SELECT)
         ├── VOLUME (READ VOLUME, WRITE VOLUME)
         └── FUNCTION (EXECUTE)
 ```
 
-**Note**: To access a table, users need:
+**To access a table, users need**: `USE CATALOG` → `USE SCHEMA` → `SELECT`
 
-1. `USE CATALOG` on the catalog
-2. `USE SCHEMA` on the schema
-3. `SELECT` (or other) on the table
-
-## Ownership
+### View Grants
 
 ```sql
--- Show owner of a table
-DESCRIBE TABLE EXTENDED <catalog_name>.<schema_name>.<table_name>;
--- Look for "Owner" in the output
+-- On objects
+SHOW GRANTS ON CATALOG <catalog>;
+SHOW GRANTS ON SCHEMA <catalog>.<schema>;
+SHOW GRANTS ON TABLE <catalog>.<schema>.<table>;
+SHOW GRANTS ON VOLUME <catalog>.<schema>.<volume>;
 
+-- To principal
+SHOW GRANTS TO `user@example.com`;
+SHOW GRANTS TO `group_name`;
+```
+
+### Grant Permissions
+
+```sql
+-- Catalog access
+GRANT USE CATALOG ON CATALOG <catalog> TO `user@example.com`;
+GRANT CREATE SCHEMA ON CATALOG <catalog> TO `user@example.com`;
+
+-- Schema access
+GRANT USE SCHEMA ON SCHEMA <catalog>.<schema> TO `user@example.com`;
+GRANT CREATE TABLE ON SCHEMA <catalog>.<schema> TO `user@example.com`;
+
+-- Table access
+GRANT SELECT ON TABLE <catalog>.<schema>.<table> TO `user@example.com`;
+GRANT MODIFY ON TABLE <catalog>.<schema>.<table> TO `user@example.com`;
+GRANT ALL PRIVILEGES ON TABLE <catalog>.<schema>.<table> TO `data_team`;
+
+-- Revoke
+REVOKE SELECT ON TABLE <catalog>.<schema>.<table> FROM `user@example.com`;
+```
+
+### Ownership
+
+```sql
 -- Transfer ownership
-ALTER TABLE <catalog_name>.<schema_name>.<table_name> SET OWNER TO `new_owner@example.com`;
-ALTER SCHEMA <catalog_name>.<schema_name> SET OWNER TO `new_owner@example.com`;
-ALTER CATALOG <catalog_name> SET OWNER TO `new_owner@example.com`;
+ALTER TABLE <catalog>.<schema>.<table> SET OWNER TO `new_owner@example.com`;
+ALTER SCHEMA <catalog>.<schema> SET OWNER TO `new_owner@example.com`;
+ALTER CATALOG <catalog> SET OWNER TO `new_owner@example.com`;
 ```
 
-## Delta Table Operations
-
-### Time Travel
+## Delta Time Travel
 
 ```sql
--- Query a specific version
-SELECT * FROM <catalog_name>.<schema_name>.<table_name> VERSION AS OF 5;
+-- Query specific version
+SELECT * FROM <catalog>.<schema>.<table> VERSION AS OF 5;
 
--- Query at a specific timestamp
-SELECT * FROM <catalog_name>.<schema_name>.<table_name> TIMESTAMP AS OF '2024-01-15 10:00:00';
+-- Query at timestamp
+SELECT * FROM <catalog>.<schema>.<table> TIMESTAMP AS OF '2024-01-15 10:00:00';
 
--- Compare two versions
-SELECT * FROM <catalog_name>.<schema_name>.<table_name> VERSION AS OF 5
+-- Compare versions
+SELECT * FROM <catalog>.<schema>.<table> VERSION AS OF 5
 EXCEPT
-SELECT * FROM <catalog_name>.<schema_name>.<table_name> VERSION AS OF 4;
+SELECT * FROM <catalog>.<schema>.<table> VERSION AS OF 4;
 ```
 
-### Table Maintenance
+## Table Maintenance
 
 ```sql
--- Optimize table (compact small files)
-OPTIMIZE <catalog_name>.<schema_name>.<table_name>;
+-- Optimize (compact small files)
+OPTIMIZE <catalog>.<schema>.<table>;
 
 -- Optimize with Z-ordering
-OPTIMIZE <catalog_name>.<schema_name>.<table_name> ZORDER BY (column1, column2);
+OPTIMIZE <catalog>.<schema>.<table> ZORDER BY (col1, col2);
 
--- Vacuum old files (default 7 days retention)
-VACUUM <catalog_name>.<schema_name>.<table_name>;
-
--- Vacuum with custom retention (hours)
-VACUUM <catalog_name>.<schema_name>.<table_name> RETAIN 168 HOURS;
-
--- Analyze table for statistics
-ANALYZE TABLE <catalog_name>.<schema_name>.<table_name> COMPUTE STATISTICS;
+-- Vacuum old files (default 7 days)
+VACUUM <catalog>.<schema>.<table>;
+VACUUM <catalog>.<schema>.<table> RETAIN 168 HOURS;
 ```
 
-## Troubleshooting
-
-### Table Not Found
+## Information Schema
 
 ```sql
--- 1. Check if catalog exists
-SHOW CATALOGS LIKE '<catalog_name>';
+-- Tables metadata
+SELECT table_name, table_type, created
+FROM <catalog>.information_schema.tables
+WHERE table_schema = '<schema>';
 
--- 2. Check if schema exists
-SHOW SCHEMAS IN <catalog_name> LIKE '<schema_name>';
-
--- 3. Check if table exists
-SHOW TABLES IN <catalog_name>.<schema_name> LIKE '<table_name>';
-
--- 4. Check for typos (search with pattern)
-SHOW TABLES IN <catalog_name>.<schema_name> LIKE '%<partial_name>%';
-
--- 5. Check current catalog/schema context
-SELECT current_catalog(), current_schema();
-```
-
-### Access Denied / Permission Errors
-
-```sql
--- 1. Check your current user
-SELECT current_user();
-
--- 2. Check grants on the object
-SHOW GRANTS ON TABLE <catalog_name>.<schema_name>.<table_name>;
-
--- 3. Check if you have catalog access
-SHOW GRANTS ON CATALOG <catalog_name>;
-
--- 4. Check if you have schema access
-SHOW GRANTS ON SCHEMA <catalog_name>.<schema_name>;
-
--- 5. Check grants to your user specifically
-SHOW GRANTS TO `your_email@example.com`;
-
--- Required permissions for SELECT:
--- - USE CATALOG on catalog
--- - USE SCHEMA on schema
--- - SELECT on table
-```
-
-### Data Quality Investigation
-
-```sql
--- Check for NULL values in key columns
-SELECT
-  COUNT(*) AS total_rows,
-  COUNT(column_name) AS non_null_count,
-  COUNT(*) - COUNT(column_name) AS null_count
-FROM <catalog_name>.<schema_name>.<table_name>;
-
--- Check for duplicates
-SELECT column_name, COUNT(*) as cnt
-FROM <catalog_name>.<schema_name>.<table_name>
-GROUP BY column_name
-HAVING COUNT(*) > 1;
-
--- Get distinct value counts
-SELECT COUNT(DISTINCT column_name) AS distinct_count
-FROM <catalog_name>.<schema_name>.<table_name>;
-
--- Value distribution
-SELECT column_name, COUNT(*) AS cnt
-FROM <catalog_name>.<schema_name>.<table_name>
-GROUP BY column_name
-ORDER BY cnt DESC
-LIMIT 20;
-
--- Min/Max/Avg for numeric columns
-SELECT
-  MIN(numeric_column) AS min_val,
-  MAX(numeric_column) AS max_val,
-  AVG(numeric_column) AS avg_val
-FROM <catalog_name>.<schema_name>.<table_name>;
-```
-
-### Recent Changes Investigation
-
-```sql
--- Check table history for recent operations
-DESCRIBE HISTORY <catalog_name>.<schema_name>.<table_name>;
-
--- Check who modified the table recently (from history)
-SELECT
-  version,
-  timestamp,
-  userId,
-  userName,
-  operation,
-  operationParameters
-FROM (DESCRIBE HISTORY <catalog_name>.<schema_name>.<table_name>)
-ORDER BY version DESC
-LIMIT 10;
-```
-
-## Information Schema Queries
-
-```sql
--- List all tables with metadata
-SELECT *
-FROM <catalog_name>.information_schema.tables
-WHERE table_schema = '<schema_name>';
-
--- List all columns for a table
-SELECT *
-FROM <catalog_name>.information_schema.columns
-WHERE table_schema = '<schema_name>'
-  AND table_name = '<table_name>'
+-- Column details
+SELECT column_name, data_type, is_nullable
+FROM <catalog>.information_schema.columns
+WHERE table_schema = '<schema>' AND table_name = '<table>'
 ORDER BY ordinal_position;
 
--- Find tables containing a specific column name
+-- Find tables by column name
 SELECT table_catalog, table_schema, table_name, column_name
-FROM <catalog_name>.information_schema.columns
+FROM <catalog>.information_schema.columns
 WHERE column_name LIKE '%customer%';
-
--- List all table constraints
-SELECT *
-FROM <catalog_name>.information_schema.table_constraints
-WHERE table_schema = '<schema_name>';
 ```
 
 ## Cross-Catalog Queries
 
 ```sql
--- Query tables from different catalogs
+-- Join across catalogs
 SELECT a.*, b.*
 FROM catalog1.schema1.table1 a
-JOIN catalog2.schema2.table2 b
-  ON a.id = b.id;
+JOIN catalog2.schema2.table2 b ON a.id = b.id;
 
--- Create view spanning multiple catalogs
-CREATE VIEW my_catalog.my_schema.combined_view AS
-SELECT * FROM catalog1.schema1.table1
+-- Create view spanning catalogs
+CREATE VIEW my_catalog.my_schema.combined AS
+SELECT * FROM catalog1.schema.table
 UNION ALL
-SELECT * FROM catalog2.schema2.table2;
-```
-
-## Databricks CLI Fallback
-
-Use CLI when SQL cannot perform the operation:
-
-```bash
-# Get detailed table info as JSON
-databricks tables get <catalog>.<schema>.<table> -o json
-
-# List table with all metadata
-databricks tables list --catalog-name <catalog> --schema-name <schema> -o json
-
-# Get lineage information (API)
-curl -X GET "${DATABRICKS_HOST}/api/2.1/unity-catalog/lineage/table-lineage" \
-  -H "Authorization: Bearer ${DATABRICKS_TOKEN}" \
-  -d '{"table_name": "<catalog>.<schema>.<table>"}'
+SELECT * FROM catalog2.schema.table;
 ```
 
 ## Tips
 
 - Always use fully qualified names: `<catalog>.<schema>.<table>`
-- Use `LIKE` patterns for fuzzy searching: `'%pattern%'`
-- Check permission hierarchy when debugging access issues
-- Use `DESCRIBE HISTORY` to investigate recent data changes
-- For complex permission issues, check grants at all levels (catalog → schema → table)
+- Use `LIKE '%pattern%'` for fuzzy searching
+- Check permissions at all levels when debugging access issues
+- Use `DESCRIBE HISTORY` to investigate recent changes
+
+## References
+
+- [Troubleshooting](references/troubleshooting.md): Permission errors, table not found, debugging
+- [Lineage](references/lineage.md): Data lineage, change tracking, impact analysis

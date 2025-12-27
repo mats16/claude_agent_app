@@ -7,6 +7,8 @@
     "build": "bash scripts/install-jq.sh && tsc && cp -r db/drizzle dist/db/",
     "start": "node dist/server.js",
     "dev": "tsx watch --env-file=../.env server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:migrate": "tsx --env-file=../.env db/migrate.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
@@ -39,6 +41,7 @@
     "@types/ws": "^8.5.13",
     "drizzle-kit": "^1.0.0-beta.5",
     "tsx": "^4.21.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.16"
   }
 }

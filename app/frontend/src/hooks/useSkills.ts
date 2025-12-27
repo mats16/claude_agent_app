@@ -30,6 +30,26 @@ interface ErrorResponse {
   code?: string;
 }
 
+interface RateLimitErrorResponse {
+  error: string;
+  resetAt: string;
+  retryAfterSeconds: number;
+}
+
+// Check if response is a rate limit error and format message
+async function handleRateLimitError(response: Response): Promise<string> {
+  if (response.status === 429) {
+    try {
+      const data: RateLimitErrorResponse = await response.json();
+      const retryMinutes = Math.ceil(data.retryAfterSeconds / 60);
+      return `RATE_LIMITED:${retryMinutes}`;
+    } catch {
+      return 'RATE_LIMITED';
+    }
+  }
+  return '';
+}
+
 export function useSkills() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(false);
@@ -177,6 +197,12 @@ export function useSkills() {
 
     try {
       const response = await fetch('/api/v1/skills/public/databricks');
+
+      const rateLimitError = await handleRateLimitError(response.clone());
+      if (rateLimitError) {
+        throw new Error(rateLimitError);
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch Databricks skills');
       }
@@ -200,6 +226,12 @@ export function useSkills() {
 
     try {
       const response = await fetch('/api/v1/skills/public/anthropic');
+
+      const rateLimitError = await handleRateLimitError(response.clone());
+      if (rateLimitError) {
+        throw new Error(rateLimitError);
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch Anthropic skills');
       }

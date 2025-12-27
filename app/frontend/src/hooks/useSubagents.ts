@@ -30,6 +30,26 @@ interface ErrorResponse {
   error?: string;
 }
 
+interface RateLimitErrorResponse {
+  error: string;
+  resetAt: string;
+  retryAfterSeconds: number;
+}
+
+// Check if response is a rate limit error and format message
+async function handleRateLimitError(response: Response): Promise<string> {
+  if (response.status === 429) {
+    try {
+      const data: RateLimitErrorResponse = await response.json();
+      const retryMinutes = Math.ceil(data.retryAfterSeconds / 60);
+      return `RATE_LIMITED:${retryMinutes}`;
+    } catch {
+      return 'RATE_LIMITED';
+    }
+  }
+  return '';
+}
+
 export function useSubagents() {
   const [subagents, setSubagents] = useState<Subagent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -177,10 +197,12 @@ export function useSubagents() {
     try {
       const response = await fetch('/api/v1/agents/public/databricks');
 
+      const rateLimitError = await handleRateLimitError(response.clone());
+      if (rateLimitError) {
+        throw new Error(rateLimitError);
+      }
+
       if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('RATE_LIMITED');
-        }
         throw new Error(`API error: ${response.status}`);
       }
 

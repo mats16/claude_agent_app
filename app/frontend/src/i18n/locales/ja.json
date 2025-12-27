@@ -135,7 +135,7 @@
     "importSuccess": "スキルをインポートしました",
     "importFailed": "スキルのインポートに失敗しました",
     "presetExists": "同名のスキルが既に存在します",
-    "databricksSkills": "Databricks (非公式)",
+    "databricksSkills": "Databricks",
     "anthropicSkills": "Anthropic",
     "noDatabricksSkills": "利用可能な Databricks スキルがありません",
     "noAnthropicSkills": "利用可能な Anthropic スキルがありません",

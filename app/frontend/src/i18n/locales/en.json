@@ -135,7 +135,7 @@
     "importSuccess": "Skill imported successfully",
     "importFailed": "Failed to import skill",
     "presetExists": "A skill with this name already exists",
-    "databricksSkills": "Databricks (Unofficial)",
+    "databricksSkills": "Databricks",
     "anthropicSkills": "Anthropic",
     "noDatabricksSkills": "No Databricks skills available",
     "noAnthropicSkills": "No Anthropic skills available",

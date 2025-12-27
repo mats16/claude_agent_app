@@ -22,6 +22,7 @@ import workspaceRoutes from './routes/v1/workspace/index.js';
 import queueRoutes from './routes/v1/queues/index.js';
 import reposRoutes from './routes/v1/repos/index.js';
 import jobsRoutes from './routes/v1/jobs/index.js';
+import githubRoutes from './routes/v1/github/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,6 +78,7 @@ export async function buildApp() {
   await fastify.register(queueRoutes, { prefix: '/api/v1/queues' });
   await fastify.register(reposRoutes, { prefix: '/api/v1/repos' });
   await fastify.register(jobsRoutes, { prefix: '/api/v1/jobs' });
+  await fastify.register(githubRoutes, { prefix: '/api/v1/github' });
 
   return fastify;
 }

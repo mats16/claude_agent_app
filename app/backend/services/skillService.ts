@@ -24,6 +24,7 @@ export interface SkillListResult {
 
 export interface PresetListResult {
   presets: Skill[];
+  errors?: Array<{ name: string; error: string }>;
 }
 
 // GitHub repository for preset skills
@@ -304,31 +305,47 @@ export async function listPresetSkills(): Promise<PresetListResult> {
   // Filter directories only
   const skillDirs = contents.filter((item) => item.type === 'dir');
 
-  // Fetch SKILL.md for each skill directory
-  const presets: Skill[] = [];
-  for (const dir of skillDirs) {
-    try {
-      const skillMdResponse = await fetch(
-        `https://raw.githubusercontent.com/${PRESET_REPO}/${branch}/${PRESET_SKILLS_PATH}/${dir.name}/SKILL.md`
-      );
-      if (skillMdResponse.ok) {
+  // Fetch SKILL.md for each skill directory in parallel
+  const results = await Promise.all(
+    skillDirs.map(async (dir) => {
+      try {
+        const skillMdResponse = await fetch(
+          `https://raw.githubusercontent.com/${PRESET_REPO}/${branch}/${PRESET_SKILLS_PATH}/${dir.name}/SKILL.md`
+        );
+        if (!skillMdResponse.ok) {
+          return { error: { name: dir.name, error: `HTTP ${skillMdResponse.status}` } };
+        }
         const fileContent = await skillMdResponse.text();
         const parsed = parseSkillContent(fileContent);
         if (parsed.name) {
-          presets.push({
-            name: parsed.name,
-            description: parsed.description,
-            version: parsed.version,
-            content: parsed.content,
-          });
+          return {
+            preset: {
+              name: parsed.name,
+              description: parsed.description,
+              version: parsed.version,
+              content: parsed.content,
+            },
+          };
         }
+        return { error: { name: dir.name, error: 'Invalid SKILL.md format' } };
+      } catch (err: any) {
+        return { error: { name: dir.name, error: err.message || 'Unknown error' } };
       }
-    } catch (err) {
-      console.error(`Failed to fetch SKILL.md for ${dir.name}:`, err);
+    })
+  );
+
+  const presets: Skill[] = [];
+  const errors: Array<{ name: string; error: string }> = [];
+
+  for (const result of results) {
+    if ('preset' in result && result.preset) {
+      presets.push(result.preset);
+    } else if ('error' in result && result.error) {
+      errors.push(result.error);
     }
   }
 
-  return { presets };
+  return errors.length > 0 ? { presets, errors } : { presets };
 }
 
 // Import a preset skill to user's skills (from GitHub)

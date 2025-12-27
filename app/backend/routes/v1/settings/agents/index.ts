@@ -5,6 +5,7 @@ import {
   createSubagentHandler,
   updateSubagentHandler,
   deleteSubagentHandler,
+  importGitHubSubagentHandler,
 } from './handlers.js';
 
 const agentRoutes: FastifyPluginAsync = async (fastify) => {
@@ -27,6 +28,10 @@ const agentRoutes: FastifyPluginAsync = async (fastify) => {
   // Delete subagent
   // DELETE /api/v1/settings/agents/:subagentName
   fastify.delete('/:subagentName', deleteSubagentHandler);
+
+  // Import subagent from GitHub
+  // POST /api/v1/settings/agents/import
+  fastify.post('/import', importGitHubSubagentHandler);
 };
 
 export default agentRoutes;

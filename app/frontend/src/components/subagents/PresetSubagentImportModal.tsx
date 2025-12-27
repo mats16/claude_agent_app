@@ -125,7 +125,7 @@ export default function PresetSubagentImportModal({
                   description={
                     <div>
                       <div>{agent.description}</div>
-                      {agent.tools && (
+                      {agent.tools && agent.tools.length > 0 && (
                         <Text
                           type="secondary"
                           style={{
@@ -135,7 +135,7 @@ export default function PresetSubagentImportModal({
                             display: 'block',
                           }}
                         >
-                          Tools: {agent.tools}
+                          Tools: {agent.tools.join(', ')}
                         </Text>
                       )}
                     </div>

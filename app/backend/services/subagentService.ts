@@ -391,3 +391,81 @@ export async function importPresetSubagent(
 export function isValidSubagentName(name: string): boolean {
   return /^[a-zA-Z0-9-]+$/.test(name);
 }
+
+// Import a subagent from GitHub repository
+// repoName: repository name (e.g., "mats16/claude-agent-databricks")
+// agentPath: path to agent file (e.g., "agents/skill-creator.md"), empty for default
+// branch: branch name (optional, defaults to repository's default branch)
+export async function importGitHubSubagent(
+  user: RequestUser,
+  repoName: string,
+  agentPath: string,
+  branch?: string
+): Promise<Subagent> {
+  // Get branch (use repository's default if not specified)
+  const targetBranch = branch || (await getDefaultBranch(repoName));
+
+  // Build the full path to the agent file
+  const fullPath = agentPath.endsWith('.md') ? agentPath : `${agentPath}.md`;
+
+  // Fetch agent content from GitHub raw
+  const response = await fetch(
+    `https://raw.githubusercontent.com/${repoName}/${targetBranch}/${fullPath}`
+  );
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Agent file not found');
+    }
+    throw new Error(`Failed to fetch agent: ${response.status}`);
+  }
+
+  const fileContent = await response.text();
+  const parsed = parseSubagentContent(fileContent);
+
+  // Use parsed name or derive from path
+  const agentName =
+    parsed.name || fullPath.split('/').pop()?.replace(/\.md$/, '') || '';
+
+  if (!agentName) {
+    throw new Error('Could not determine agent name');
+  }
+
+  const agentsPath = user.agentsPath;
+  const subagentPath = path.join(agentsPath, `${agentName}.md`);
+
+  // Ensure agents directory exists
+  if (!fs.existsSync(agentsPath)) {
+    fs.mkdirSync(agentsPath, { recursive: true });
+  }
+
+  // If subagent already exists, remove it first (overwrite)
+  if (fs.existsSync(subagentPath)) {
+    fs.unlinkSync(subagentPath);
+  }
+
+  // Write subagent file with YAML frontmatter
+  const formattedContent = formatSubagentContent(
+    agentName,
+    parsed.description,
+    parsed.content,
+    parsed.tools,
+    parsed.model
+  );
+  fs.writeFileSync(subagentPath, formattedContent, 'utf-8');
+
+  // Upload to workspace (fire-and-forget)
+  putAgentToWorkspace(user, agentName, formattedContent).catch((err: Error) => {
+    console.error(
+      `[GitHub Subagents] Failed to upload after import: ${err.message}`
+    );
+  });
+
+  return {
+    name: agentName,
+    description: parsed.description,
+    tools: parsed.tools,
+    model: parsed.model,
+    content: parsed.content,
+  };
+}

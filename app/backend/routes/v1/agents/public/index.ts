@@ -21,13 +21,9 @@ function getGitHubHeaders(): Record<string, string> {
 
 // Repository configurations
 const REPOS = {
-  anthropic: {
-    repo: 'anthropics/skills',
-    path: 'skills',
-  },
   databricks: {
     repo: 'mats16/claude-agent-databricks',
-    path: 'skills',
+    path: 'agents',
   },
 } as const;
 
@@ -44,15 +40,16 @@ const cache: Map<string, CacheEntry> = new Map();
 let cleanupInterval: NodeJS.Timeout | null = null;
 
 // Response types
-interface PublicSkillDetail {
+interface PublicAgentDetail {
   repo: string;
   path: string;
   name: string;
   description: string;
-  version: string;
+  model?: string;
+  tools?: string[];
 }
 
-interface GitHubDirectoryEntry {
+interface GitHubFileEntry {
   name: string;
   type: 'dir' | 'file';
   path: string;
@@ -79,33 +76,41 @@ async function fetchDefaultBranch(repo: string): Promise<string> {
   return data.default_branch;
 }
 
-// Parse YAML frontmatter from skill content
-function parseSkillContent(fileContent: string): {
+// Parse YAML frontmatter from agent content
+function parseAgentContent(fileContent: string): {
   name: string;
   description: string;
-  version: string;
+  model?: string;
+  tools?: string[];
 } {
   const frontmatterMatch = fileContent.match(
     /^---\n([\s\S]*?)\n---\n([\s\S]*)$/
   );
   if (!frontmatterMatch) {
-    return { name: '', description: '', version: '1.0.0' };
+    return { name: '', description: '' };
   }
 
   const yaml = frontmatterMatch[1];
   const name = yaml.match(/name:\s*(.+)/)?.[1]?.trim() || '';
   const description = yaml.match(/description:\s*(.+)/)?.[1]?.trim() || '';
-  const version = yaml.match(/version:\s*(.+)/)?.[1]?.trim() || '1.0.0';
+  const model = yaml.match(/model:\s*(.+)/)?.[1]?.trim();
+  const toolsMatch = yaml.match(/tools:\s*\[([^\]]*)\]/);
+  const tools = toolsMatch
+    ? toolsMatch[1]
+        .split(',')
+        .map((t) => t.trim().replace(/['"]/g, ''))
+        .filter(Boolean)
+    : undefined;
 
-  return { name, description, version };
+  return { name, description, model, tools };
 }
 
-// Fetch skill directory names from repository (lightweight, 1 API call)
-async function fetchSkillNames(
+// Fetch agent file names from repository (lightweight, 1 API call)
+async function fetchAgentNames(
   repoKey: RepoKey
 ): Promise<{ names: string[]; cached: boolean }> {
   const config = REPOS[repoKey];
-  const cacheKey = `names:${repoKey}`;
+  const cacheKey = `agent-names:${repoKey}`;
 
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -129,52 +134,53 @@ async function fetchSkillNames(
     throw new Error(`GitHub API error: ${response.status}`);
   }
 
-  const entries = (await response.json()) as GitHubDirectoryEntry[];
+  const entries = (await response.json()) as GitHubFileEntry[];
   const names = entries
-    .filter((entry) => entry.type === 'dir')
-    .map((entry) => entry.name);
+    .filter((entry) => entry.type === 'file' && entry.name.endsWith('.md'))
+    .map((entry) => entry.name.replace(/\.md$/, ''));
 
   cache.set(cacheKey, { data: names, timestamp: Date.now() });
   return { names, cached: false };
 }
 
-// Fetch single skill details
-async function fetchSkillDetail(
+// Fetch single agent details
+async function fetchAgentDetail(
   repoKey: RepoKey,
-  skillName: string
-): Promise<PublicSkillDetail | null> {
+  agentName: string
+): Promise<PublicAgentDetail | null> {
   const config = REPOS[repoKey];
-  const cacheKey = `skill:${repoKey}:${skillName}`;
+  const cacheKey = `agent:${repoKey}:${agentName}`;
 
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data as PublicSkillDetail;
+    return cached.data as PublicAgentDetail;
   }
 
   const branch = await fetchDefaultBranch(config.repo);
-  const skillMdUrl = `${GITHUB_RAW_BASE}/${config.repo}/${branch}/${config.path}/${skillName}/SKILL.md`;
+  const agentMdUrl = `${GITHUB_RAW_BASE}/${config.repo}/${branch}/${config.path}/${agentName}.md`;
 
-  const response = await fetch(skillMdUrl);
+  const response = await fetch(agentMdUrl);
   if (!response.ok) {
     return null;
   }
 
   const content = await response.text();
-  const parsed = parseSkillContent(content);
+  const parsed = parseAgentContent(content);
 
-  const skill: PublicSkillDetail = {
+  const agent: PublicAgentDetail = {
     repo: `https://github.com/${config.repo}.git`,
-    path: `${config.path}/${skillName}`,
-    name: parsed.name || skillName,
+    path: `${config.path}/${agentName}.md`,
+    name: parsed.name || agentName,
     description: parsed.description,
-    version: parsed.version,
+    model: parsed.model,
+    tools: parsed.tools,
   };
 
-  cache.set(cacheKey, { data: skill, timestamp: Date.now() });
-  return skill;
+  cache.set(cacheKey, { data: agent, timestamp: Date.now() });
+  return agent;
 }
 
-const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
+const publicAgentsRoutes: FastifyPluginAsync = async (fastify) => {
   // Start cache cleanup interval
   cleanupInterval = setInterval(
     () => {
@@ -197,93 +203,49 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
     cache.clear();
   });
 
-  // List Anthropic skill names
-  // GET /api/v1/skills/public/anthropic
-  fastify.get(
-    '/anthropic',
-    async (_request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const result = await fetchSkillNames('anthropic');
-        reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
-        return { skills: result.names };
-      } catch (error: any) {
-        if (error.message === 'RATE_LIMITED') {
-          return reply
-            .status(429)
-            .send({ error: 'GitHub API rate limit exceeded' });
-        }
-        console.error('Failed to fetch Anthropic skills:', error);
-        return reply.status(500).send({ error: error.message });
-      }
-    }
-  );
-
-  // Get single Anthropic skill details
-  // GET /api/v1/skills/public/anthropic/:skillName
-  fastify.get(
-    '/anthropic/:skillName',
-    async (
-      request: FastifyRequest<{ Params: { skillName: string } }>,
-      reply: FastifyReply
-    ) => {
-      const { skillName } = request.params;
-
-      try {
-        const skill = await fetchSkillDetail('anthropic', skillName);
-        if (!skill) {
-          return reply.status(404).send({ error: 'Skill not found' });
-        }
-        return skill;
-      } catch (error: any) {
-        console.error('Failed to fetch Anthropic skill:', error);
-        return reply.status(500).send({ error: error.message });
-      }
-    }
-  );
-
-  // List Databricks skill names
-  // GET /api/v1/skills/public/databricks
+  // List Databricks agent names
+  // GET /api/v1/agents/public/databricks
   fastify.get(
     '/databricks',
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const result = await fetchSkillNames('databricks');
+        const result = await fetchAgentNames('databricks');
         reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
-        return { skills: result.names };
+        return { agents: result.names };
       } catch (error: any) {
         if (error.message === 'RATE_LIMITED') {
           return reply
             .status(429)
             .send({ error: 'GitHub API rate limit exceeded' });
         }
-        console.error('Failed to fetch Databricks skills:', error);
+        console.error('Failed to fetch Databricks agents:', error);
         return reply.status(500).send({ error: error.message });
       }
     }
   );
 
-  // Get single Databricks skill details
-  // GET /api/v1/skills/public/databricks/:skillName
+  // Get single Databricks agent details
+  // GET /api/v1/agents/public/databricks/:agentName
   fastify.get(
-    '/databricks/:skillName',
+    '/databricks/:agentName',
     async (
-      request: FastifyRequest<{ Params: { skillName: string } }>,
+      request: FastifyRequest<{ Params: { agentName: string } }>,
       reply: FastifyReply
     ) => {
-      const { skillName } = request.params;
+      const { agentName } = request.params;
 
       try {
-        const skill = await fetchSkillDetail('databricks', skillName);
-        if (!skill) {
-          return reply.status(404).send({ error: 'Skill not found' });
+        const agent = await fetchAgentDetail('databricks', agentName);
+        if (!agent) {
+          return reply.status(404).send({ error: 'Agent not found' });
         }
-        return skill;
+        return agent;
       } catch (error: any) {
-        console.error('Failed to fetch Databricks skill:', error);
+        console.error('Failed to fetch Databricks agent:', error);
         return reply.status(500).send({ error: error.message });
       }
     }
   );
 };
 
-export default publicSkillsRoutes;
+export default publicAgentsRoutes;

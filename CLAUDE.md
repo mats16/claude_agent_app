@@ -33,6 +33,34 @@ Uses user's PAT if available, otherwise falls back to Service Principal.
 - `getAccessTokenForUser()` in `utils/auth.ts`
 - Agent env vars configured in `agent/index.ts`
 
+### PAT Encryption (AES-256-GCM)
+User PATs are encrypted at rest using AES-256-GCM via Drizzle CustomType.
+
+**Setup:**
+```bash
+# Generate a 32-byte key (64 hex chars)
+openssl rand -hex 32
+
+# Set as environment variable or Databricks secret
+export ENCRYPTION_KEY=<64-char-hex-string>
+databricks secrets put-secret claude-agent encryption-key
+```
+
+**Error Handling Strategy:**
+
+| Scenario | Behavior |
+|----------|----------|
+| `ENCRYPTION_KEY` not set | PAT feature disabled, warning logged at startup |
+| Key format invalid | PAT feature disabled, error logged at startup |
+| Key changed after PATs stored | Decryption fails gracefully, PAT treated as "not set" |
+| Decryption failure | Warning logged, user prompted to re-configure PAT |
+
+**Key Files:**
+- `utils/encryption.ts` - AES-256-GCM encrypt/decrypt helpers
+- `db/customTypes.ts` - `encryptedText` Drizzle CustomType
+- `db/schema.ts` - `oauth_tokens.access_token` uses `encryptedText`
+- `services/userService.ts` - `getUserPersonalAccessToken()` handles errors
+
 ### User Model
 Extracts user info from headers. Access paths via `user.local.*` / `user.remote.*`.
 ```typescript

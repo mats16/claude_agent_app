@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -12,7 +12,6 @@ import {
   Button,
   Input,
   message,
-  Badge,
 } from 'antd';
 import {
   RocketOutlined,
@@ -24,8 +23,11 @@ import { colors, borderRadius } from '../styles/theme';
 import { useAppTemplates, AppTemplate } from '../hooks/useAppTemplates';
 import { useUser } from '../contexts/UserContext';
 import WorkspaceSelectModal from './WorkspaceSelectModal';
+import { useSkillImport } from '../hooks/useSkillImport';
+import SkillImportBanner from './skills/SkillImportBanner';
+import PresetImportModal from './skills/PresetImportModal';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface QuickstartAppsModalProps {
   isOpen: boolean;
@@ -64,6 +66,24 @@ export default function QuickstartAppsModal({
 
   // Step: 'select' or 'configure'
   const [step, setStep] = useState<'select' | 'configure'>('select');
+
+  // Skill import using custom hook
+  const {
+    isImportModalOpen,
+    activeImportTab,
+    isSavingSkill,
+    databricksSkillNames,
+    databricksLoading,
+    databricksError,
+    anthropicSkillNames,
+    anthropicLoading,
+    anthropicError,
+    openImportModal,
+    closeImportModal,
+    setActiveImportTab,
+    handleImportSkill,
+    fetchSkillDetail,
+  } = useSkillImport();
 
   // Fetch templates when modal opens
   useEffect(() => {
@@ -397,6 +417,10 @@ export default function QuickstartAppsModal({
     >
       {step === 'select' ? (
         <>
+          <SkillImportBanner
+            messageKey="quickstartApps.importSkillLink"
+            onImportClick={openImportModal}
+          />
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
             {t('quickstartApps.selectTemplate')}
           </Text>
@@ -405,6 +429,22 @@ export default function QuickstartAppsModal({
       ) : (
         renderConfiguration()
       )}
+
+      <PresetImportModal
+        isOpen={isImportModalOpen}
+        databricksSkillNames={databricksSkillNames}
+        databricksLoading={databricksLoading}
+        databricksError={databricksError}
+        anthropicSkillNames={anthropicSkillNames}
+        anthropicLoading={anthropicLoading}
+        anthropicError={anthropicError}
+        isSaving={isSavingSkill}
+        activeTab={activeImportTab}
+        onClose={closeImportModal}
+        onTabChange={setActiveImportTab}
+        onFetchDetail={fetchSkillDetail}
+        onImport={handleImportSkill}
+      />
     </Modal>
   );
 }

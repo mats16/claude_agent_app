@@ -13,6 +13,9 @@ import {
 } from 'antd';
 import { BugOutlined, SearchOutlined } from '@ant-design/icons';
 import { colors, borderRadius } from '../styles/theme';
+import { useSkillImport } from '../hooks/useSkillImport';
+import SkillImportBanner from './skills/SkillImportBanner';
+import PresetImportModal from './skills/PresetImportModal';
 
 const { Text } = Typography;
 
@@ -54,6 +57,24 @@ export default function QuickstartJobErrorsModal({
   const [creatingSessionFor, setCreatingSessionFor] = useState<number | null>(
     null
   );
+
+  // Skill import using custom hook
+  const {
+    isImportModalOpen,
+    activeImportTab,
+    isSavingSkill,
+    databricksSkillNames,
+    databricksLoading,
+    databricksError,
+    anthropicSkillNames,
+    anthropicLoading,
+    anthropicError,
+    openImportModal,
+    closeImportModal,
+    setActiveImportTab,
+    handleImportSkill,
+    fetchSkillDetail,
+  } = useSkillImport();
 
   const fetchFailedJobs = useCallback(async () => {
     setLoading(true);
@@ -147,6 +168,10 @@ export default function QuickstartJobErrorsModal({
       width={600}
       footer={<Button onClick={onClose}>{t('common.cancel')}</Button>}
     >
+      <SkillImportBanner
+        messageKey="quickstartJobs.importSkillLink"
+        onImportClick={openImportModal}
+      />
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
         {t('quickstartJobs.subtitle')}
       </Text>
@@ -226,6 +251,22 @@ export default function QuickstartJobErrorsModal({
           />
         )}
       </div>
+
+      <PresetImportModal
+        isOpen={isImportModalOpen}
+        databricksSkillNames={databricksSkillNames}
+        databricksLoading={databricksLoading}
+        databricksError={databricksError}
+        anthropicSkillNames={anthropicSkillNames}
+        anthropicLoading={anthropicLoading}
+        anthropicError={anthropicError}
+        isSaving={isSavingSkill}
+        activeTab={activeImportTab}
+        onClose={closeImportModal}
+        onTabChange={setActiveImportTab}
+        onFetchDetail={fetchSkillDetail}
+        onImport={handleImportSkill}
+      />
     </Modal>
   );
 }

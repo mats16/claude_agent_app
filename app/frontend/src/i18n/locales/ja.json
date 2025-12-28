@@ -348,6 +348,7 @@
   },
   "quickstartApps": {
     "title": "Quickstart: Databricks Apps",
+    "importSkillLink": "Databricks Apps 用のスキルをインポートする",
     "selectTemplate": "テンプレートを選択してください",
     "loading": "テンプレートを読み込み中...",
     "noTemplates": "利用可能なテンプレートがありません",
@@ -362,14 +363,15 @@
     "createSuccess": "App を作成しました",
     "createFailed": "App の作成に失敗しました",
     "alreadyExists": "指定したパスは既に存在します",
-    "initialMessage": "/databricks-apps Databricks Apps 開発用の「{{templateName}}」テンプレートをクローンしました。/databricks-apps スキルを使って、このアプリの開発を手伝ってください。まずプロジェクト構成を確認し、このテンプレートの機能を説明してから、カスタマイズと実行を手伝ってください。"
+    "initialMessage": "#databricks-apps Databricks Apps 開発用の「{{templateName}}」テンプレートをクローンしました。#databricks-apps スキルを使って、このアプリの開発を手伝ってください。まずプロジェクト構成を確認し、このテンプレートの機能を説明してから、カスタマイズと実行を手伝ってください。"
   },
   "quickstartJobs": {
     "title": "Quickstart: 失敗したジョブの調査",
     "subtitle": "直近で失敗したジョブ一覧",
+    "importSkillLink": "Databricks Jobs 用のスキルをインポートする",
     "loading": "失敗したジョブを読み込み中...",
     "noFailedJobs": "失敗したジョブはありません",
     "investigate": "調査",
-    "initialMessage": "/databricks-jobs ジョブ「{{jobName}}」(job_id: {{jobId}}, run_id: {{runId}}) が失敗しました。エラーを調査して、何が問題だったのか理解する手助けをしてください。"
+    "initialMessage": "#databricks-jobs ジョブ「{{jobName}}」(job_id: {{jobId}}, run_id: {{runId}}) が失敗しました。エラーを調査して、何が問題だったのか理解する手助けをしてください。"
   }
 }

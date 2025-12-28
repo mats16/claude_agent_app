@@ -348,6 +348,7 @@
   },
   "quickstartApps": {
     "title": "Quickstart: Databricks Apps",
+    "importSkillLink": "Import skill for Databricks Apps",
     "selectTemplate": "Select a template to get started",
     "loading": "Loading templates...",
     "noTemplates": "No templates available",

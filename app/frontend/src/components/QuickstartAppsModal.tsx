@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -12,18 +12,26 @@ import {
   Button,
   Input,
   message,
-  Badge,
+  ConfigProvider,
 } from 'antd';
 import {
   RocketOutlined,
   FolderOutlined,
   GithubOutlined,
   ExportOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { colors, borderRadius } from '../styles/theme';
 import { useAppTemplates, AppTemplate } from '../hooks/useAppTemplates';
 import { useUser } from '../contexts/UserContext';
 import WorkspaceSelectModal from './WorkspaceSelectModal';
+import {
+  useSkills,
+  type PublicSkillDetail,
+} from '../hooks/useSkills';
+import PresetImportModal, {
+  type ImportTab,
+} from './skills/PresetImportModal';
 
 const { Text, Title } = Typography;
 
@@ -64,6 +72,57 @@ export default function QuickstartAppsModal({
 
   // Step: 'select' or 'configure'
   const [step, setStep] = useState<'select' | 'configure'>('select');
+
+  // Skill import state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [activeImportTab, setActiveImportTab] =
+    useState<ImportTab>('databricks');
+  const [isSavingSkill, setIsSavingSkill] = useState(false);
+
+  const {
+    fetchSkills,
+    databricksSkillNames,
+    databricksLoading,
+    databricksError,
+    anthropicSkillNames,
+    anthropicLoading,
+    anthropicError,
+    fetchDatabricksSkillNames,
+    fetchAnthropicSkillNames,
+    fetchSkillDetail,
+    importSkill,
+  } = useSkills();
+
+  // Fetch skill names when import modal opens
+  useEffect(() => {
+    if (isImportModalOpen && activeImportTab === 'databricks') {
+      fetchDatabricksSkillNames();
+    }
+  }, [isImportModalOpen, activeImportTab, fetchDatabricksSkillNames]);
+
+  useEffect(() => {
+    if (isImportModalOpen && activeImportTab === 'anthropic') {
+      fetchAnthropicSkillNames();
+    }
+  }, [isImportModalOpen, activeImportTab, fetchAnthropicSkillNames]);
+
+  const handleImportSkill = useCallback(
+    async (detail: PublicSkillDetail): Promise<boolean> => {
+      setIsSavingSkill(true);
+      const success = await importSkill(detail);
+      setIsSavingSkill(false);
+
+      if (success) {
+        message.success(t('skillsModal.importSuccess'));
+        await fetchSkills();
+        return true;
+      } else {
+        message.error(t('skillsModal.importFailed'));
+        return false;
+      }
+    },
+    [importSkill, fetchSkills, t]
+  );
 
   // Fetch templates when modal opens
   useEffect(() => {
@@ -397,6 +456,30 @@ export default function QuickstartAppsModal({
     >
       {step === 'select' ? (
         <>
+          <Flex
+            align="center"
+            gap={8}
+            style={{
+              padding: '8px 12px',
+              marginBottom: 16,
+              background: '#e6f4ff',
+              borderRadius: borderRadius.md,
+              border: '1px solid #91caff',
+            }}
+          >
+            <InfoCircleOutlined style={{ color: '#1677ff', fontSize: 16 }} />
+            <Text style={{ flex: 1 }}>
+              {t('quickstartApps.importSkillLink')}
+            </Text>
+            <ConfigProvider theme={{ token: { colorPrimary: '#1677ff' } }}>
+              <Button
+                size="small"
+                onClick={() => setIsImportModalOpen(true)}
+              >
+                {t('skillsModal.import')}
+              </Button>
+            </ConfigProvider>
+          </Flex>
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
             {t('quickstartApps.selectTemplate')}
           </Text>
@@ -405,6 +488,22 @@ export default function QuickstartAppsModal({
       ) : (
         renderConfiguration()
       )}
+
+      <PresetImportModal
+        isOpen={isImportModalOpen}
+        databricksSkillNames={databricksSkillNames}
+        databricksLoading={databricksLoading}
+        databricksError={databricksError}
+        anthropicSkillNames={anthropicSkillNames}
+        anthropicLoading={anthropicLoading}
+        anthropicError={anthropicError}
+        isSaving={isSavingSkill}
+        activeTab={activeImportTab}
+        onClose={() => setIsImportModalOpen(false)}
+        onTabChange={setActiveImportTab}
+        onFetchDetail={fetchSkillDetail}
+        onImport={handleImportSkill}
+      />
     </Modal>
   );
 }

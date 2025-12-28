@@ -348,6 +348,7 @@
   },
   "quickstartApps": {
     "title": "Quickstart: Databricks Apps",
+    "importSkillLink": "Databricks Apps 用のスキルをインポートする",
     "selectTemplate": "テンプレートを選択してください",
     "loading": "テンプレートを読み込み中...",
     "noTemplates": "利用可能なテンプレートがありません",

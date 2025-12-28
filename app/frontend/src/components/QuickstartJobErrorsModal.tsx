@@ -10,6 +10,7 @@ import {
   Button,
   Empty,
   message,
+  ConfigProvider,
 } from 'antd';
 import { BugOutlined, SearchOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { colors, borderRadius } from '../styles/theme';
@@ -220,12 +221,14 @@ export default function QuickstartJobErrorsModal({
         <Text style={{ flex: 1 }}>
           {t('quickstartJobs.importSkillLink')}
         </Text>
-        <Button
-          size="small"
-          onClick={() => setIsImportModalOpen(true)}
-        >
-          {t('skillsModal.import')}
-        </Button>
+        <ConfigProvider theme={{ token: { colorPrimary: '#1677ff' } }}>
+          <Button
+            size="small"
+            onClick={() => setIsImportModalOpen(true)}
+          >
+            {t('skillsModal.import')}
+          </Button>
+        </ConfigProvider>
       </Flex>
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
         {t('quickstartJobs.subtitle')}

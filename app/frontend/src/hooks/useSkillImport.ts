@@ -59,18 +59,30 @@ export function useSkillImport(): UseSkillImportReturn {
 
   // Fetch skill names when import modal opens based on active tab
   useEffect(() => {
-    if (isImportModalOpen && activeImportTab === 'databricks') {
-      fetchDatabricksSkillNames();
-    }
-  }, [isImportModalOpen, activeImportTab, fetchDatabricksSkillNames]);
+    if (!isImportModalOpen) return;
 
-  useEffect(() => {
-    if (isImportModalOpen && activeImportTab === 'anthropic') {
+    if (activeImportTab === 'databricks') {
+      fetchDatabricksSkillNames();
+    } else if (activeImportTab === 'anthropic') {
       fetchAnthropicSkillNames();
     }
-  }, [isImportModalOpen, activeImportTab, fetchAnthropicSkillNames]);
+  }, [
+    isImportModalOpen,
+    activeImportTab,
+    fetchDatabricksSkillNames,
+    fetchAnthropicSkillNames,
+  ]);
 
-  // Import handler with enhanced error logging
+  /**
+   * Import handler with enhanced error logging
+   *
+   * Returns boolean to indicate success/failure:
+   * - true: Import succeeded, PresetImportModal will close automatically
+   * - false: Import failed, modal stays open to allow retry
+   *
+   * This design provides better UX by allowing users to retry failed imports
+   * without having to reopen the modal and navigate back to the skill.
+   */
   const handleImportSkill = useCallback(
     async (detail: PublicSkillDetail): Promise<boolean> => {
       setIsSavingSkill(true);
@@ -83,7 +95,7 @@ export function useSkillImport(): UseSkillImportReturn {
           return true;
         } else {
           message.error(t('skillsModal.importFailed'));
-          // Enhanced error logging
+          // Enhanced error logging with skill details
           console.error('Skill import failed for:', {
             name: detail.name,
             repo: detail.repo,
@@ -93,7 +105,7 @@ export function useSkillImport(): UseSkillImportReturn {
         }
       } catch (error) {
         message.error(t('skillsModal.importFailed'));
-        // Log the actual error with full details
+        // Log the actual error with full details for debugging
         console.error('Skill import exception:', error, {
           skillDetail: detail,
         });

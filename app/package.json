@@ -12,6 +12,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "test": "npm run test --workspace=backend --workspace=frontend",
     "start": "npm run start --workspace=backend",
     "db:migrate": "npm run db:migrate --workspace=backend",
     "format": "turbo run format",

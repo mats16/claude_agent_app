@@ -362,7 +362,7 @@
     "createSuccess": "App created successfully",
     "createFailed": "Failed to create app",
     "alreadyExists": "A folder with this name already exists",
-    "initialMessage": "I've cloned the \"{{templateName}}\" template for Databricks Apps development. Please use the /databricks-apps skill to help me get started with this app. First, explore the project structure and explain what this template provides, then help me customize and run it."
+    "initialMessage": "/databricks-apps I've cloned the \"{{templateName}}\" template for Databricks Apps development. Please use the /databricks-apps skill to help me get started with this app. First, explore the project structure and explain what this template provides, then help me customize and run it."
   },
   "quickstartJobs": {
     "title": "Quickstart: Failed Job Runs",
@@ -370,6 +370,6 @@
     "loading": "Loading failed jobs...",
     "noFailedJobs": "No failed jobs",
     "investigate": "Investigate",
-    "initialMessage": "Job \"{{jobName}}\" (job_id: {{jobId}}, run_id: {{runId}}) has failed. Please investigate the error and help me understand what went wrong."
+    "initialMessage": "/databricks-jobs Job \"{{jobName}}\" (job_id: {{jobId}}, run_id: {{runId}}) has failed. Please investigate the error and help me understand what went wrong."
   }
 }

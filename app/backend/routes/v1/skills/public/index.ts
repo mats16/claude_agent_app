@@ -94,6 +94,9 @@ async function fetchSkillDetail(
   return skill;
 }
 
+// Cache settings for public skills API
+const CACHE_MAX_AGE_SECONDS = 300; // 5 minutes
+
 const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
   // List Anthropic skill names
   // GET /api/v1/skills/public/anthropic
@@ -103,6 +106,7 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const result = await fetchSkillNames('anthropic');
         reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
+        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
         return { skills: result.names };
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {
@@ -131,6 +135,7 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
         if (!skill) {
           return reply.status(404).send({ error: 'Skill not found' });
         }
+        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
         return skill;
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {
@@ -152,6 +157,7 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const result = await fetchSkillNames('databricks');
         reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
+        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
         return { skills: result.names };
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {
@@ -180,6 +186,7 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
         if (!skill) {
           return reply.status(404).send({ error: 'Skill not found' });
         }
+        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
         return skill;
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {

@@ -61,13 +61,11 @@ export function useSkills() {
   );
   const [databricksLoading, setDatabricksLoading] = useState(false);
   const [databricksError, setDatabricksError] = useState<string | null>(null);
-  const [databricksCached, setDatabricksCached] = useState(false);
 
   // Anthropic skill names
   const [anthropicSkillNames, setAnthropicSkillNames] = useState<string[]>([]);
   const [anthropicLoading, setAnthropicLoading] = useState(false);
   const [anthropicError, setAnthropicError] = useState<string | null>(null);
-  const [anthropicCached, setAnthropicCached] = useState(false);
 
   const fetchSkills = useCallback(async () => {
     setLoading(true);
@@ -208,7 +206,6 @@ export function useSkills() {
       }
       const data: SkillNamesResponse = await response.json();
       setDatabricksSkillNames(Array.isArray(data.skills) ? data.skills : []);
-      setDatabricksCached(response.headers.get('X-Cache') === 'HIT');
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to fetch Databricks skills';
@@ -237,7 +234,6 @@ export function useSkills() {
       }
       const data: SkillNamesResponse = await response.json();
       setAnthropicSkillNames(Array.isArray(data.skills) ? data.skills : []);
-      setAnthropicCached(response.headers.get('X-Cache') === 'HIT');
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to fetch Anthropic skills';
@@ -313,12 +309,10 @@ export function useSkills() {
     databricksSkillNames,
     databricksLoading,
     databricksError,
-    databricksCached,
     // Anthropic skill names
     anthropicSkillNames,
     anthropicLoading,
     anthropicError,
-    anthropicCached,
     // Actions
     fetchSkills,
     createSkill,

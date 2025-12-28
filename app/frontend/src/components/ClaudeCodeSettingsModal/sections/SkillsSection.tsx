@@ -34,12 +34,10 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
     databricksSkillNames,
     databricksLoading,
     databricksError,
-    databricksCached,
     // Anthropic skill names
     anthropicSkillNames,
     anthropicLoading,
     anthropicError,
-    anthropicCached,
     // Actions
     fetchSkills,
     createSkill,
@@ -326,11 +324,9 @@ export default function SkillsSection({ isVisible }: SkillsSectionProps) {
         databricksSkillNames={databricksSkillNames}
         databricksLoading={databricksLoading}
         databricksError={databricksError}
-        databricksCached={databricksCached}
         anthropicSkillNames={anthropicSkillNames}
         anthropicLoading={anthropicLoading}
         anthropicError={anthropicError}
-        anthropicCached={anthropicCached}
         isSaving={isSaving}
         activeTab={activeImportTab}
         onClose={handleCloseImportModal}

@@ -31,12 +31,10 @@ interface PresetImportModalProps {
   databricksSkillNames: string[];
   databricksLoading: boolean;
   databricksError: string | null;
-  databricksCached: boolean;
   // Anthropic skills
   anthropicSkillNames: string[];
   anthropicLoading: boolean;
   anthropicError: string | null;
-  anthropicCached: boolean;
   // Common
   isSaving: boolean;
   activeTab: ImportTab;
@@ -54,11 +52,9 @@ export default function PresetImportModal({
   databricksSkillNames,
   databricksLoading,
   databricksError,
-  databricksCached,
   anthropicSkillNames,
   anthropicLoading,
   anthropicError,
-  anthropicCached,
   isSaving,
   activeTab,
   onClose,
@@ -260,14 +256,6 @@ export default function PresetImportModal({
         <Flex align="center" gap={spacing.xs}>
           <GithubOutlined />
           {t('skillsModal.databricksSkills')}
-          {databricksCached && (
-            <Text
-              type="secondary"
-              style={{ fontSize: '11px', marginLeft: spacing.xs }}
-            >
-              {t('skillsModal.cachedData')}
-            </Text>
-          )}
         </Flex>
       ),
       children: renderSkillList(
@@ -283,14 +271,6 @@ export default function PresetImportModal({
         <Flex align="center" gap={spacing.xs}>
           <GithubOutlined />
           {t('skillsModal.anthropicSkills')}
-          {anthropicCached && (
-            <Text
-              type="secondary"
-              style={{ fontSize: '11px', marginLeft: spacing.xs }}
-            >
-              {t('skillsModal.cachedData')}
-            </Text>
-          )}
         </Flex>
       ),
       children: renderSkillList(

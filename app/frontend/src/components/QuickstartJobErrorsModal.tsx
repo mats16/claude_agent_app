@@ -205,21 +205,18 @@ export default function QuickstartJobErrorsModal({
       width={600}
       footer={<Button onClick={onClose}>{t('common.cancel')}</Button>}
     >
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-        {t('quickstartJobs.subtitle')}
-      </Text>
       <Flex
         align="center"
         gap={8}
         style={{
           padding: '8px 12px',
           marginBottom: 16,
-          background: colors.brandBg,
+          background: '#e6f4ff',
           borderRadius: borderRadius.md,
-          border: `1px solid ${colors.brand}20`,
+          border: '1px solid #91caff',
         }}
       >
-        <InfoCircleOutlined style={{ color: colors.brand, fontSize: 16 }} />
+        <InfoCircleOutlined style={{ color: '#1677ff', fontSize: 16 }} />
         <Text style={{ flex: 1 }}>
           {t('quickstartJobs.importSkillLink')}
         </Text>
@@ -230,6 +227,9 @@ export default function QuickstartJobErrorsModal({
           {t('skillsModal.import')}
         </Button>
       </Flex>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+        {t('quickstartJobs.subtitle')}
+      </Text>
       <div
         style={{
           border: `1px solid ${colors.border}`,

@@ -6,7 +6,7 @@ import {
 } from '../db/oauthTokens.js';
 import { upsertUser } from '../db/users.js';
 import { isEncryptionAvailable } from '../utils/encryption.js';
-import type { RequestUser } from '../models/RequestUser.js';
+import { github } from '../config/index.js';
 
 // GitHub user info from /user API
 interface GitHubUserInfo {
@@ -15,31 +15,135 @@ interface GitHubUserInfo {
   avatar_url: string;
 }
 
+// GitHub OAuth token response
+interface GitHubTokenResponse {
+  access_token: string;
+  token_type: string;
+  scope: string;
+  error?: string;
+  error_description?: string;
+}
+
 /**
- * Check if GitHub PAT is configured for user.
+ * Check if GitHub OAuth is configured (client ID and secret are set).
  */
-export async function hasGithubPat(userId: string): Promise<boolean> {
+export function isGitHubOAuthConfigured(): boolean {
+  return !!(github.clientId && github.clientSecret);
+}
+
+/**
+ * Generate GitHub OAuth authorization URL.
+ * @param state - CSRF protection state parameter
+ * @param redirectUri - Callback URL
+ */
+export function getAuthorizationUrl(state: string, redirectUri: string): string {
+  if (!github.clientId) {
+    throw new Error('GitHub OAuth is not configured. Set GITHUB_CLIENT_ID.');
+  }
+
+  const params = new URLSearchParams({
+    client_id: github.clientId,
+    redirect_uri: redirectUri,
+    scope: 'repo user:email',
+    state,
+  });
+
+  return `https://github.com/login/oauth/authorize?${params.toString()}`;
+}
+
+/**
+ * Exchange authorization code for access token.
+ */
+export async function exchangeCodeForToken(
+  code: string,
+  redirectUri: string
+): Promise<string> {
+  if (!github.clientId || !github.clientSecret) {
+    throw new Error(
+      'GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.'
+    );
+  }
+
+  const response = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: github.clientId,
+      client_secret: github.clientSecret,
+      code,
+      redirect_uri: redirectUri,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub token exchange failed: ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as GitHubTokenResponse;
+
+  if (data.error) {
+    throw new Error(
+      data.error_description || data.error || 'Failed to exchange code for token'
+    );
+  }
+
+  if (!data.access_token) {
+    throw new Error('No access token in response');
+  }
+
+  return data.access_token;
+}
+
+/**
+ * Fetch GitHub user info using access token.
+ */
+export async function fetchGitHubUser(
+  accessToken: string
+): Promise<GitHubUserInfo> {
+  const response = await fetch('https://api.github.com/user', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'Claude-Agent-Databricks',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch GitHub user: ${response.statusText}`);
+  }
+
+  return (await response.json()) as GitHubUserInfo;
+}
+
+/**
+ * Check if GitHub token is configured for user.
+ */
+export async function hasGitHubToken(userId: string): Promise<boolean> {
   if (!isEncryptionAvailable()) return false;
   return hasGithubPatInDb(userId);
 }
 
 /**
- * Get decrypted GitHub PAT for agent use (internal only).
- * Uses Direct (non-RLS) query since user context is already verified by caller.
+ * Get decrypted GitHub token for agent use (internal only).
  * Returns undefined when not set.
  */
-export async function getGithubPersonalAccessToken(
+export async function getGitHubToken(
   userId: string
 ): Promise<string | undefined> {
   if (!isEncryptionAvailable()) return undefined;
 
   try {
-    const pat = await getGithubPat(userId);
-    return pat ?? undefined;
+    const token = await getGithubPat(userId);
+    return token ?? undefined;
   } catch (error) {
     console.warn(
-      `[GitHub PAT] Failed to decrypt PAT for user ${userId}. ` +
-        'User should re-configure their GitHub PAT.',
+      `[GitHub] Failed to decrypt token for user ${userId}. ` +
+        'User should re-authenticate with GitHub.',
       error instanceof Error ? error.message : error
     );
     return undefined;
@@ -47,74 +151,36 @@ export async function getGithubPersonalAccessToken(
 }
 
 /**
- * Verify GitHub PAT by calling /user API.
+ * Save GitHub access token (encrypted).
  */
-async function verifyGithubPat(
-  pat: string
-): Promise<{ valid: boolean; user?: GitHubUserInfo }> {
-  try {
-    const response = await fetch('https://api.github.com/user', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${pat}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'Claude-Agent-Databricks',
-      },
-    });
-
-    if (!response.ok) {
-      console.error(
-        'GitHub PAT verification failed:',
-        response.status,
-        response.statusText
-      );
-      return { valid: false };
-    }
-
-    const user = (await response.json()) as GitHubUserInfo;
-    return { valid: true, user };
-  } catch (error) {
-    console.error('Error verifying GitHub PAT:', error);
-    return { valid: false };
-  }
-}
-
-/**
- * Set GitHub PAT (verifies with GitHub API, stores encrypted).
- */
-export async function setGithubPatForUser(
-  user: RequestUser,
-  pat: string
-): Promise<{ login: string; name: string | null }> {
+export async function saveGitHubToken(
+  userId: string,
+  email: string | null,
+  accessToken: string
+): Promise<GitHubUserInfo> {
   if (!isEncryptionAvailable()) {
-    throw new Error('Encryption not available. Cannot store GitHub PAT.');
+    throw new Error('Encryption not available. Cannot store GitHub token.');
   }
 
-  // Verify PAT with GitHub API
-  const { valid, user: githubUser } = await verifyGithubPat(pat);
-  if (!valid || !githubUser) {
-    throw new Error(
-      'Invalid GitHub token. Please check your token and try again.'
-    );
-  }
+  // Verify token and get user info
+  const githubUser = await fetchGitHubUser(accessToken);
 
   // Ensure user exists in database
-  await upsertUser(user.sub, user.email);
+  await upsertUser(userId, email ?? '');
 
-  // Store PAT (encryption handled by customType)
-  await setGithubPatInDb(user.sub, pat);
+  // Store token (encryption handled by customType)
+  await setGithubPatInDb(userId, accessToken);
 
   console.log(
-    `GitHub PAT configured for user ${user.sub} (GitHub: @${githubUser.login})`
+    `GitHub OAuth completed for user ${userId} (GitHub: @${githubUser.login})`
   );
 
-  return { login: githubUser.login, name: githubUser.name };
+  return githubUser;
 }
 
 /**
- * Clear GitHub PAT.
+ * Clear GitHub token.
  */
-export async function clearGithubPat(userId: string): Promise<void> {
+export async function clearGitHubToken(userId: string): Promise<void> {
   await deleteGithubPat(userId);
 }

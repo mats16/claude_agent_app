@@ -70,11 +70,9 @@ export default function AppSettingsModal({
     text: string;
   } | null>(null);
 
-  // GitHub PAT state
-  const [githubPatValue, setGithubPatValue] = useState('');
-  const [isSavingGithubPat, setIsSavingGithubPat] = useState(false);
-  const [isDeletingGithubPat, setIsDeletingGithubPat] = useState(false);
-  const [githubPatMessage, setGithubPatMessage] = useState<{
+  // GitHub OAuth state
+  const [isDisconnectingGithub, setIsDisconnectingGithub] = useState(false);
+  const [githubMessage, setGithubMessage] = useState<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
@@ -84,21 +82,46 @@ export default function AppSettingsModal({
   const [selectedOption, setSelectedOption] = useState<AccessOption>('pat');
 
   const hasPat = userSettings?.hasDatabricksPat ?? false;
-  const hasGithubPat = userSettings?.hasGithubPat ?? false;
+  const githubConnected = userSettings?.githubConnected ?? false;
+  const githubOAuthConfigured = userSettings?.githubOAuthConfigured ?? false;
   const encryptionAvailable = userSettings?.encryptionAvailable ?? false;
 
   const hasPermission = userInfo?.hasWorkspacePermission ?? null;
   const isLoading = isUserLoading || isCheckingPermission;
 
-  // Clear PAT inputs when modal opens
+  // Clear messages when modal opens
   useEffect(() => {
     if (isOpen) {
       setPatValue('');
       setPatMessage(null);
-      setGithubPatValue('');
-      setGithubPatMessage(null);
+      setGithubMessage(null);
     }
   }, [isOpen]);
+
+  // Handle GitHub OAuth callback from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const githubConnectedUser = params.get('github_connected');
+    const githubError = params.get('github_error');
+
+    if (githubConnectedUser) {
+      setGithubMessage({
+        type: 'success',
+        text: t('githubSection.connectSuccess', { login: githubConnectedUser }),
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Refetch settings
+      refetchUserSettings();
+    } else if (githubError) {
+      setGithubMessage({
+        type: 'error',
+        text: githubError,
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [t, refetchUserSettings]);
 
   // Fetch SP info if no permission
   const fetchSpInfo = useCallback(async () => {
@@ -193,49 +216,14 @@ export default function AppSettingsModal({
     }
   };
 
-  const handleSaveGithubPat = async () => {
-    if (!githubPatValue.trim()) {
-      setGithubPatMessage({
-        type: 'error',
-        text: t('githubSection.patRequired'),
-      });
-      return;
-    }
-
-    setIsSavingGithubPat(true);
-    setGithubPatMessage(null);
-
-    try {
-      const response = await fetch('/api/v1/oauth/github', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pat: githubPatValue }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to save GitHub PAT');
-      }
-
-      setGithubPatValue('');
-      setGithubPatMessage({
-        type: 'success',
-        text: t('githubSection.saveSuccess'),
-      });
-      await refetchUserSettings();
-    } catch (error: any) {
-      setGithubPatMessage({
-        type: 'error',
-        text: error.message || t('githubSection.saveFailed'),
-      });
-    } finally {
-      setIsSavingGithubPat(false);
-    }
+  const handleConnectGithub = () => {
+    // Redirect to GitHub OAuth flow
+    window.location.href = '/api/v1/oauth/github';
   };
 
-  const handleDeleteGithubPat = async () => {
-    setIsDeletingGithubPat(true);
-    setGithubPatMessage(null);
+  const handleDisconnectGithub = async () => {
+    setIsDisconnectingGithub(true);
+    setGithubMessage(null);
 
     try {
       const response = await fetch('/api/v1/oauth/github', {
@@ -243,21 +231,21 @@ export default function AppSettingsModal({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete GitHub PAT');
+        throw new Error('Failed to disconnect GitHub');
       }
 
-      setGithubPatMessage({
+      setGithubMessage({
         type: 'success',
-        text: t('githubSection.deleteSuccess'),
+        text: t('githubSection.disconnectSuccess'),
       });
       await refetchUserSettings();
     } catch {
-      setGithubPatMessage({
+      setGithubMessage({
         type: 'error',
-        text: t('githubSection.deleteFailed'),
+        text: t('githubSection.disconnectFailed'),
       });
     } finally {
-      setIsDeletingGithubPat(false);
+      setIsDisconnectingGithub(false);
     }
   };
 
@@ -529,6 +517,20 @@ export default function AppSettingsModal({
   };
 
   const renderGithubSection = () => {
+    // GitHub OAuth not configured
+    if (!githubOAuthConfigured) {
+      return (
+        <Alert
+          type="info"
+          icon={<ExclamationCircleOutlined />}
+          message={t('githubSection.oauthNotConfigured')}
+          description={t('githubSection.oauthNotConfiguredDesc')}
+          showIcon
+        />
+      );
+    }
+
+    // Encryption not available
     if (!encryptionAvailable) {
       return (
         <Alert
@@ -550,74 +552,55 @@ export default function AppSettingsModal({
             style={{ display: 'block', marginBottom: spacing.sm }}
           >
             {t('githubSection.status')}:{' '}
-            {hasGithubPat ? (
+            {githubConnected ? (
               <Text strong style={{ color: colors.success }}>
                 <CheckCircleOutlined style={{ marginRight: spacing.xs }} />
-                {t('githubSection.configured')}
+                {t('githubSection.connected')}
               </Text>
             ) : (
               <Text strong style={{ color: colors.textMuted }}>
                 <CloseCircleOutlined style={{ marginRight: spacing.xs }} />
-                {t('githubSection.notConfigured')}
+                {t('githubSection.notConnected')}
               </Text>
             )}
           </Text>
         </div>
 
-        {/* GitHub PAT Input */}
-        <div style={{ marginBottom: spacing.lg }}>
-          <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
-            {hasGithubPat
-              ? t('githubSection.updatePat')
-              : t('githubSection.setPat')}
-          </Text>
-
-          <Space.Compact style={{ width: '100%', marginBottom: spacing.md }}>
-            <Input.Password
-              value={githubPatValue}
-              onChange={(e) => setGithubPatValue(e.target.value)}
-              placeholder={t('githubSection.placeholder')}
-              style={{ flex: 1 }}
-            />
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={handleSaveGithubPat}
-              loading={isSavingGithubPat}
-              disabled={isDeletingGithubPat || !githubPatValue.trim()}
-            >
-              {t('common.save')}
-            </Button>
-          </Space.Compact>
-
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {t('githubSection.hint')}
-          </Text>
-        </div>
-
-        {/* Delete GitHub PAT */}
-        {hasGithubPat && (
+        {/* Connect / Disconnect buttons */}
+        {githubConnected ? (
           <div>
-            <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
-              {t('githubSection.removePat')}
+            <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
+              {t('githubSection.connectedHint')}
             </Text>
             <Button
               danger
               icon={<DeleteOutlined />}
-              onClick={handleDeleteGithubPat}
-              loading={isDeletingGithubPat}
-              disabled={isSavingGithubPat}
+              onClick={handleDisconnectGithub}
+              loading={isDisconnectingGithub}
             >
-              {t('githubSection.deleteButton')}
+              {t('githubSection.disconnect')}
+            </Button>
+          </div>
+        ) : (
+          <div>
+            <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
+              {t('githubSection.connectHint')}
+            </Text>
+            <Button
+              type="primary"
+              icon={<GithubOutlined />}
+              onClick={handleConnectGithub}
+            >
+              {t('githubSection.connect')}
             </Button>
           </div>
         )}
 
         {/* Message */}
-        {githubPatMessage && (
+        {githubMessage && (
           <Alert
-            type={githubPatMessage.type}
-            message={githubPatMessage.text}
+            type={githubMessage.type}
+            message={githubMessage.text}
             showIcon
             style={{ marginTop: spacing.lg }}
           />

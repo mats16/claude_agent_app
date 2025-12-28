@@ -19,8 +19,10 @@ export interface UserSettings {
   userId: string;
   claudeConfigAutoPush: boolean;
   hasDatabricksPat: boolean;
-  hasGithubPat: boolean;
   encryptionAvailable: boolean;
+  // GitHub OAuth
+  githubConnected: boolean;
+  githubOAuthConfigured: boolean;
 }
 
 interface UserContextType {
@@ -67,15 +69,16 @@ export function UserProvider({ children }: UserProviderProps) {
       const [settingsRes, patRes, githubRes] = await Promise.all([
         fetch('/api/v1/settings'),
         fetch('/api/v1/settings/pat'),
-        fetch('/api/v1/oauth/github'),
+        fetch('/api/v1/oauth/github/status'),
       ]);
 
-      let settings = {
+      let settings: UserSettings = {
         userId: '',
         claudeConfigAutoPush: true,
         hasDatabricksPat: false,
-        hasGithubPat: false,
         encryptionAvailable: false,
+        githubConnected: false,
+        githubOAuthConfigured: false,
       };
 
       if (settingsRes.ok) {
@@ -91,7 +94,8 @@ export function UserProvider({ children }: UserProviderProps) {
 
       if (githubRes.ok) {
         const githubData = await githubRes.json();
-        settings.hasGithubPat = githubData.hasGithubPat ?? false;
+        settings.githubConnected = githubData.connected ?? false;
+        settings.githubOAuthConfigured = githubData.oauthConfigured ?? false;
       }
 
       setUserSettings(settings);

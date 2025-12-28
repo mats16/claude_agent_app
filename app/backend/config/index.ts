@@ -39,6 +39,12 @@ export const encryptionKey =
   process.env.ENCRYPTION_KEY ??
   'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe';
 
+// GitHub OAuth configuration
+export const github = {
+  clientId: process.env.GITHUB_CLIENT_ID,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET,
+};
+
 // Path configuration (uses $HOME as base for both local dev and Databricks Apps)
 const homeDir = process.env.HOME ?? '/tmp';
 export const paths = {

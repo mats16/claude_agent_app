@@ -1,10 +1,77 @@
 import type { FastifyPluginAsync } from 'fastify';
+import crypto from 'crypto';
 import { extractRequestContext } from '../../../../utils/headers.js';
 import * as githubService from '../../../../services/githubService.js';
 import { isEncryptionAvailable } from '../../../../utils/encryption.js';
 
+// In-memory state store for CSRF protection (userId -> { state, expiresAt })
+// In production with multiple instances, use Redis or similar
+const stateStore = new Map<string, { state: string; expiresAt: number }>();
+
+// Clean up expired states periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of stateStore.entries()) {
+    if (value.expiresAt < now) {
+      stateStore.delete(key);
+    }
+  }
+}, 60000); // Every minute
+
+function generateState(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function getCallbackUrl(request: { protocol: string; hostname: string }): string {
+  // Construct callback URL from request
+  const protocol = request.protocol || 'https';
+  const host = request.hostname;
+  return `${protocol}://${host}/api/v1/oauth/github/callback`;
+}
+
 const githubRoutes: FastifyPluginAsync = async (fastify) => {
-  // Check if GitHub PAT is set (returns boolean only, never the actual token)
+  // Check GitHub connection status
+  // GET /api/v1/oauth/github/status
+  fastify.get('/status', async (request, reply) => {
+    let context;
+    try {
+      context = extractRequestContext(request);
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+
+    const oauthConfigured = githubService.isGitHubOAuthConfigured();
+
+    if (!oauthConfigured) {
+      return {
+        connected: false,
+        oauthConfigured: false,
+        encryptionAvailable: isEncryptionAvailable(),
+      };
+    }
+
+    if (!isEncryptionAvailable()) {
+      return {
+        connected: false,
+        oauthConfigured: true,
+        encryptionAvailable: false,
+      };
+    }
+
+    try {
+      const connected = await githubService.hasGitHubToken(context.user.sub);
+      return {
+        connected,
+        oauthConfigured: true,
+        encryptionAvailable: true,
+      };
+    } catch (error: any) {
+      console.error('Failed to check GitHub status:', error);
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // Start GitHub OAuth flow (redirect to GitHub)
   // GET /api/v1/oauth/github
   fastify.get('/', async (request, reply) => {
     let context;
@@ -14,63 +81,84 @@ const githubRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: error.message });
     }
 
-    if (!isEncryptionAvailable()) {
-      return { hasGithubPat: false, encryptionAvailable: false };
+    if (!githubService.isGitHubOAuthConfigured()) {
+      return reply.status(503).send({
+        error: 'GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.',
+      });
     }
 
-    try {
-      const hasGithubPat = await githubService.hasGithubPat(context.user.sub);
-      return { hasGithubPat, encryptionAvailable: true };
-    } catch (error: any) {
-      console.error('Failed to check GitHub PAT status:', error);
-      return reply.status(500).send({ error: error.message });
-    }
+    // Generate and store state for CSRF protection
+    const state = generateState();
+    stateStore.set(context.user.sub, {
+      state,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    });
+
+    const callbackUrl = getCallbackUrl(request);
+    const authUrl = githubService.getAuthorizationUrl(state, callbackUrl);
+
+    return reply.redirect(authUrl);
   });
 
-  // Set GitHub PAT
-  // POST /api/v1/oauth/github
-  fastify.post<{ Body: { pat: string } }>('/', async (request, reply) => {
+  // GitHub OAuth callback
+  // GET /api/v1/oauth/github/callback
+  fastify.get<{
+    Querystring: { code?: string; state?: string; error?: string; error_description?: string };
+  }>('/callback', async (request, reply) => {
+    const { code, state, error, error_description } = request.query;
+
+    // Handle OAuth errors from GitHub
+    if (error) {
+      console.error('GitHub OAuth error:', error, error_description);
+      return reply.redirect('/?github_error=' + encodeURIComponent(error_description || error));
+    }
+
+    if (!code || !state) {
+      return reply.redirect('/?github_error=' + encodeURIComponent('Missing code or state'));
+    }
+
     let context;
     try {
       context = extractRequestContext(request);
     } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
+      return reply.redirect('/?github_error=' + encodeURIComponent('Authentication required'));
     }
 
-    const { pat } = request.body;
-
-    if (!pat || typeof pat !== 'string' || pat.trim().length === 0) {
-      return reply.status(400).send({ error: 'GitHub PAT is required' });
+    // Verify state for CSRF protection
+    const storedState = stateStore.get(context.user.sub);
+    if (!storedState || storedState.state !== state) {
+      stateStore.delete(context.user.sub);
+      return reply.redirect('/?github_error=' + encodeURIComponent('Invalid state. Please try again.'));
     }
+    stateStore.delete(context.user.sub);
 
-    if (!isEncryptionAvailable()) {
-      return reply.status(503).send({
-        error:
-          'GitHub PAT storage is not available. ENCRYPTION_KEY not configured.',
-      });
+    // Check if state is expired
+    if (storedState.expiresAt < Date.now()) {
+      return reply.redirect('/?github_error=' + encodeURIComponent('Session expired. Please try again.'));
     }
 
     try {
-      const result = await githubService.setGithubPatForUser(
-        context.user,
-        pat.trim()
+      const callbackUrl = getCallbackUrl(request);
+
+      // Exchange code for access token
+      const accessToken = await githubService.exchangeCodeForToken(code, callbackUrl);
+
+      // Save token and get user info
+      const githubUser = await githubService.saveGitHubToken(
+        context.user.sub,
+        context.user.email,
+        accessToken
       );
-      return {
-        success: true,
-        login: result.login,
-        name: result.name,
-      };
+
+      // Redirect to frontend with success
+      return reply.redirect('/?github_connected=' + encodeURIComponent(githubUser.login));
     } catch (error: any) {
-      console.error('Failed to set GitHub PAT:', error);
-      // Return 400 for validation errors (invalid token)
-      if (error.message.includes('Invalid GitHub token')) {
-        return reply.status(400).send({ error: error.message });
-      }
-      return reply.status(500).send({ error: error.message });
+      console.error('GitHub OAuth callback error:', error);
+      return reply.redirect('/?github_error=' + encodeURIComponent(error.message || 'Failed to connect GitHub'));
     }
   });
 
-  // Clear GitHub PAT
+  // Disconnect GitHub
   // DELETE /api/v1/oauth/github
   fastify.delete('/', async (request, reply) => {
     let context;
@@ -81,10 +169,10 @@ const githubRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      await githubService.clearGithubPat(context.user.sub);
+      await githubService.clearGitHubToken(context.user.sub);
       return { success: true };
     } catch (error: any) {
-      console.error('Failed to clear GitHub PAT:', error);
+      console.error('Failed to disconnect GitHub:', error);
       return reply.status(500).send({ error: error.message });
     }
   });

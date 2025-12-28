@@ -46,6 +46,11 @@ export const colors = {
   info: '#1890ff',
   danger: '#ff4d4f',
 
+  // Info banner colors (Ant Design info palette)
+  infoBg: '#e6f4ff',
+  infoBorder: '#91caff',
+  infoPrimary: '#1677ff',
+
   // UI specific
   link: '#0066cc',
   linkAntd: '#1677ff',

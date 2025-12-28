@@ -35,6 +35,9 @@ export default defineConfig(({ mode }) => {
               if (userEmail) {
                 proxyReq.setHeader('X-Forwarded-Email', userEmail);
               }
+              // For OAuth callback URL construction
+              proxyReq.setHeader('X-Forwarded-Host', 'localhost:5173');
+              proxyReq.setHeader('X-Forwarded-Proto', 'http');
             };
 
             // HTTP requests

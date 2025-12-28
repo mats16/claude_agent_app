@@ -22,11 +22,15 @@ function generateState(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function getCallbackUrl(request: { protocol: string; host: string }): string {
-  // Construct callback URL from request
-  // request.host includes port (e.g., localhost:5173), request.hostname does not
-  const protocol = request.protocol || 'https';
-  const host = request.host;
+function getCallbackUrl(request: {
+  protocol: string;
+  host: string;
+  headers: { 'x-forwarded-host'?: string; 'x-forwarded-proto'?: string };
+}): string {
+  // Use X-Forwarded-Host if behind a proxy (e.g., Vite dev server)
+  // Otherwise fall back to request.host
+  const host = request.headers['x-forwarded-host'] || request.host;
+  const protocol = request.headers['x-forwarded-proto'] || request.protocol || 'https';
   return `${protocol}://${host}/api/v1/oauth/github/callback`;
 }
 

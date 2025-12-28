@@ -18,8 +18,6 @@
     "format:check": "turbo run format:check"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.0",
-    "drizzle-orm": "^0.45.1",
     "prettier": "^3.7.4",
     "turbo": "^2.0.0"
   }

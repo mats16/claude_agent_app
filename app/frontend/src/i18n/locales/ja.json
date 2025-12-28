@@ -79,6 +79,23 @@
     "encryptionUnavailable": "PAT ストレージが利用できません",
     "encryptionUnavailableDesc": "サーバーが暗号化トークンを保存するよう設定されていません。この機能を有効にするには管理者に連絡してください。"
   },
+  "githubSection": {
+    "title": "GitHub 認証",
+    "status": "ステータス",
+    "connected": "接続済み",
+    "notConnected": "未接続",
+    "connect": "GitHub で認証",
+    "disconnect": "接続解除",
+    "connectHint": "GitHub アカウントを接続すると、エージェント内で Git 操作（clone、push、pull）が可能になります。",
+    "connectedHint": "GitHub アカウントが接続されています。Git 操作には GitHub の認証情報が使用されます。",
+    "connectSuccess": "@{{login}} として GitHub に接続しました",
+    "disconnectSuccess": "GitHub アカウントの接続を解除しました",
+    "disconnectFailed": "GitHub アカウントの接続解除に失敗しました",
+    "oauthNotConfigured": "GitHub OAuth が設定されていません",
+    "oauthNotConfiguredDesc": "このサーバーでは GitHub OAuth が設定されていません。GITHUB_CLIENT_ID と GITHUB_CLIENT_SECRET を設定するよう管理者に連絡してください。",
+    "encryptionUnavailable": "GitHub トークンストレージが利用できません",
+    "encryptionUnavailableDesc": "サーバーが暗号化トークンを保存するよう設定されていません。この機能を有効にするには管理者に連絡してください。"
+  },
   "appSettingsModal": {
     "title": "アプリケーション設定",
     "initialTitle": "ワークスペースへのアクセス許可",

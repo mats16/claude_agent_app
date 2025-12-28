@@ -79,6 +79,23 @@
     "encryptionUnavailable": "PAT Storage Unavailable",
     "encryptionUnavailableDesc": "The server is not configured to store encrypted tokens. Contact your administrator to enable this feature."
   },
+  "githubSection": {
+    "title": "GitHub Authentication",
+    "status": "Status",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "connect": "Connect with GitHub",
+    "disconnect": "Disconnect",
+    "connectHint": "Connect your GitHub account to enable git operations (clone, push, pull) within the agent.",
+    "connectedHint": "Your GitHub account is connected. Git operations will use your GitHub credentials.",
+    "connectSuccess": "Successfully connected to GitHub as @{{login}}",
+    "disconnectSuccess": "GitHub account disconnected",
+    "disconnectFailed": "Failed to disconnect GitHub account",
+    "oauthNotConfigured": "GitHub OAuth Not Configured",
+    "oauthNotConfiguredDesc": "GitHub OAuth is not configured on this server. Contact your administrator to set up GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.",
+    "encryptionUnavailable": "GitHub Token Storage Unavailable",
+    "encryptionUnavailableDesc": "The server is not configured to store encrypted tokens. Contact your administrator to enable this feature."
+  },
   "appSettingsModal": {
     "title": "Application Settings",
     "initialTitle": "Workspace Access Permission",

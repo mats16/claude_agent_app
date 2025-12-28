@@ -24,6 +24,7 @@ import {
   DeleteOutlined,
   CloseCircleOutlined,
   WarningOutlined,
+  GithubOutlined,
 } from '@ant-design/icons';
 import { useUser } from '../contexts/UserContext';
 import { colors, spacing } from '../styles/theme';
@@ -69,23 +70,58 @@ export default function AppSettingsModal({
     text: string;
   } | null>(null);
 
+  // GitHub OAuth state
+  const [isDisconnectingGithub, setIsDisconnectingGithub] = useState(false);
+  const [githubMessage, setGithubMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
   // Access option state for initial setup
   type AccessOption = 'pat' | 'sp';
   const [selectedOption, setSelectedOption] = useState<AccessOption>('pat');
 
   const hasPat = userSettings?.hasDatabricksPat ?? false;
+  const githubConnected = userSettings?.githubConnected ?? false;
+  const githubOAuthConfigured = userSettings?.githubOAuthConfigured ?? false;
   const encryptionAvailable = userSettings?.encryptionAvailable ?? false;
 
   const hasPermission = userInfo?.hasWorkspacePermission ?? null;
   const isLoading = isUserLoading || isCheckingPermission;
 
-  // Clear PAT input when modal opens
+  // Clear messages when modal opens
   useEffect(() => {
     if (isOpen) {
       setPatValue('');
       setPatMessage(null);
+      setGithubMessage(null);
     }
   }, [isOpen]);
+
+  // Handle GitHub OAuth callback from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const githubConnectedUser = params.get('github_connected');
+    const githubError = params.get('github_error');
+
+    if (githubConnectedUser) {
+      setGithubMessage({
+        type: 'success',
+        text: t('githubSection.connectSuccess', { login: githubConnectedUser }),
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Refetch settings
+      refetchUserSettings();
+    } else if (githubError) {
+      setGithubMessage({
+        type: 'error',
+        text: githubError,
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [t, refetchUserSettings]);
 
   // Fetch SP info if no permission
   const fetchSpInfo = useCallback(async () => {
@@ -177,6 +213,39 @@ export default function AppSettingsModal({
       setPatMessage({ type: 'error', text: t('patSection.deleteFailed') });
     } finally {
       setIsDeletingPat(false);
+    }
+  };
+
+  const handleConnectGithub = () => {
+    // Redirect to GitHub OAuth flow
+    window.location.href = '/api/v1/oauth/github';
+  };
+
+  const handleDisconnectGithub = async () => {
+    setIsDisconnectingGithub(true);
+    setGithubMessage(null);
+
+    try {
+      const response = await fetch('/api/v1/oauth/github', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect GitHub');
+      }
+
+      setGithubMessage({
+        type: 'success',
+        text: t('githubSection.disconnectSuccess'),
+      });
+      await refetchUserSettings();
+    } catch {
+      setGithubMessage({
+        type: 'error',
+        text: t('githubSection.disconnectFailed'),
+      });
+    } finally {
+      setIsDisconnectingGithub(false);
     }
   };
 
@@ -447,6 +516,99 @@ export default function AppSettingsModal({
     );
   };
 
+  const renderGithubSection = () => {
+    // GitHub OAuth not configured
+    if (!githubOAuthConfigured) {
+      return (
+        <Alert
+          type="info"
+          icon={<ExclamationCircleOutlined />}
+          message={t('githubSection.oauthNotConfigured')}
+          description={t('githubSection.oauthNotConfiguredDesc')}
+          showIcon
+        />
+      );
+    }
+
+    // Encryption not available
+    if (!encryptionAvailable) {
+      return (
+        <Alert
+          type="warning"
+          icon={<WarningOutlined />}
+          message={t('githubSection.encryptionUnavailable')}
+          description={t('githubSection.encryptionUnavailableDesc')}
+          showIcon
+        />
+      );
+    }
+
+    return (
+      <div>
+        {/* Current status */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <Text
+            type="secondary"
+            style={{ display: 'block', marginBottom: spacing.sm }}
+          >
+            {t('githubSection.status')}:{' '}
+            {githubConnected ? (
+              <Text strong style={{ color: colors.success }}>
+                <CheckCircleOutlined style={{ marginRight: spacing.xs }} />
+                {t('githubSection.connected')}
+              </Text>
+            ) : (
+              <Text strong style={{ color: colors.textMuted }}>
+                <CloseCircleOutlined style={{ marginRight: spacing.xs }} />
+                {t('githubSection.notConnected')}
+              </Text>
+            )}
+          </Text>
+        </div>
+
+        {/* Connect / Disconnect buttons */}
+        {githubConnected ? (
+          <div>
+            <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
+              {t('githubSection.connectedHint')}
+            </Text>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={handleDisconnectGithub}
+              loading={isDisconnectingGithub}
+            >
+              {t('githubSection.disconnect')}
+            </Button>
+          </div>
+        ) : (
+          <div>
+            <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
+              {t('githubSection.connectHint')}
+            </Text>
+            <Button
+              type="primary"
+              icon={<GithubOutlined />}
+              onClick={handleConnectGithub}
+            >
+              {t('githubSection.connect')}
+            </Button>
+          </div>
+        )}
+
+        {/* Message */}
+        {githubMessage && (
+          <Alert
+            type={githubMessage.type}
+            message={githubMessage.text}
+            showIcon
+            style={{ marginTop: spacing.lg }}
+          />
+        )}
+      </div>
+    );
+  };
+
   const renderSettings = () => (
     <div>
       {isInitialSetup && (
@@ -478,6 +640,22 @@ export default function AppSettingsModal({
       </Flex>
 
       {renderPatSection()}
+
+      <Divider />
+
+      {/* GitHub Section */}
+      <Flex
+        align="center"
+        gap={spacing.sm}
+        style={{ marginBottom: spacing.md }}
+      >
+        <GithubOutlined style={{ color: colors.brand }} />
+        <Text strong style={{ fontSize: 16 }}>
+          {t('githubSection.title')}
+        </Text>
+      </Flex>
+
+      {renderGithubSection()}
     </div>
   );
 

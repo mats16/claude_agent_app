@@ -17,6 +17,7 @@ import skillRoutes from './routes/v1/settings/skills/index.js';
 import agentRoutes from './routes/v1/settings/agents/index.js';
 import spPermissionRoutes from './routes/v1/settings/sp-permission/index.js';
 import patRoutes from './routes/v1/settings/pat/index.js';
+import githubOAuthRoutes from './routes/v1/oauth/github/index.js';
 import workspaceRoutes from './routes/v1/workspace/index.js';
 import queueRoutes from './routes/v1/queues/index.js';
 import reposRoutes from './routes/v1/repos/index.js';
@@ -74,6 +75,7 @@ export async function buildApp() {
     prefix: '/api/v1/settings/sp-permission',
   });
   await fastify.register(patRoutes, { prefix: '/api/v1/settings/pat' });
+  await fastify.register(githubOAuthRoutes, { prefix: '/api/v1/oauth/github' });
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/Workspace' });
   await fastify.register(workspaceRoutes, { prefix: '/api/v1/workspace' });
   await fastify.register(queueRoutes, { prefix: '/api/v1/queues' });

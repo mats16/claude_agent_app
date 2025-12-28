@@ -2,17 +2,13 @@ import { getAccessToken } from '../agent/index.js';
 import { databricks } from '../config/index.js';
 import { getSettings, upsertSettings } from '../db/settings.js';
 import {
-  getEncryptedDatabricksPat,
+  getDatabricksPat,
   hasDatabricksPat as hasPatInDb,
   setDatabricksPat as setPatInDb,
   deleteDatabricksPat,
 } from '../db/oauthTokens.js';
 import { upsertUser } from '../db/users.js';
-import {
-  encrypt,
-  decrypt,
-  isEncryptionAvailable,
-} from '../utils/encryption.js';
+import { isEncryptionAvailable } from '../utils/encryption.js';
 import type { RequestUser } from '../models/RequestUser.js';
 
 // Databricks token info from /api/2.0/token/list
@@ -132,21 +128,32 @@ export async function hasDatabricksPat(userId: string): Promise<boolean> {
   return hasPatInDb(userId);
 }
 
-// Get decrypted PAT for agent use (internal only)
-// Uses Direct (non-RLS) query since user context is already verified by caller
-// Returns undefined when not set (allows direct spread in env config)
+/**
+ * Get decrypted PAT for agent use (internal only).
+ * Uses Direct (non-RLS) query since user context is already verified by caller.
+ * Returns undefined when not set (allows direct spread in env config).
+ *
+ * Note: Decryption is handled automatically by the encryptedText custom type.
+ * If decryption fails (e.g., encryption key changed), returns undefined and
+ * logs a warning. User will need to re-configure their PAT.
+ */
 export async function getUserPersonalAccessToken(
   userId: string
 ): Promise<string | undefined> {
   if (!isEncryptionAvailable()) return undefined;
 
-  const encrypted = await getEncryptedDatabricksPat(userId);
-  if (!encrypted) return undefined;
-
   try {
-    return decrypt(encrypted);
+    const pat = await getDatabricksPat(userId);
+    return pat ?? undefined;
   } catch (error) {
-    console.error('Failed to decrypt PAT for user:', userId);
+    // Decryption failure - likely due to encryption key change
+    // User will need to re-configure their PAT
+    console.warn(
+      `[PAT] Failed to decrypt PAT for user ${userId}. ` +
+        'This may occur if the encryption key was changed. ' +
+        'User should re-configure their PAT.',
+      error instanceof Error ? error.message : error
+    );
     return undefined;
   }
 }
@@ -193,7 +200,11 @@ async function fetchDatabricksTokenInfo(
   }
 }
 
-// Set PAT (encrypts before storing, fetches expiry from Databricks API)
+/**
+ * Set PAT (fetches expiry from Databricks API, stores encrypted).
+ *
+ * Note: Encryption is handled automatically by the encryptedText custom type.
+ */
 export async function setDatabricksPat(
   user: RequestUser,
   pat: string
@@ -223,8 +234,8 @@ export async function setDatabricksPat(
     console.log('Could not fetch token info from Databricks API');
   }
 
-  const encrypted = encrypt(pat);
-  await setPatInDb(user.sub, encrypted, expiresAt);
+  // Store PAT (encryption handled by customType)
+  await setPatInDb(user.sub, pat, expiresAt);
 
   return { expiresAt, comment };
 }

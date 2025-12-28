@@ -10,6 +10,7 @@ import {
   boolean,
   primaryKey,
 } from 'drizzle-orm/pg-core';
+import { encryptedText } from './customTypes.js';
 
 // Users table
 export const users = pgTable('users', {
@@ -107,6 +108,7 @@ export type NewSettings = typeof settings.$inferInsert;
 
 // OAuth tokens table for storing encrypted access tokens (with RLS by user_id)
 // Primary key is composite (user_id, provider) to allow one token per provider per user
+// Note: accessToken uses encryptedText custom type - automatically encrypts on write, decrypts on read
 export const oauthTokens = pgTable(
   'oauth_tokens',
   {
@@ -115,7 +117,7 @@ export const oauthTokens = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     authType: text('auth_type').notNull(), // 'pat' for personal access token
     provider: text('provider').notNull(), // 'databricks'
-    accessToken: text('access_token').notNull(), // Encrypted token value
+    accessToken: encryptedText('access_token').notNull(), // Auto-encrypted via AES-256-GCM
     expiresAt: timestamp('expires_at'), // Token expiration time (null = no expiry)
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

@@ -1,22 +1,63 @@
 /**
- * AES-256-GCM encryption utility for sensitive data storage
- * Uses server-side ENCRYPTION_KEY from config
+ * AES-256-GCM Encryption Utility for Sensitive Data
+ *
+ * This module provides encryption and decryption functions using AES-256-GCM,
+ * the recommended standard for authenticated encryption. GCM mode provides:
+ * - Confidentiality: Data is encrypted and unreadable without the key
+ * - Integrity: Tampering with ciphertext is detected via the auth tag
+ * - Authenticity: The data originated from someone with the encryption key
+ *
+ * Perfect for encrypting PAT (Personal Access Tokens) and other sensitive data.
+ *
+ * Ciphertext format: iv:authTag:encryptedData (all hex-encoded)
  */
 
 import crypto from 'crypto';
 import { encryptionKey as encryptionKeyHex } from '../config/index.js';
 
-const ALGORITHM = 'aes-256-gcm';
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** AES-256-GCM algorithm identifier */
+const ALGORITHM = 'aes-256-gcm' as const;
+
+/** Initialization Vector length in bytes (128 bits for GCM) */
 const IV_LENGTH = 16;
+
+/** Authentication tag length in bytes (128 bits for GCM) */
 const AUTH_TAG_LENGTH = 16;
+
+/** Required encryption key length in hex characters (32 bytes = 64 hex chars) */
+const KEY_HEX_LENGTH = 64;
+
+/** Delimiter used to separate IV, auth tag, and ciphertext */
+const CIPHERTEXT_DELIMITER = ':';
+
+// ============================================================================
+// Module State
+// ============================================================================
 
 let encryptionKey: Buffer | null = null;
 let encryptionAvailable = false;
 
+// ============================================================================
+// Initialization
+// ============================================================================
+
 /**
- * Initialize encryption with key from config
- * Must be called at server startup
+ * Initialize the encryption module with the key from environment/config.
+ * Must be called at server startup before any encrypt/decrypt operations.
+ *
  * @returns true if encryption is available, false otherwise
+ *
+ * @example
+ * // At server startup
+ * if (initializeEncryption()) {
+ *   console.log('Encryption ready');
+ * } else {
+ *   console.warn('PAT storage disabled');
+ * }
  */
 export function initializeEncryption(): boolean {
   const keyHex = encryptionKeyHex;
@@ -28,9 +69,17 @@ export function initializeEncryption(): boolean {
     return false;
   }
 
-  if (keyHex.length !== 64) {
+  if (keyHex.length !== KEY_HEX_LENGTH) {
     console.error(
-      '[Encryption] ENCRYPTION_KEY must be 64 hex characters (32 bytes). PAT storage feature disabled.'
+      `[Encryption] ENCRYPTION_KEY must be ${KEY_HEX_LENGTH} hex characters (32 bytes). PAT storage feature disabled.`
+    );
+    return false;
+  }
+
+  // Validate hex format
+  if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
+    console.error(
+      '[Encryption] ENCRYPTION_KEY must contain only hex characters (0-9, a-f). PAT storage feature disabled.'
     );
     return false;
   }
@@ -47,68 +96,196 @@ export function initializeEncryption(): boolean {
 }
 
 /**
- * Check if encryption is available
+ * Check if encryption has been initialized and is available for use.
+ *
+ * @returns true if encrypt/decrypt operations can be performed
  */
 export function isEncryptionAvailable(): boolean {
   return encryptionAvailable;
 }
 
+// ============================================================================
+// Core Encryption/Decryption Functions
+// ============================================================================
+
 /**
- * Encrypt plaintext using AES-256-GCM
+ * Encrypt plaintext using AES-256-GCM.
+ *
+ * Uses a randomly generated IV for each encryption, ensuring that the same
+ * plaintext produces different ciphertext each time (semantic security).
+ *
  * @param plaintext - The text to encrypt
- * @returns Encrypted string in format: iv:authTag:ciphertext (all hex encoded)
+ * @returns Encrypted string in format: iv:authTag:ciphertext (all hex-encoded)
  * @throws Error if encryption is not initialized
+ *
+ * @example
+ * const encrypted = encrypt('my-secret-token');
+ * // Returns something like: "a1b2c3....:d4e5f6....:789abc...."
  */
 export function encrypt(plaintext: string): string {
   if (!encryptionKey) {
-    throw new Error('Encryption not initialized');
+    throw new Error(
+      'Encryption not initialized. Call initializeEncryption() first.'
+    );
   }
 
+  // Generate a random IV for this encryption (critical for GCM security)
   const iv = crypto.randomBytes(IV_LENGTH);
+
+  // Create cipher with AES-256-GCM
   const cipher = crypto.createCipheriv(ALGORITHM, encryptionKey, iv);
 
+  // Encrypt the plaintext
   let encrypted = cipher.update(plaintext, 'utf8', 'hex');
   encrypted += cipher.final('hex');
 
+  // Get the authentication tag (provides integrity/authenticity)
   const authTag = cipher.getAuthTag();
 
-  // Format: iv:authTag:ciphertext (all hex encoded)
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  // Combine IV, auth tag, and ciphertext with delimiter
+  return [
+    iv.toString('hex'),
+    authTag.toString('hex'),
+    encrypted,
+  ].join(CIPHERTEXT_DELIMITER);
 }
 
 /**
- * Decrypt ciphertext using AES-256-GCM
- * @param ciphertext - Encrypted string in format: iv:authTag:ciphertext
+ * Decrypt ciphertext using AES-256-GCM.
+ *
+ * Validates the authentication tag to ensure the ciphertext hasn't been
+ * tampered with. If tampering is detected, an error is thrown.
+ *
+ * @param ciphertext - Encrypted string in format: iv:authTag:encryptedData
  * @returns Decrypted plaintext
- * @throws Error if encryption is not initialized or ciphertext is invalid/tampered
+ * @throws Error if encryption not initialized, format invalid, or data tampered
+ *
+ * @example
+ * const plaintext = decrypt(encryptedString);
+ * // Returns the original plaintext
  */
 export function decrypt(ciphertext: string): string {
   if (!encryptionKey) {
-    throw new Error('Encryption not initialized');
+    throw new Error(
+      'Encryption not initialized. Call initializeEncryption() first.'
+    );
   }
 
-  const parts = ciphertext.split(':');
+  // Parse the ciphertext components
+  const parts = ciphertext.split(CIPHERTEXT_DELIMITER);
   if (parts.length !== 3) {
-    throw new Error('Invalid ciphertext format');
+    throw new Error(
+      `Invalid ciphertext format: expected 3 parts separated by '${CIPHERTEXT_DELIMITER}', got ${parts.length}`
+    );
   }
 
-  const iv = Buffer.from(parts[0], 'hex');
-  const authTag = Buffer.from(parts[1], 'hex');
-  const encrypted = parts[2];
+  const [ivHex, authTagHex, encryptedData] = parts;
 
+  // Decode the IV
+  const iv = Buffer.from(ivHex, 'hex');
   if (iv.length !== IV_LENGTH) {
-    throw new Error('Invalid IV length');
+    throw new Error(
+      `Invalid IV length: expected ${IV_LENGTH} bytes, got ${iv.length}`
+    );
   }
 
+  // Decode the authentication tag
+  const authTag = Buffer.from(authTagHex, 'hex');
   if (authTag.length !== AUTH_TAG_LENGTH) {
-    throw new Error('Invalid auth tag length');
+    throw new Error(
+      `Invalid auth tag length: expected ${AUTH_TAG_LENGTH} bytes, got ${authTag.length}`
+    );
   }
 
+  // Create decipher and set the auth tag for verification
   const decipher = crypto.createDecipheriv(ALGORITHM, encryptionKey, iv);
   decipher.setAuthTag(authTag);
 
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
+  // Decrypt (will throw if auth tag verification fails = tampering detected)
+  try {
+    let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    // GCM auth tag verification failure indicates tampering
+    if (
+      error instanceof Error &&
+      error.message.includes('Unsupported state or unable to authenticate data')
+    ) {
+      throw new Error(
+        'Decryption failed: data may have been tampered with or the encryption key is incorrect'
+      );
+    }
+    throw error;
+  }
+}
 
-  return decrypted;
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Safely encrypt a value, returning null if encryption is not available.
+ *
+ * This is a convenience wrapper for cases where you want to gracefully
+ * handle missing encryption configuration.
+ *
+ * @param plaintext - The text to encrypt
+ * @returns Encrypted string or null if encryption unavailable
+ */
+export function encryptSafe(plaintext: string): string | null {
+  if (!isEncryptionAvailable()) {
+    return null;
+  }
+  return encrypt(plaintext);
+}
+
+/**
+ * Safely decrypt a value, returning null if decryption fails.
+ *
+ * This is a convenience wrapper for cases where you want to gracefully
+ * handle decryption errors (e.g., corrupted data, wrong key).
+ *
+ * @param ciphertext - The encrypted string to decrypt
+ * @returns Decrypted plaintext or null if decryption fails
+ */
+export function decryptSafe(ciphertext: string): string | null {
+  if (!isEncryptionAvailable()) {
+    return null;
+  }
+  try {
+    return decrypt(ciphertext);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if a string appears to be in the encrypted format.
+ *
+ * This is a heuristic check based on the expected format (iv:authTag:data).
+ * It does not verify that the data can actually be decrypted.
+ *
+ * @param value - The string to check
+ * @returns true if the string matches the encrypted format pattern
+ */
+export function isEncryptedFormat(value: string): boolean {
+  const parts = value.split(CIPHERTEXT_DELIMITER);
+  if (parts.length !== 3) {
+    return false;
+  }
+
+  const [ivHex, authTagHex, encryptedData] = parts;
+
+  // Check if all parts are valid hex strings with expected lengths
+  const hexPattern = /^[0-9a-fA-F]+$/;
+
+  return (
+    ivHex.length === IV_LENGTH * 2 &&
+    hexPattern.test(ivHex) &&
+    authTagHex.length === AUTH_TAG_LENGTH * 2 &&
+    hexPattern.test(authTagHex) &&
+    encryptedData.length > 0 &&
+    hexPattern.test(encryptedData)
+  );
 }

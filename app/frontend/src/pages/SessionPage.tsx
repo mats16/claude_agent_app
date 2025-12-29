@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useDraft, getSessionDraftKey } from '../hooks/useDraft';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Typography, Flex, Tooltip, Spin, Modal, message } from 'antd';
+import { Button, Typography, Flex, Tooltip, Spin } from 'antd';
 import {
   EditOutlined,
   CloudSyncOutlined,
@@ -12,14 +12,12 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useAgent } from '../hooks/useAgent';
-import { useAppLiveStatus } from '../hooks/useAppLiveStatus';
 import { useImageUpload } from '../hooks/useImageUpload';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { useSessions } from '../contexts/SessionsContext';
 import TitleEditModal from '../components/TitleEditModal';
 import MessageRenderer from '../components/MessageRenderer';
 import ChatInput from '../components/ChatInput';
-import { AppStatusPanel } from '../components/AppStatusPanel';
 import {
   colors,
   spacing,
@@ -109,10 +107,6 @@ export default function SessionPage() {
   );
   const [input, setInput, clearInputDraft] = useDraft(draftKey);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [appUrl, setAppUrl] = useState<string | null>(null);
-  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
-  const [isLoadingDeploy, setIsLoadingDeploy] = useState(false);
-  const [isAppPanelExpanded, setIsAppPanelExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -130,173 +124,39 @@ export default function SessionPage() {
   const session = sessionId ? getSession(sessionId) : undefined;
   const isArchived = session?.isArchived ?? false;
   const sessionTitle = session?.title ?? null;
-  const sessionAutoWorkspacePush = session?.workspaceAutoPush ?? false;
-  const sessionWorkspacePath = session?.workspacePath ?? null;
+  const sessionDatabricksWorkspaceAutoPush = session?.databricksWorkspaceAutoPush ?? false;
+  const sessionDatabricksWorkspacePath = session?.databricksWorkspacePath ?? null;
   const sessionWorkspaceUrl = session?.workspaceUrl ?? null;
-  const sessionAppAutoDeploy = session?.appAutoDeploy ?? false;
-  const sessionAppName = session?.appName ?? null;
-  const sessionConsoleUrl = session?.consoleUrl ?? null;
 
-  // Poll app live status when appAutoDeploy is enabled
-  const {
-    status: appStatus,
-    isDeploying: appIsDeploying,
-    isUnavailable: appIsUnavailable,
-    isReadyForInitialDeploy,
-    displayAppState,
-  } = useAppLiveStatus(sessionId, sessionAppAutoDeploy);
-
-  // Track if initial deploy has been attempted for this session
-  const initialDeployAttemptedRef = useRef(false);
-
-  // Reset initial deploy flag and collapse app panel when session changes
-  useEffect(() => {
-    initialDeployAttemptedRef.current = false;
-    setIsAppPanelExpanded(false);
-  }, [sessionId]);
-
-  // Auto-trigger initial deploy when app is ready
-  useEffect(() => {
-    if (
-      !sessionId ||
-      !isReadyForInitialDeploy ||
-      initialDeployAttemptedRef.current
-    ) {
-      return;
-    }
-
-    initialDeployAttemptedRef.current = true;
-
-    const triggerInitialDeploy = async () => {
-      try {
-        const response = await fetch(
-          `/api/v1/sessions/${sessionId}/app/deployments`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-          }
-        );
-
-        if (response.ok) {
-          message.info(t('sessionPage.initialDeployStarted'));
-        } else {
-          const data = await response.json();
-          message.error(data.error || t('sessionPage.deployFailed'));
-        }
-      } catch (error) {
-        console.error('Failed to trigger initial deploy:', error);
-        message.error(t('sessionPage.deployFailed'));
-      }
-    };
-
-    triggerInitialDeploy();
-  }, [sessionId, isReadyForInitialDeploy, t]);
-
-  // Fetch session details (including workspace_url, app_name, console_url) when session page loads
+  // Fetch session details (workspace_url) when session page loads
   useEffect(() => {
     if (!sessionId) return;
-    // Skip if we already have workspace_url (when workspacePath is set) and consoleUrl (when appAutoDeploy is true)
-    const needsWorkspaceUrl = sessionWorkspacePath && !sessionWorkspaceUrl;
-    const needsConsoleUrl = sessionAppAutoDeploy && !sessionConsoleUrl;
-    if (!needsWorkspaceUrl && !needsConsoleUrl) return;
-
-    const fetchSessionDetails = async () => {
-      try {
-        const response = await fetch(`/api/v1/sessions/${sessionId}`);
-        if (response.ok) {
-          const data = await response.json();
-          const updates: Record<string, unknown> = {};
-          if (data.workspace_url) {
-            updates.workspaceUrl = data.workspace_url;
+    // Skip if we already have workspace_url
+    if (sessionDatabricksWorkspacePath && !sessionWorkspaceUrl) {
+      const fetchSessionDetails = async () => {
+        try {
+          const response = await fetch(`/api/v1/sessions/${sessionId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.workspace_url) {
+              updateSessionLocally(sessionId, { workspaceUrl: data.workspace_url });
+            }
           }
-          if (data.app_name) {
-            updates.appName = data.app_name;
-          }
-          if (data.console_url) {
-            updates.consoleUrl = data.console_url;
-          }
-          if (Object.keys(updates).length > 0) {
-            updateSessionLocally(sessionId, updates);
-          }
+        } catch (error) {
+          console.error('Failed to fetch session details:', error);
         }
-      } catch (error) {
-        console.error('Failed to fetch session details:', error);
-      }
-    };
-
-    fetchSessionDetails();
-  }, [
-    sessionId,
-    sessionWorkspacePath,
-    sessionWorkspaceUrl,
-    sessionAppAutoDeploy,
-    sessionConsoleUrl,
-    updateSessionLocally,
-  ]);
-
-  // Fetch app URL when appAutoDeploy is enabled
-  useEffect(() => {
-    if (!sessionId || !sessionAppAutoDeploy) {
-      setAppUrl(null);
-      return;
+      };
+      fetchSessionDetails();
     }
+  }, [sessionId, sessionDatabricksWorkspacePath, sessionWorkspaceUrl, updateSessionLocally]);
 
-    const fetchAppUrl = async () => {
-      try {
-        const response = await fetch(`/api/v1/sessions/${sessionId}/app`);
-        if (response.ok) {
-          const data = await response.json();
-          setAppUrl(data.url ?? null);
-        } else {
-          // App may not exist yet (404)
-          setAppUrl(null);
-        }
-      } catch (error) {
-        console.error('Failed to fetch app URL:', error);
-        setAppUrl(null);
-      }
-    };
-
-    fetchAppUrl();
-  }, [sessionId, sessionAppAutoDeploy]);
-
-  // Handle deploy action
-  const handleDeploy = useCallback(async () => {
-    if (!sessionId) return;
-
-    setIsLoadingDeploy(true);
-    try {
-      const response = await fetch(
-        `/api/v1/sessions/${sessionId}/app/deployments`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        }
-      );
-
-      if (response.ok) {
-        message.success(t('sessionPage.deployStarted'));
-        setIsDeployModalOpen(false);
-      } else {
-        const data = await response.json();
-        message.error(data.error || t('sessionPage.deployFailed'));
-      }
-    } catch (error) {
-      console.error('Failed to deploy:', error);
-      message.error(t('sessionPage.deployFailed'));
-    } finally {
-      setIsLoadingDeploy(false);
-    }
-  }, [sessionId, t]);
+  // Removed app auto-deploy functionality
 
   const handleSaveSettings = useCallback(
     async (
       newTitle: string,
-      workspaceAutoPush: boolean,
-      workspacePath: string | null,
-      appAutoDeploy: boolean
+      databricksWorkspaceAutoPush: boolean,
+      databricksWorkspacePath: string | null
     ) => {
       if (!sessionId) return;
 
@@ -305,18 +165,16 @@ export default function SessionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: newTitle,
-          workspace_auto_push: workspaceAutoPush,
-          workspace_path: workspacePath,
-          app_auto_deploy: appAutoDeploy,
+          workspace_auto_push: databricksWorkspaceAutoPush,
+          workspace_path: databricksWorkspacePath,
         }),
       });
 
       if (response.ok) {
         updateSessionLocally(sessionId, {
           title: newTitle,
-          workspaceAutoPush,
-          workspacePath,
-          appAutoDeploy,
+          databricksWorkspaceAutoPush,
+          databricksWorkspacePath,
         });
       } else {
         throw new Error('Failed to update session settings');
@@ -548,12 +406,12 @@ export default function SessionPage() {
         <Flex align="center" gap={spacing.sm} style={{ minWidth: 0, flex: 1 }}>
           <Tooltip
             title={
-              sessionAutoWorkspacePush
+              sessionDatabricksWorkspaceAutoPush
                 ? t('syncMode.autoPush')
                 : t('sessionPage.autoSyncDisabled')
             }
           >
-            {sessionAutoWorkspacePush ? (
+            {sessionDatabricksWorkspaceAutoPush ? (
               <CloudSyncOutlined
                 style={{ fontSize: 22, color: colors.success }}
               />
@@ -599,7 +457,7 @@ export default function SessionPage() {
             size="small"
             icon={<FolderOutlined />}
             onClick={handleWorkspacePathClick}
-            title={sessionWorkspacePath ?? undefined}
+            title={sessionDatabricksWorkspacePath ?? undefined}
             style={{
               marginRight: spacing.sm,
               color: colors.textSecondary,
@@ -627,24 +485,11 @@ export default function SessionPage() {
       <TitleEditModal
         isOpen={isModalOpen}
         currentTitle={sessionTitle || ''}
-        currentAutoWorkspacePush={sessionAutoWorkspacePush}
-        currentWorkspacePath={sessionWorkspacePath}
-        currentAppAutoDeploy={sessionAppAutoDeploy}
+        currentDatabricksWorkspaceAutoPush={sessionDatabricksWorkspaceAutoPush}
+        currentDatabricksWorkspacePath={sessionDatabricksWorkspacePath}
         onSave={handleSaveSettings}
         onClose={() => setIsModalOpen(false)}
       />
-
-      <Modal
-        open={isDeployModalOpen}
-        title={t('sessionPage.deploy')}
-        onOk={handleDeploy}
-        onCancel={() => setIsDeployModalOpen(false)}
-        confirmLoading={isLoadingDeploy}
-        okText={t('common.confirm')}
-        cancelText={t('common.cancel')}
-      >
-        {t('sessionPage.confirmDeploy')}
-      </Modal>
 
       {/* Drop Zone - Covers everything below header */}
       <div
@@ -788,23 +633,6 @@ export default function SessionPage() {
             <div ref={messagesEndRef} />
           </div>
         </div>
-
-        {/* App Status Panel - Fixed above input */}
-        {sessionAppAutoDeploy && sessionAppName && (
-          <AppStatusPanel
-            sessionId={sessionId!}
-            appName={sessionAppName}
-            appUrl={appUrl}
-            consoleUrl={sessionConsoleUrl}
-            status={appStatus}
-            isDeploying={appIsDeploying}
-            isUnavailable={appIsUnavailable}
-            isExpanded={isAppPanelExpanded}
-            onToggle={() => setIsAppPanelExpanded(!isAppPanelExpanded)}
-            onDeploy={() => setIsDeployModalOpen(true)}
-            displayAppState={displayAppState}
-          />
-        )}
 
         {/* Input Form - Hidden for archived sessions */}
         {!isArchived && (

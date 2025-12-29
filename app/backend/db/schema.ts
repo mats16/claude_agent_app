@@ -27,18 +27,19 @@ export type NewUser = typeof users.$inferInsert;
 export const sessions = pgTable(
   'sessions',
   {
-    id: text('id').primaryKey(),
-    stub: text('stub').notNull(), // 8-char hex unique identifier for directories
+    id: text('id').primaryKey(), // TypeID: session_01h455vb...
+    claudeCodeSessionId: text('claude_code_session_id').notNull().unique(), // SDK session ID
     title: text('title'),
     summary: text('summary'), // Auto-generated session summary from structured output
     model: text('model').notNull(),
-    workspacePath: text('workspace_path'),
+    databricksWorkspacePath: text('databricks_workspace_path'), // Databricks workspace path
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    workspaceAutoPush: boolean('workspace_auto_push').default(false).notNull(),
-    appAutoDeploy: boolean('app_auto_deploy').default(false).notNull(),
-    agentLocalPath: text('agentLocalPath').notNull(), // agent working directory path
+    databricksWorkspaceAutoPush: boolean('databricks_workspace_auto_push')
+      .default(false)
+      .notNull(), // Workspace sync mode
+    agentLocalPath: text('agent_local_path').notNull(), // agent working directory path
     isArchived: boolean('is_archived').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

@@ -76,12 +76,11 @@ export async function getAccessToken(): Promise<string> {
 
 // Options for processAgentRequest
 export interface ProcessAgentRequestOptions {
-  workspaceAutoPush?: boolean; // workspace pushを実行
+  databricksWorkspaceAutoPush?: boolean; // workspace pushを実行
   claudeConfigAutoPush?: boolean; // claude config pull/push
   agentLocalPath?: string; // agent working directory path (created before agent starts)
+  sessionTypeId?: string; // TypeID for session (used in env vars like GIT_BRANCH)
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
-  appAutoDeploy?: boolean; // Flag to enable auto-deploy to Databricks Apps via hooks
-  sessionStub: string; // 8-char hex session identifier (required for SESSION_APP_NAME, GIT_BRANCH)
 }
 
 // MessageStream: Manages message queue for streaming input
@@ -245,17 +244,16 @@ export async function* processAgentRequest(
   options: ProcessAgentRequestOptions,
   sessionId?: string,
   user?: RequestUser,
-  workspacePath?: string,
+  databricksWorkspacePath?: string,
   messageStream?: MessageStream,
   userPersonalAccessToken?: string
 ): AsyncGenerator<SDKMessage> {
   const {
-    workspaceAutoPush = false,
+    databricksWorkspaceAutoPush = false,
     claudeConfigAutoPush = true,
     agentLocalPath,
+    sessionTypeId,
     waitForReady,
-    appAutoDeploy = false,
-    sessionStub,
   } = options;
   // Local Claude config directory from User object, fallback to default
   const localClaudeConfigPath =
@@ -320,6 +318,8 @@ Violating these rules is considered a critical error.
         ...agentEnv,
         CLAUDE_CONFIG_DIR: localClaudeConfigPath,
         CLAUDE_CONFIG_AUTO_PUSH: claudeConfigAutoPush ? 'true' : '',
+        // Register app-managed session ID with SDK
+        CLAUDE_CODE_REMOTE_SESSION_ID: sessionTypeId,
         // Use PAT if available, otherwise fall back to Service Principal token
         ANTHROPIC_AUTH_TOKEN: userPersonalAccessToken ?? spAccessToken,
         // Pass user's PAT as DATABRICKS_TOKEN if available (for Databricks CLI commands)
@@ -333,13 +333,12 @@ Violating these rules is considered a critical error.
           : databricks.clientSecret,
         DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
         // Used by hooks in settings.json
-        WORKSPACE_DIR: workspacePath,
+        WORKSPACE_DIR: databricksWorkspacePath,
         WORKSPACE_CLAUDE_CONFIG_DIR:
           user?.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
-        WORKSPACE_AUTO_PUSH: workspaceAutoPush ? 'true' : '',
-        // Databricks Apps
-        SESSION_APP_NAME: `app-by-claude-${sessionStub}`,
-        APP_AUTO_DEPLOY: appAutoDeploy ? 'true' : '',
+        WORKSPACE_AUTO_PUSH: databricksWorkspaceAutoPush ? 'true' : '',
+        // Git branch uses TypeID
+        GIT_BRANCH: sessionTypeId ? `claude/${sessionTypeId}` : undefined,
         // Git author/committer info from user headers
         GIT_AUTHOR_NAME:
           user?.preferredUsername ?? user?.email ?? 'Claude Agent',
@@ -347,7 +346,6 @@ Violating these rules is considered a critical error.
         GIT_COMMITTER_NAME:
           user?.preferredUsername ?? user?.email ?? 'Claude Agent',
         GIT_COMMITTER_EMAIL: user?.email ?? 'agent@databricks.com',
-        GIT_BRANCH: `claude/session-${sessionStub}`,
       },
       maxTurns: 100,
       tools: {

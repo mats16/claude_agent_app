@@ -22,9 +22,8 @@ export function notifySessionCreated(
   session: {
     id: string;
     title: string | null;
-    workspacePath: string | null;
-    workspaceAutoPush: boolean;
-    appAutoDeploy: boolean;
+    databricksWorkspacePath: string | null;
+    databricksWorkspaceAutoPush: boolean;
     updatedAt: string;
   }
 ) {

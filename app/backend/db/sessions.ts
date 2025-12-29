@@ -101,15 +101,15 @@ export async function updateSessionTitle(
   });
 }
 
-// Update session settings (title, workspaceAutoPush, workspacePath, appAutoDeploy, model) with RLS
+// Update session settings (title, databricksWorkspaceAutoPush, databricksWorkspacePath, model) with RLS
 export async function updateSession(
   id: string,
   updates: {
     title?: string;
-    workspaceAutoPush?: boolean;
-    workspacePath?: string | null;
-    appAutoDeploy?: boolean;
+    databricksWorkspaceAutoPush?: boolean;
+    databricksWorkspacePath?: string | null;
     model?: string;
+    claudeCodeSessionId?: string; // Allow updating SDK session ID after init
   },
   userId: string
 ): Promise<void> {

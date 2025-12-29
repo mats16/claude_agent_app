@@ -181,7 +181,7 @@ export default function QuickstartAppsModal({
       const sessionData = await sessionResponse.json();
       message.success(t('quickstartApps.createSuccess'));
       onClose();
-      navigate(`/sessions/${sessionData.session_id}`);
+      navigate(`/${sessionData.session_id}`);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error ? err.message : t('quickstartApps.createFailed');

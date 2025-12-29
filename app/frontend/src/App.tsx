@@ -164,7 +164,7 @@ function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<WelcomePage />} />
-        <Route path="/sessions/:sessionId" element={<SessionPage />} />
+        <Route path="/:sessionId" element={<SessionPage />} />
       </Routes>
     </Layout>
   );

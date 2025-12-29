@@ -16,14 +16,14 @@ import {
   getSessionsByUserId,
   updateSession,
   archiveSession,
-} from '../../../db/sessions.js';
+} from '../../../services/sessionService.js';
 import { getSettingsDirect } from '../../../db/settings.js';
 import { upsertUser } from '../../../db/users.js';
 import { enqueueDelete } from '../../../services/workspaceQueueService.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
-import { Session, SessionDraft } from '../../../models/Session.js';
+import { type Session, SessionDraft } from '../../../models/Session.js';
 import {
   sessionMessageStreams,
   notifySessionCreated,
@@ -400,22 +400,19 @@ export async function archiveSessionHandler(
   const userId = context.user.sub;
 
   // Get session before archiving
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
-
-  // Reconstruct Session model from DB record to get paths
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
 
   // Archive the session in database
   await archiveSession(sessionId, userId);
 
   // Delete working directory in background
-  console.log(`[Archive] Enqueueing deletion of: ${sessionModel.localPath}`);
+  console.log(`[Archive] Enqueueing deletion of: ${session.localPath}`);
   enqueueDelete({
     userId,
-    localPath: sessionModel.localPath,
+    localPath: session.localPath,
   });
 
   return { success: true };
@@ -500,14 +497,10 @@ export async function getAppLiveStatusHandler(
   const userId = context.user.sub;
 
   // Check if session exists and belongs to user
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
-
-  // Reconstruct Session model from DB record to get app name
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const appName = sessionModel.appName;
 
   // Get access token (User PAT first, then fallback to Service Principal)
   let accessToken: string;
@@ -522,7 +515,7 @@ export async function getAppLiveStatusHandler(
   // Call Databricks Apps API
   try {
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
+      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(session.appName)}`,
       {
         method: 'GET',
         headers: {
@@ -596,13 +589,10 @@ export async function getAppHandler(
 
   const userId = context.user.sub;
 
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
-
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const appName = sessionModel.appName;
 
   let accessToken: string;
   try {
@@ -615,7 +605,7 @@ export async function getAppHandler(
 
   try {
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
+      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(session.appName)}`,
       {
         method: 'GET',
         headers: {
@@ -649,13 +639,10 @@ export async function listAppDeploymentsHandler(
 
   const userId = context.user.sub;
 
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
-
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const appName = sessionModel.appName;
 
   let accessToken: string;
   try {
@@ -668,7 +655,7 @@ export async function listAppDeploymentsHandler(
 
   try {
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}/deployments`,
+      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(session.appName)}/deployments`,
       {
         method: 'GET',
         headers: {
@@ -702,13 +689,10 @@ export async function createAppDeploymentHandler(
 
   const userId = context.user.sub;
 
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
-
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const appName = sessionModel.appName;
 
   let accessToken: string;
   try {
@@ -721,13 +705,13 @@ export async function createAppDeploymentHandler(
 
   // Build deployment request body
   const deploymentBody: Record<string, unknown> = {};
-  if (dbSession.databricksWorkspacePath) {
-    deploymentBody.source_code_path = dbSession.databricksWorkspacePath;
+  if (session.databricksWorkspacePath) {
+    deploymentBody.source_code_path = session.databricksWorkspacePath;
   }
 
   try {
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}/deployments`,
+      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(session.appName)}/deployments`,
       {
         method: 'POST',
         headers: {
@@ -763,20 +747,17 @@ export async function getSessionHandler(
   const userId = context.user.sub;
 
   // Get session from database
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  // Reconstruct Session model from DB record to get paths
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-
   // Get workspace_url if databricksWorkspacePath is set
   let workspaceUrl: string | null = null;
-  if (dbSession.databricksWorkspacePath) {
+  if (session.databricksWorkspacePath) {
     try {
       const status = await workspaceService.getStatus(
-        dbSession.databricksWorkspacePath
+        session.databricksWorkspacePath
       );
       workspaceUrl = status.browse_url;
     } catch (error) {
@@ -787,19 +768,19 @@ export async function getSessionHandler(
 
   // Build response in snake_case format
   return {
-    id: dbSession.id,
-    claude_code_session_id: dbSession.claudeCodeSessionId,
-    title: dbSession.title,
-    summary: dbSession.summary,
-    databricks_workspace_path: dbSession.databricksWorkspacePath,
+    id: session.id,
+    claude_code_session_id: session.claudeCodeSessionId,
+    title: session.title,
+    summary: session.summary,
+    databricks_workspace_path: session.databricksWorkspacePath,
     databricks_workspace_url: workspaceUrl,
-    databricks_workspace_auto_push: dbSession.databricksWorkspaceAutoPush,
-    databricks_app_name: sessionModel.appName,
-    console_url: `https://${databricks.host}/apps/${sessionModel.appName}`,
-    local_path: sessionModel.localPath,
-    is_archived: dbSession.isArchived,
-    model: dbSession.model,
-    created_at: dbSession.createdAt.toISOString(),
-    updated_at: dbSession.updatedAt.toISOString(),
+    databricks_workspace_auto_push: session.databricksWorkspaceAutoPush,
+    databricks_app_name: session.appName,
+    console_url: `https://${databricks.host}/apps/${session.appName}`,
+    local_path: session.localPath,
+    is_archived: session.isArchived,
+    model: session.model,
+    created_at: session.createdAt.toISOString(),
+    updated_at: session.updatedAt.toISOString(),
   };
 }

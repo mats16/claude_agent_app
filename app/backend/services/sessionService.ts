@@ -1,10 +1,13 @@
+/**
+ * Session Service
+ *
+ * Service layer for session operations. Returns Session models instead of DB records.
+ * Handles Drizzle ORM operations internally, keeping the handlers clean.
+ */
+
 import { eq, desc, sql, and } from 'drizzle-orm';
-import { db } from './index.js';
-import {
-  sessions,
-  type NewSession,
-  type Session as DbSession,
-} from './schema.js';
+import { db } from '../db/index.js';
+import { sessions, type NewSession } from '../db/schema.js';
 import { Session } from '../models/Session.js';
 
 // Helper to execute queries with RLS user context
@@ -18,23 +21,37 @@ async function withUserContext<T>(
   return fn();
 }
 
-// Create a new session and return Session model (with RLS)
-// Uses ON CONFLICT DO NOTHING to handle retries with the same session ID
+/**
+ * Create a new session and return Session model
+ * Uses ON CONFLICT DO NOTHING to handle retries with the same session ID
+ */
 export async function createSession(
   session: NewSession,
   userId: string
 ): Promise<Session> {
   return withUserContext(userId, async () => {
-    await db.insert(sessions).values(session).onConflictDoNothing();
-    return Session.fromRecord(session.id, session.claudeCodeSessionId);
+    const result = await db
+      .insert(sessions)
+      .values(session)
+      .onConflictDoNothing()
+      .returning();
+
+    // Use the returned record if available, otherwise fetch it
+    const record = result[0] ?? (await getSessionRecordById(session.id));
+    if (!record) {
+      throw new Error('Failed to create session');
+    }
+    return Session.fromData(record);
   });
 }
 
-// Get session by ID (with RLS)
+/**
+ * Get session by ID - returns Session model
+ */
 export async function getSessionById(
   id: string,
   userId: string
-): Promise<DbSession | null> {
+): Promise<Session | null> {
   return withUserContext(userId, async () => {
     const result = await db
       .select()
@@ -42,14 +59,14 @@ export async function getSessionById(
       .where(eq(sessions.id, id))
       .limit(1);
 
-    return result[0] ?? null;
+    return result[0] ? Session.fromData(result[0]) : null;
   });
 }
 
-// Get session by ID without RLS (for internal use when user context is already verified)
-export async function getSessionByIdDirect(
-  id: string
-): Promise<DbSession | null> {
+/**
+ * Get session record by ID without RLS (for internal use)
+ */
+async function getSessionRecordById(id: string) {
   const result = await db
     .select()
     .from(sessions)
@@ -59,11 +76,13 @@ export async function getSessionByIdDirect(
   return result[0] ?? null;
 }
 
-// Get all sessions for a user (with RLS)
+/**
+ * Get all sessions for a user - returns Session models
+ */
 export async function getSessionsByUserId(
   userId: string,
   filter: 'active' | 'archived' | 'all' = 'active'
-): Promise<DbSession[]> {
+): Promise<Session[]> {
   return withUserContext(userId, async () => {
     let whereClause;
     if (filter === 'active') {
@@ -81,16 +100,20 @@ export async function getSessionsByUserId(
       whereClause = eq(sessions.userId, userId);
     }
 
-    return db
+    const result = await db
       .select()
       .from(sessions)
       .where(whereClause)
       .orderBy(desc(sessions.createdAt));
+
+    return result.map(Session.fromData);
   });
 }
 
-// Update session title only if currently null (with RLS)
-// Returns true if title was updated, false if title already exists
+/**
+ * Update session title only if currently null
+ * Returns true if title was updated, false if title already exists
+ */
 export async function updateSessionTitle(
   id: string,
   title: string,
@@ -107,7 +130,9 @@ export async function updateSessionTitle(
   });
 }
 
-// Update session settings with RLS
+/**
+ * Update session settings
+ */
 export async function updateSession(
   id: string,
   updates: {
@@ -126,7 +151,9 @@ export async function updateSession(
   });
 }
 
-// Archive session (with RLS)
+/**
+ * Archive session
+ */
 export async function archiveSession(
   id: string,
   userId: string
@@ -138,4 +165,3 @@ export async function archiveSession(
       .where(eq(sessions.id, id));
   });
 }
-

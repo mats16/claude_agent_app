@@ -17,6 +17,23 @@ export interface ISession {
 }
 
 /**
+ * Data required to construct a Session (decoupled from ORM)
+ */
+export interface SessionData {
+  id: string;
+  claudeCodeSessionId: string;
+  title: string | null;
+  summary: string | null;
+  model: string;
+  databricksWorkspacePath: string | null;
+  userId: string;
+  databricksWorkspaceAutoPush: boolean;
+  isArchived: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
  * Base class for session models using TypeID format (session_ + UUIDv7 Base32)
  *
  * Example ID: session_01h455vb4pex5vsknk084sn02q
@@ -120,22 +137,40 @@ export class SessionDraft extends SessionBase {
 }
 
 /**
- * Immutable session with required claudeCodeSessionId
+ * Immutable session with all fields
  *
- * Created after SDK init when session is saved to DB.
+ * Created after SDK init when session is saved to DB, or loaded from DB.
  */
 export class Session extends SessionBase {
   readonly claudeCodeSessionId: string;
+  readonly title: string | null;
+  readonly summary: string | null;
+  readonly model: string;
+  readonly databricksWorkspacePath: string | null;
+  readonly userId: string;
+  readonly databricksWorkspaceAutoPush: boolean;
+  readonly isArchived: boolean;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
 
-  constructor(id: string, claudeCodeSessionId: string) {
-    super(id);
-    this.claudeCodeSessionId = claudeCodeSessionId;
+  constructor(data: SessionData) {
+    super(data.id);
+    this.claudeCodeSessionId = data.claudeCodeSessionId;
+    this.title = data.title;
+    this.summary = data.summary;
+    this.model = data.model;
+    this.databricksWorkspacePath = data.databricksWorkspacePath;
+    this.userId = data.userId;
+    this.databricksWorkspaceAutoPush = data.databricksWorkspaceAutoPush;
+    this.isArchived = data.isArchived;
+    this.createdAt = data.createdAt;
+    this.updatedAt = data.updatedAt;
   }
 
   /**
-   * Create Session from existing TypeID string and claudeCodeSessionId
+   * Create Session from data
    */
-  static fromRecord(id: string, claudeCodeSessionId: string): Session {
-    return new Session(id, claudeCodeSessionId);
+  static fromData(data: SessionData): Session {
+    return new Session(data);
   }
 }

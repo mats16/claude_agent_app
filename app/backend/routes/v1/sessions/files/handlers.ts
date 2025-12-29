@@ -9,8 +9,7 @@ import type {
   FileDeleteResponse,
 } from '@app/shared';
 import { extractRequestContext } from '../../../../utils/headers.js';
-import { getSessionById } from '../../../../db/sessions.js';
-import { Session } from '../../../../models/Session.js';
+import { getSessionById } from '../../../../services/sessionService.js';
 
 // Size limits
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -122,14 +121,12 @@ export async function getFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  // Reconstruct Session model from DB record to get localPath
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const agentLocalPath = sessionModel.localPath;
+  const agentLocalPath = session.localPath;
 
   // Validate file path
   const validation = validateFilePath(filePath, agentLocalPath);
@@ -195,14 +192,12 @@ export async function uploadFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  // Reconstruct Session model from DB record to get localPath
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const agentLocalPath = sessionModel.localPath;
+  const agentLocalPath = session.localPath;
 
   // Validate file path
   const validation = validateFilePath(filePath, agentLocalPath);
@@ -275,14 +270,12 @@ export async function deleteFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  // Reconstruct Session model from DB record to get localPath
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const agentLocalPath = sessionModel.localPath;
+  const agentLocalPath = session.localPath;
 
   // Validate file path
   const validation = validateFilePath(filePath, agentLocalPath);
@@ -334,14 +327,12 @@ export async function listFilesHandler(
   const userId = context.user.sub;
 
   // Verify session ownership
-  const dbSession = await getSessionById(sessionId, userId);
-  if (!dbSession) {
+  const session = await getSessionById(sessionId, userId);
+  if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  // Reconstruct Session model from DB record to get localPath
-  const sessionModel = Session.fromRecord(dbSession.id, dbSession.claudeCodeSessionId);
-  const agentLocalPath = sessionModel.localPath;
+  const agentLocalPath = session.localPath;
 
   // Check if directory exists
   try {

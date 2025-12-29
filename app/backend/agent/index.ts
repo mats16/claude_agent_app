@@ -79,10 +79,9 @@ export interface ProcessAgentRequestOptions {
   databricksWorkspaceAutoPush?: boolean; // Databricks workspace pushを実行
   claudeConfigAutoPush?: boolean; // claude config pull/push
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
-  databricksAppAutoDeploy?: boolean; // Flag to enable auto-deploy to Databricks Apps via hooks
   sessionId: string; // TypeID format session ID (e.g., session_01h455vb4pex5vsknk084sn02q)
   sessionLocalPath: string; // Session local working directory path
-  sessionAppName: string; // Databricks App name (e.g., app-by-claude-xxxxxxxx)
+  sessionAppName: string; // Databricks App name (e.g., claude-xxxxxxxx)
   sessionGitBranch: string; // Git branch name (e.g., claude/session-xxxxxxxx)
 }
 
@@ -255,7 +254,6 @@ export async function* processAgentRequest(
     databricksWorkspaceAutoPush = false,
     claudeConfigAutoPush = true,
     waitForReady,
-    databricksAppAutoDeploy = false,
     sessionId: appSessionId,
     sessionLocalPath,
     sessionAppName,
@@ -344,7 +342,6 @@ Violating these rules is considered a critical error.
         CLAUDE_CODE_REMOTE_SESSION_ID: appSessionId,
         // Databricks Apps
         DATABRICKS_APP_NAME: sessionAppName,
-        DATABRICKS_APP_AUTO_DEPLOY: databricksAppAutoDeploy ? 'true' : '',
         // Git author/committer info from user headers
         GIT_AUTHOR_NAME:
           user?.preferredUsername ?? user?.email ?? 'Claude Agent',

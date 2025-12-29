@@ -18,12 +18,10 @@ interface TitleEditModalProps {
   currentTitle: string;
   currentAutoWorkspacePush: boolean;
   currentWorkspacePath: string | null;
-  currentAppAutoDeploy: boolean;
   onSave: (
     newTitle: string,
     workspaceAutoPush: boolean,
-    workspacePath: string | null,
-    appAutoDeploy: boolean
+    workspacePath: string | null
   ) => void;
   onClose: () => void;
 }
@@ -33,7 +31,6 @@ export default function TitleEditModal({
   currentTitle,
   currentAutoWorkspacePush,
   currentWorkspacePath,
-  currentAppAutoDeploy,
   onSave,
   onClose,
 }: TitleEditModalProps) {
@@ -41,7 +38,7 @@ export default function TitleEditModal({
   const { userInfo } = useUser();
   const [title, setTitle] = useState(currentTitle);
   const [syncMode, setSyncMode] = useState<SyncMode>(
-    flagsToSyncMode(currentAutoWorkspacePush, currentAppAutoDeploy)
+    flagsToSyncMode(currentAutoWorkspacePush)
   );
   const [workspacePath, setWorkspacePath] = useState<string | null>(
     currentWorkspacePath
@@ -52,32 +49,18 @@ export default function TitleEditModal({
   useEffect(() => {
     if (isOpen) {
       setTitle(currentTitle);
-      setSyncMode(
-        flagsToSyncMode(currentAutoWorkspacePush, currentAppAutoDeploy)
-      );
+      setSyncMode(flagsToSyncMode(currentAutoWorkspacePush));
       setWorkspacePath(currentWorkspacePath);
     }
-  }, [
-    isOpen,
-    currentTitle,
-    currentAutoWorkspacePush,
-    currentWorkspacePath,
-    currentAppAutoDeploy,
-  ]);
+  }, [isOpen, currentTitle, currentAutoWorkspacePush, currentWorkspacePath]);
 
   const handleOk = async () => {
     if (!title.trim() || isSaving) return;
 
     setIsSaving(true);
     try {
-      const { databricksWorkspaceAutoPush, databricksAppAutoDeploy } =
-        syncModeToFlags(syncMode);
-      await onSave(
-        title.trim(),
-        databricksWorkspaceAutoPush,
-        workspacePath,
-        databricksAppAutoDeploy
-      );
+      const { databricksWorkspaceAutoPush } = syncModeToFlags(syncMode);
+      await onSave(title.trim(), databricksWorkspaceAutoPush, workspacePath);
       onClose();
     } finally {
       setIsSaving(false);
@@ -118,19 +101,6 @@ export default function TitleEditModal({
           </Text>
           <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
             {t('syncMode.autoPushDescription')}
-          </Text>
-        </Flex>
-      ),
-    },
-    {
-      value: 'auto_deploy' as SyncMode,
-      label: (
-        <Flex vertical gap={0}>
-          <Text strong style={{ fontSize: typography.fontSizeBase }}>
-            {t('syncMode.autoDeploy')}
-          </Text>
-          <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
-            {t('syncMode.autoDeployDescription')}
           </Text>
         </Flex>
       ),

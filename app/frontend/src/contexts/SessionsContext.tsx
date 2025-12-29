@@ -18,9 +18,8 @@ export interface Session {
   databricksWorkspaceUrl?: string | null; // Fetched from GET /api/v1/sessions/:id
   userEmail: string | null;
   databricksWorkspaceAutoPush: boolean;
-  databricksAppAutoDeploy: boolean;
-  databricksAppName?: string | null; // app-by-claude-{shortSuffix}, only when databricksAppAutoDeploy=true
-  databricksAppConsoleUrl?: string | null; // https://{host}/apps/{app_name}, only when databricksAppAutoDeploy=true
+  databricksAppName?: string | null; // claude-{uuidv7}, derived from session ID
+  databricksAppConsoleUrl?: string | null; // https://{host}/apps/{app_name}
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -116,8 +115,6 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
               userEmail: null,
               databricksWorkspaceAutoPush:
                 data.session.databricksWorkspaceAutoPush ?? false,
-              databricksAppAutoDeploy:
-                data.session.databricksAppAutoDeploy ?? false,
               isArchived: false, // New sessions are always active
             };
             setSessions((prev) => {

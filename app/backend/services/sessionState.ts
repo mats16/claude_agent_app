@@ -25,7 +25,6 @@ export function notifySessionCreated(
     title: string | null;
     databricksWorkspacePath: string | null;
     databricksWorkspaceAutoPush: boolean;
-    databricksAppAutoDeploy: boolean;
     updatedAt: string;
   }
 ) {

@@ -108,7 +108,6 @@ export async function updateSession(
     title?: string;
     databricksWorkspaceAutoPush?: boolean;
     databricksWorkspacePath?: string | null;
-    databricksAppAutoDeploy?: boolean;
     model?: string;
   },
   userId: string

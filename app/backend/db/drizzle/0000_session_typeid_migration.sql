@@ -20,7 +20,6 @@ CREATE TABLE sessions (
   databricks_workspace_path TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   databricks_workspace_auto_push BOOLEAN NOT NULL DEFAULT FALSE,
-  databricks_app_auto_deploy BOOLEAN NOT NULL DEFAULT FALSE,
   is_archived BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()

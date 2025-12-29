@@ -169,7 +169,6 @@ export default function QuickstartAppsModal({
             model: 'databricks-claude-opus-4-5',
             databricksWorkspacePath: templateWorkspacePath,
             databricksWorkspaceAutoPush: true,
-            databricksAppAutoDeploy: true,
           },
         }),
       });

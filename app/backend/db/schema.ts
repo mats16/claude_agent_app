@@ -40,9 +40,6 @@ export const sessions = pgTable(
     databricksWorkspaceAutoPush: boolean('databricks_workspace_auto_push')
       .default(false)
       .notNull(),
-    databricksAppAutoDeploy: boolean('databricks_app_auto_deploy')
-      .default(false)
-      .notNull(),
     isArchived: boolean('is_archived').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

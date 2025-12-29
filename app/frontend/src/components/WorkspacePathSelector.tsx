@@ -10,38 +10,24 @@ import { colors, typography } from '../styles/theme';
 
 const { Text } = Typography;
 
-// Sync mode type: determines how workspace is synced and whether to deploy
-export type SyncMode = 'manual' | 'auto_push' | 'auto_deploy';
+// Sync mode type: determines how workspace is synced
+export type SyncMode = 'manual' | 'auto_push';
 
 // Helper functions to convert between SyncMode and DB flags
 export function syncModeToFlags(mode: SyncMode): {
   databricksWorkspaceAutoPush: boolean;
-  databricksAppAutoDeploy: boolean;
 } {
   switch (mode) {
     case 'manual':
-      return {
-        databricksWorkspaceAutoPush: false,
-        databricksAppAutoDeploy: false,
-      };
+      return { databricksWorkspaceAutoPush: false };
     case 'auto_push':
-      return {
-        databricksWorkspaceAutoPush: true,
-        databricksAppAutoDeploy: false,
-      };
-    case 'auto_deploy':
-      return {
-        databricksWorkspaceAutoPush: true,
-        databricksAppAutoDeploy: true,
-      };
+      return { databricksWorkspaceAutoPush: true };
   }
 }
 
 export function flagsToSyncMode(
-  databricksWorkspaceAutoPush: boolean,
-  databricksAppAutoDeploy: boolean
+  databricksWorkspaceAutoPush: boolean
 ): SyncMode {
-  if (databricksAppAutoDeploy) return 'auto_deploy';
   if (databricksWorkspaceAutoPush) return 'auto_push';
   return 'manual';
 }
@@ -109,19 +95,6 @@ export default function WorkspacePathSelector({
         </Flex>
       ),
     },
-    {
-      value: 'auto_deploy' as SyncMode,
-      label: (
-        <Flex vertical gap={0}>
-          <Text strong style={{ fontSize: typography.fontSizeBase }}>
-            {t('syncMode.autoDeploy')}
-          </Text>
-          <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
-            {t('syncMode.autoDeployDescription')}
-          </Text>
-        </Flex>
-      ),
-    },
   ];
 
   return (
@@ -182,8 +155,6 @@ export default function WorkspacePathSelector({
                 return t('syncMode.manual');
               case 'auto_push':
                 return t('syncMode.autoPush');
-              case 'auto_deploy':
-                return t('syncMode.autoDeploy');
               default:
                 return '';
             }

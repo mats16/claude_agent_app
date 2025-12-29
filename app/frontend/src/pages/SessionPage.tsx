@@ -133,18 +133,17 @@ export default function SessionPage() {
   const sessionAutoWorkspacePush = session?.databricksWorkspaceAutoPush ?? false;
   const sessionWorkspacePath = session?.databricksWorkspacePath ?? null;
   const sessionWorkspaceUrl = session?.databricksWorkspaceUrl ?? null;
-  const sessionAppAutoDeploy = session?.databricksAppAutoDeploy ?? false;
   const sessionAppName = session?.databricksAppName ?? null;
   const sessionConsoleUrl = session?.databricksAppConsoleUrl ?? null;
 
-  // Poll app live status when appAutoDeploy is enabled
+  // Poll app live status (always disabled - feature removed)
   const {
     status: appStatus,
     isDeploying: appIsDeploying,
     isUnavailable: appIsUnavailable,
     isReadyForInitialDeploy,
     displayAppState,
-  } = useAppLiveStatus(sessionId, sessionAppAutoDeploy);
+  } = useAppLiveStatus(sessionId, false);
 
   // Track if initial deploy has been attempted for this session
   const initialDeployAttemptedRef = useRef(false);
@@ -196,10 +195,9 @@ export default function SessionPage() {
   // Fetch session details (including workspace_url, app_name, console_url) when session page loads
   useEffect(() => {
     if (!sessionId) return;
-    // Skip if we already have workspace_url (when workspacePath is set) and consoleUrl (when appAutoDeploy is true)
+    // Skip if we already have workspace_url (when workspacePath is set)
     const needsWorkspaceUrl = sessionWorkspacePath && !sessionWorkspaceUrl;
-    const needsConsoleUrl = sessionAppAutoDeploy && !sessionConsoleUrl;
-    if (!needsWorkspaceUrl && !needsConsoleUrl) return;
+    if (!needsWorkspaceUrl) return;
 
     const fetchSessionDetails = async () => {
       try {
@@ -226,40 +224,7 @@ export default function SessionPage() {
     };
 
     fetchSessionDetails();
-  }, [
-    sessionId,
-    sessionWorkspacePath,
-    sessionWorkspaceUrl,
-    sessionAppAutoDeploy,
-    sessionConsoleUrl,
-    updateSessionLocally,
-  ]);
-
-  // Fetch app URL when appAutoDeploy is enabled
-  useEffect(() => {
-    if (!sessionId || !sessionAppAutoDeploy) {
-      setAppUrl(null);
-      return;
-    }
-
-    const fetchAppUrl = async () => {
-      try {
-        const response = await fetch(`/api/v1/sessions/${sessionId}/app`);
-        if (response.ok) {
-          const data = await response.json();
-          setAppUrl(data.url ?? null);
-        } else {
-          // App may not exist yet (404)
-          setAppUrl(null);
-        }
-      } catch (error) {
-        console.error('Failed to fetch app URL:', error);
-        setAppUrl(null);
-      }
-    };
-
-    fetchAppUrl();
-  }, [sessionId, sessionAppAutoDeploy]);
+  }, [sessionId, sessionWorkspacePath, sessionWorkspaceUrl, updateSessionLocally]);
 
   // Handle deploy action
   const handleDeploy = useCallback(async () => {
@@ -295,8 +260,7 @@ export default function SessionPage() {
     async (
       newTitle: string,
       workspaceAutoPush: boolean,
-      workspacePath: string | null,
-      appAutoDeploy: boolean
+      workspacePath: string | null
     ) => {
       if (!sessionId) return;
 
@@ -307,7 +271,6 @@ export default function SessionPage() {
           title: newTitle,
           databricks_workspace_auto_push: workspaceAutoPush,
           databricks_workspace_path: workspacePath,
-          databricks_app_auto_deploy: appAutoDeploy,
         }),
       });
 
@@ -316,7 +279,6 @@ export default function SessionPage() {
           title: newTitle,
           databricksWorkspaceAutoPush: workspaceAutoPush,
           databricksWorkspacePath: workspacePath,
-          databricksAppAutoDeploy: appAutoDeploy,
         });
       } else {
         throw new Error('Failed to update session settings');
@@ -629,7 +591,6 @@ export default function SessionPage() {
         currentTitle={sessionTitle || ''}
         currentAutoWorkspacePush={sessionAutoWorkspacePush}
         currentWorkspacePath={sessionWorkspacePath}
-        currentAppAutoDeploy={sessionAppAutoDeploy}
         onSave={handleSaveSettings}
         onClose={() => setIsModalOpen(false)}
       />
@@ -789,8 +750,8 @@ export default function SessionPage() {
           </div>
         </div>
 
-        {/* App Status Panel - Fixed above input */}
-        {sessionAppAutoDeploy && sessionAppName && (
+        {/* App Status Panel - Fixed above input (disabled - app auto deploy feature removed) */}
+        {false && sessionAppName && (
           <AppStatusPanel
             sessionId={sessionId!}
             appName={sessionAppName}

@@ -14,13 +14,13 @@ export interface Session {
   claudeCodeSessionId: string | null; // Claude Code internal session ID
   title: string | null;
   model: string;
-  workspacePath: string | null;
-  workspaceUrl?: string | null; // Fetched from GET /api/v1/sessions/:id
+  databricksWorkspacePath: string | null;
+  databricksWorkspaceUrl?: string | null; // Fetched from GET /api/v1/sessions/:id
   userEmail: string | null;
-  workspaceAutoPush: boolean;
-  appAutoDeploy: boolean;
-  appName?: string | null; // app-by-claude-{shortSuffix}, only when appAutoDeploy=true
-  consoleUrl?: string | null; // https://{host}/apps/{app_name}, only when appAutoDeploy=true
+  databricksWorkspaceAutoPush: boolean;
+  databricksAppAutoDeploy: boolean;
+  databricksAppName?: string | null; // app-by-claude-{shortSuffix}, only when databricksAppAutoDeploy=true
+  databricksAppConsoleUrl?: string | null; // https://{host}/apps/{app_name}, only when databricksAppAutoDeploy=true
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -109,13 +109,15 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
               id: data.session.id,
               claudeCodeSessionId: data.session.claudeCodeSessionId ?? null,
               title: data.session.title,
-              workspacePath: data.session.workspacePath,
+              databricksWorkspacePath: data.session.databricksWorkspacePath,
               updatedAt: data.session.updatedAt,
               createdAt: data.session.updatedAt, // New sessions have same createdAt/updatedAt
               model: '',
               userEmail: null,
-              workspaceAutoPush: data.session.workspaceAutoPush ?? false,
-              appAutoDeploy: data.session.appAutoDeploy ?? false,
+              databricksWorkspaceAutoPush:
+                data.session.databricksWorkspaceAutoPush ?? false,
+              databricksAppAutoDeploy:
+                data.session.databricksAppAutoDeploy ?? false,
               isArchived: false, // New sessions are always active
             };
             setSessions((prev) => {

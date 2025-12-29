@@ -74,7 +74,7 @@ const SessionItem = memo(function SessionItem({
             {session.title || t('sessionList.untitledSession')}
           </Text>
           <div>
-            {session.workspacePath && (
+            {session.databricksWorkspacePath && (
               <Text
                 type="secondary"
                 style={{
@@ -83,7 +83,7 @@ const SessionItem = memo(function SessionItem({
                   ...ellipsisStyle,
                 }}
               >
-                {session.workspacePath}
+                {session.databricksWorkspacePath}
               </Text>
             )}
             <Text type="secondary" style={{ fontSize: 11 }}>

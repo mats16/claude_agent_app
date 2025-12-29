@@ -76,10 +76,10 @@ export async function getAccessToken(): Promise<string> {
 
 // Options for processAgentRequest
 export interface ProcessAgentRequestOptions {
-  workspaceAutoPush?: boolean; // workspace pushを実行
+  databricksWorkspaceAutoPush?: boolean; // Databricks workspace pushを実行
   claudeConfigAutoPush?: boolean; // claude config pull/push
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
-  appAutoDeploy?: boolean; // Flag to enable auto-deploy to Databricks Apps via hooks
+  databricksAppAutoDeploy?: boolean; // Flag to enable auto-deploy to Databricks Apps via hooks
   sessionId: string; // TypeID format session ID (e.g., session_01h455vb4pex5vsknk084sn02q)
   sessionLocalPath: string; // Session local working directory path
   sessionAppName: string; // Databricks App name (e.g., app-by-claude-xxxxxxxx)
@@ -247,15 +247,15 @@ export async function* processAgentRequest(
   options: ProcessAgentRequestOptions,
   sessionId?: string,
   user?: RequestUser,
-  workspacePath?: string,
+  databricksWorkspacePath?: string,
   messageStream?: MessageStream,
   userPersonalAccessToken?: string
 ): AsyncGenerator<SDKMessage> {
   const {
-    workspaceAutoPush = false,
+    databricksWorkspaceAutoPush = false,
     claudeConfigAutoPush = true,
     waitForReady,
-    appAutoDeploy = false,
+    databricksAppAutoDeploy = false,
     sessionId: appSessionId,
     sessionLocalPath,
     sessionAppName,
@@ -334,15 +334,17 @@ Violating these rules is considered a critical error.
           : databricks.clientSecret,
         DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
         // Used by hooks in settings.json
-        WORKSPACE_DIR: workspacePath,
-        WORKSPACE_CLAUDE_CONFIG_DIR:
+        DATABRICKS_WORKSPACE_PATH: databricksWorkspacePath,
+        DATABRICKS_WORKSPACE_CLAUDE_CONFIG_DIR:
           user?.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
-        WORKSPACE_AUTO_PUSH: workspaceAutoPush ? 'true' : '',
+        DATABRICKS_WORKSPACE_AUTO_PUSH: databricksWorkspaceAutoPush
+          ? 'true'
+          : '',
         // Session identification (TypeID format)
         CLAUDE_CODE_REMOTE_SESSION_ID: appSessionId,
         // Databricks Apps
-        SESSION_APP_NAME: sessionAppName,
-        APP_AUTO_DEPLOY: appAutoDeploy ? 'true' : '',
+        DATABRICKS_APP_NAME: sessionAppName,
+        DATABRICKS_APP_AUTO_DEPLOY: databricksAppAutoDeploy ? 'true' : '',
         // Git author/committer info from user headers
         GIT_AUTHOR_NAME:
           user?.preferredUsername ?? user?.email ?? 'Claude Agent',

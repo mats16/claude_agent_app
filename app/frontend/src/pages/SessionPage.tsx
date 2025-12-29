@@ -130,12 +130,12 @@ export default function SessionPage() {
   const session = sessionId ? getSession(sessionId) : undefined;
   const isArchived = session?.isArchived ?? false;
   const sessionTitle = session?.title ?? null;
-  const sessionAutoWorkspacePush = session?.workspaceAutoPush ?? false;
-  const sessionWorkspacePath = session?.workspacePath ?? null;
-  const sessionWorkspaceUrl = session?.workspaceUrl ?? null;
-  const sessionAppAutoDeploy = session?.appAutoDeploy ?? false;
-  const sessionAppName = session?.appName ?? null;
-  const sessionConsoleUrl = session?.consoleUrl ?? null;
+  const sessionAutoWorkspacePush = session?.databricksWorkspaceAutoPush ?? false;
+  const sessionWorkspacePath = session?.databricksWorkspacePath ?? null;
+  const sessionWorkspaceUrl = session?.databricksWorkspaceUrl ?? null;
+  const sessionAppAutoDeploy = session?.databricksAppAutoDeploy ?? false;
+  const sessionAppName = session?.databricksAppName ?? null;
+  const sessionConsoleUrl = session?.databricksAppConsoleUrl ?? null;
 
   // Poll app live status when appAutoDeploy is enabled
   const {
@@ -207,14 +207,14 @@ export default function SessionPage() {
         if (response.ok) {
           const data = await response.json();
           const updates: Record<string, unknown> = {};
-          if (data.workspace_url) {
-            updates.workspaceUrl = data.workspace_url;
+          if (data.databricks_workspace_url) {
+            updates.databricksWorkspaceUrl = data.databricks_workspace_url;
           }
-          if (data.app_name) {
-            updates.appName = data.app_name;
+          if (data.databricks_app_name) {
+            updates.databricksAppName = data.databricks_app_name;
           }
           if (data.console_url) {
-            updates.consoleUrl = data.console_url;
+            updates.databricksAppConsoleUrl = data.console_url;
           }
           if (Object.keys(updates).length > 0) {
             updateSessionLocally(sessionId, updates);
@@ -305,18 +305,18 @@ export default function SessionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: newTitle,
-          workspace_auto_push: workspaceAutoPush,
-          workspace_path: workspacePath,
-          app_auto_deploy: appAutoDeploy,
+          databricks_workspace_auto_push: workspaceAutoPush,
+          databricks_workspace_path: workspacePath,
+          databricks_app_auto_deploy: appAutoDeploy,
         }),
       });
 
       if (response.ok) {
         updateSessionLocally(sessionId, {
           title: newTitle,
-          workspaceAutoPush,
-          workspacePath,
-          appAutoDeploy,
+          databricksWorkspaceAutoPush: workspaceAutoPush,
+          databricksWorkspacePath: workspacePath,
+          databricksAppAutoDeploy: appAutoDeploy,
         });
       } else {
         throw new Error('Failed to update session settings');

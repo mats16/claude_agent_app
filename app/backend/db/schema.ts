@@ -33,12 +33,16 @@ export const sessions = pgTable(
     title: text('title'),
     summary: text('summary'), // Auto-generated session summary from structured output
     model: text('model').notNull(),
-    workspacePath: text('workspace_path'),
+    databricksWorkspacePath: text('databricks_workspace_path'),
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    workspaceAutoPush: boolean('workspace_auto_push').default(false).notNull(),
-    appAutoDeploy: boolean('app_auto_deploy').default(false).notNull(),
+    databricksWorkspaceAutoPush: boolean('databricks_workspace_auto_push')
+      .default(false)
+      .notNull(),
+    databricksAppAutoDeploy: boolean('databricks_app_auto_deploy')
+      .default(false)
+      .notNull(),
     isArchived: boolean('is_archived').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

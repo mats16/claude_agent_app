@@ -70,12 +70,13 @@ export default function TitleEditModal({
 
     setIsSaving(true);
     try {
-      const { workspaceAutoPush, appAutoDeploy } = syncModeToFlags(syncMode);
+      const { databricksWorkspaceAutoPush, databricksAppAutoDeploy } =
+        syncModeToFlags(syncMode);
       await onSave(
         title.trim(),
-        workspaceAutoPush,
+        databricksWorkspaceAutoPush,
         workspacePath,
-        appAutoDeploy
+        databricksAppAutoDeploy
       );
       onClose();
     } finally {

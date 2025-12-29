@@ -45,9 +45,9 @@ interface CreateSessionBody {
   }>;
   session_context: {
     model: string;
-    workspacePath?: string;
-    workspaceAutoPush?: boolean;
-    appAutoDeploy?: boolean;
+    databricksWorkspacePath?: string;
+    databricksWorkspaceAutoPush?: boolean;
+    databricksAppAutoDeploy?: boolean;
   };
 }
 
@@ -77,13 +77,14 @@ export async function createSessionHandler(
 
   const userMessage = userEvent.message.content;
   const model = session_context.model;
-  const workspacePath = session_context.workspacePath;
-  // Force workspaceAutoPush to false if workspacePath is not specified
-  const workspaceAutoPush =
-    workspacePath && workspacePath.trim()
-      ? (session_context.workspaceAutoPush ?? false)
+  const databricksWorkspacePath = session_context.databricksWorkspacePath;
+  // Force databricksWorkspaceAutoPush to false if databricksWorkspacePath is not specified
+  const databricksWorkspaceAutoPush =
+    databricksWorkspacePath && databricksWorkspacePath.trim()
+      ? (session_context.databricksWorkspaceAutoPush ?? false)
       : false;
-  const appAutoDeploy = session_context.appAutoDeploy ?? false;
+  const databricksAppAutoDeploy =
+    session_context.databricksAppAutoDeploy ?? false;
 
   // Get user settings for claudeConfigAutoPush (still needed for agent hook)
   const userSettings = await getSettingsDirect(userId);
@@ -127,9 +128,9 @@ export async function createSessionHandler(
 
   // Create settings.json with workspace sync hooks for all sessions
   const claudeSettings = new ClaudeSettings({
-    workspacePath,
-    workspaceAutoPush,
-    appAutoDeploy,
+    workspacePath: databricksWorkspacePath,
+    workspaceAutoPush: databricksWorkspaceAutoPush,
+    appAutoDeploy: databricksAppAutoDeploy,
     claudeConfigAutoPush,
   });
   claudeSettings.save(session.localPath);
@@ -147,9 +148,9 @@ export async function createSessionHandler(
       messageContent,
       model,
       {
-        workspaceAutoPush,
+        databricksWorkspaceAutoPush,
         claudeConfigAutoPush,
-        appAutoDeploy,
+        databricksAppAutoDeploy,
         sessionId: session.id,
         sessionLocalPath: session.localPath,
         sessionAppName: session.appName,
@@ -157,7 +158,7 @@ export async function createSessionHandler(
       },
       undefined,
       user,
-      workspacePath,
+      databricksWorkspacePath,
       stream,
       userPersonalAccessToken
     );
@@ -193,10 +194,10 @@ export async function createSessionHandler(
                 claudeCodeSessionId,
                 title: sessionTitle,
                 model,
-                workspacePath,
+                databricksWorkspacePath,
                 userId,
-                workspaceAutoPush,
-                appAutoDeploy,
+                databricksWorkspaceAutoPush,
+                databricksAppAutoDeploy,
               },
               userId
             );
@@ -207,9 +208,9 @@ export async function createSessionHandler(
               id: session.id,
               claudeCodeSessionId,
               title: sessionTitle,
-              workspacePath: workspacePath ?? null,
-              workspaceAutoPush,
-              appAutoDeploy,
+              databricksWorkspacePath: databricksWorkspacePath ?? null,
+              databricksWorkspaceAutoPush,
+              databricksAppAutoDeploy,
               updatedAt: new Date().toISOString(),
             });
 
@@ -319,9 +320,9 @@ export async function updateSessionHandler(
     Params: { sessionId: string };
     Body: {
       title?: string;
-      workspace_auto_push?: boolean;
-      workspace_path?: string | null;
-      app_auto_deploy?: boolean;
+      databricks_workspace_auto_push?: boolean;
+      databricks_workspace_path?: string | null;
+      databricks_app_auto_deploy?: boolean;
     };
   }>,
   reply: FastifyReply
@@ -329,9 +330,9 @@ export async function updateSessionHandler(
   const { sessionId } = request.params;
   const {
     title,
-    workspace_auto_push: workspaceAutoPush,
-    workspace_path: workspacePath,
-    app_auto_deploy: appAutoDeploy,
+    databricks_workspace_auto_push: databricksWorkspaceAutoPush,
+    databricks_workspace_path: databricksWorkspacePath,
+    databricks_app_auto_deploy: databricksAppAutoDeploy,
   } = request.body;
 
   let context;
@@ -346,40 +347,42 @@ export async function updateSessionHandler(
   // At least one field must be provided
   if (
     title === undefined &&
-    workspaceAutoPush === undefined &&
-    workspacePath === undefined &&
-    appAutoDeploy === undefined
+    databricksWorkspaceAutoPush === undefined &&
+    databricksWorkspacePath === undefined &&
+    databricksAppAutoDeploy === undefined
   ) {
     return reply.status(400).send({
       error:
-        'title, workspace_auto_push, workspace_path, or app_auto_deploy is required',
+        'title, databricks_workspace_auto_push, databricks_workspace_path, or databricks_app_auto_deploy is required',
     });
   }
 
   const updates: {
     title?: string;
-    workspaceAutoPush?: boolean;
-    workspacePath?: string | null;
-    appAutoDeploy?: boolean;
+    databricksWorkspaceAutoPush?: boolean;
+    databricksWorkspacePath?: string | null;
+    databricksAppAutoDeploy?: boolean;
   } = {};
   if (title !== undefined) updates.title = title;
-  if (appAutoDeploy !== undefined) updates.appAutoDeploy = appAutoDeploy;
-  if (workspacePath !== undefined) {
-    updates.workspacePath = workspacePath || null;
-    // Force workspaceAutoPush to false when workspacePath is cleared
-    if (!workspacePath || !workspacePath.trim()) {
-      updates.workspaceAutoPush = false;
+  if (databricksAppAutoDeploy !== undefined)
+    updates.databricksAppAutoDeploy = databricksAppAutoDeploy;
+  if (databricksWorkspacePath !== undefined) {
+    updates.databricksWorkspacePath = databricksWorkspacePath || null;
+    // Force databricksWorkspaceAutoPush to false when databricksWorkspacePath is cleared
+    if (!databricksWorkspacePath || !databricksWorkspacePath.trim()) {
+      updates.databricksWorkspaceAutoPush = false;
     }
   }
-  if (workspaceAutoPush !== undefined) {
-    // Only apply workspaceAutoPush if workspacePath is set
+  if (databricksWorkspaceAutoPush !== undefined) {
+    // Only apply databricksWorkspaceAutoPush if databricksWorkspacePath is set
     // (either from current update or existing session)
     const session = await getSessionById(sessionId, userId);
-    const finalWorkspacePath = updates.workspacePath ?? session?.workspacePath;
+    const finalWorkspacePath =
+      updates.databricksWorkspacePath ?? session?.databricksWorkspacePath;
     if (finalWorkspacePath && finalWorkspacePath.trim()) {
-      updates.workspaceAutoPush = workspaceAutoPush;
+      updates.databricksWorkspaceAutoPush = databricksWorkspaceAutoPush;
     } else {
-      updates.workspaceAutoPush = false;
+      updates.databricksWorkspaceAutoPush = false;
     }
   }
 
@@ -422,8 +425,8 @@ export async function archiveSessionHandler(
     localPath: sessionModel.localPath,
   });
 
-  // Delete Databricks App if appAutoDeploy was enabled
-  if (dbSession.appAutoDeploy) {
+  // Delete Databricks App if databricksAppAutoDeploy was enabled
+  if (dbSession.databricksAppAutoDeploy) {
     const appName = sessionModel.appName;
     try {
       const userPat = await getUserPersonalAccessToken(userId);
@@ -751,8 +754,8 @@ export async function createAppDeploymentHandler(
 
   // Build deployment request body
   const deploymentBody: Record<string, unknown> = {};
-  if (dbSession.workspacePath) {
-    deploymentBody.source_code_path = dbSession.workspacePath;
+  if (dbSession.databricksWorkspacePath) {
+    deploymentBody.source_code_path = dbSession.databricksWorkspacePath;
   }
 
   try {
@@ -801,11 +804,13 @@ export async function getSessionHandler(
   // Reconstruct Session model from TypeID to get paths
   const sessionModel = Session.fromString(dbSession.id);
 
-  // Get workspace_url if workspacePath is set
+  // Get workspace_url if databricksWorkspacePath is set
   let workspaceUrl: string | null = null;
-  if (dbSession.workspacePath) {
+  if (dbSession.databricksWorkspacePath) {
     try {
-      const status = await workspaceService.getStatus(dbSession.workspacePath);
+      const status = await workspaceService.getStatus(
+        dbSession.databricksWorkspacePath
+      );
       workspaceUrl = status.browse_url;
     } catch (error) {
       // Log error but don't fail the request
@@ -819,10 +824,10 @@ export async function getSessionHandler(
     claude_code_session_id: dbSession.claudeCodeSessionId,
     title: dbSession.title,
     summary: dbSession.summary,
-    workspace_path: dbSession.workspacePath,
-    workspace_url: workspaceUrl,
-    workspace_auto_push: dbSession.workspaceAutoPush,
-    app_auto_deploy: dbSession.appAutoDeploy,
+    databricks_workspace_path: dbSession.databricksWorkspacePath,
+    databricks_workspace_url: workspaceUrl,
+    databricks_workspace_auto_push: dbSession.databricksWorkspaceAutoPush,
+    databricks_app_auto_deploy: dbSession.databricksAppAutoDeploy,
     local_path: sessionModel.localPath,
     is_archived: dbSession.isArchived,
     model: dbSession.model,
@@ -830,9 +835,9 @@ export async function getSessionHandler(
     updated_at: dbSession.updatedAt.toISOString(),
   };
 
-  // Only include app_name and console_url when app_auto_deploy is true
-  if (dbSession.appAutoDeploy) {
-    response.app_name = sessionModel.appName;
+  // Only include databricks_app_name and console_url when databricks_app_auto_deploy is true
+  if (dbSession.databricksAppAutoDeploy) {
+    response.databricks_app_name = sessionModel.appName;
     response.console_url = `https://${databricks.host}/apps/${sessionModel.appName}`;
   }
 

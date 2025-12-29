@@ -23,9 +23,9 @@ export function notifySessionCreated(
     id: string;
     claudeCodeSessionId: string | null;
     title: string | null;
-    workspacePath: string | null;
-    workspaceAutoPush: boolean;
-    appAutoDeploy: boolean;
+    databricksWorkspacePath: string | null;
+    databricksWorkspaceAutoPush: boolean;
+    databricksAppAutoDeploy: boolean;
     updatedAt: string;
   }
 ) {

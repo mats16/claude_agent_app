@@ -87,13 +87,13 @@ export class ClaudeSettings {
               {
                 type: 'command',
                 command:
-                  '[ -n "$WORKSPACE_DIR" ] && databricks workspace export-dir "$WORKSPACE_DIR" .',
+                  '[ -n "$DATABRICKS_WORKSPACE_PATH" ] && databricks workspace export-dir "$DATABRICKS_WORKSPACE_PATH" .',
               },
               // Create Databricks Apps for the session
               {
                 type: 'command',
                 command:
-                  '[ "$APP_AUTO_DEPLOY" = "true" ] && databricks apps create "$SESSION_APP_NAME" --no-wait',
+                  '[ "$DATABRICKS_APP_AUTO_DEPLOY" = "true" ] && databricks apps create "$DATABRICKS_APP_NAME" --no-wait',
               },
             ],
           },
@@ -106,7 +106,7 @@ export class ClaudeSettings {
               {
                 type: 'command',
                 command:
-                  '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync . "$WORKSPACE_DIR" --exclude "node_modules" > /dev/null 2>&1 &',
+                  '[ "$DATABRICKS_WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync . "$DATABRICKS_WORKSPACE_PATH" --exclude "node_modules" > /dev/null 2>&1 &',
               },
             ],
           },
@@ -118,7 +118,7 @@ export class ClaudeSettings {
               {
                 type: 'command',
                 command:
-                  '[ "$CLAUDE_CONFIG_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_CONFIG_DIR" "$WORKSPACE_CLAUDE_CONFIG_DIR" > /dev/null 2>&1 &',
+                  '[ "$CLAUDE_CONFIG_AUTO_PUSH" = "true" ] && databricks sync "$CLAUDE_CONFIG_DIR" "$DATABRICKS_WORKSPACE_CLAUDE_CONFIG_DIR" > /dev/null 2>&1 &',
               },
             ],
           },
@@ -128,13 +128,13 @@ export class ClaudeSettings {
               {
                 type: 'command',
                 command:
-                  '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync . "$WORKSPACE_DIR" --exclude "node_modules"',
+                  '[ "$DATABRICKS_WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync . "$DATABRICKS_WORKSPACE_PATH" --exclude "node_modules"',
               },
               // Auto deploy Databricks Apps for the session
               {
                 type: 'command',
                 command:
-                  '[ "$APP_AUTO_DEPLOY" = "true" ] && databricks apps deploy "$SESSION_APP_NAME" --source-code-path "$WORKSPACE_DIR" --no-wait',
+                  '[ "$DATABRICKS_APP_AUTO_DEPLOY" = "true" ] && databricks apps deploy "$DATABRICKS_APP_NAME" --source-code-path "$DATABRICKS_WORKSPACE_PATH" --no-wait',
               },
             ],
           },

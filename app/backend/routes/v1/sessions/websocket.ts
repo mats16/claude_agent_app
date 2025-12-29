@@ -171,16 +171,18 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                 `[WebSocket] Starting agent for session: ${sessionId}`
               );
 
-              // Fetch session to get workspacePath, workspaceAutoPush, appAutoDeploy, and model for resume
+              // Fetch session to get databricksWorkspacePath, databricksWorkspaceAutoPush, databricksAppAutoDeploy, and model for resume
               const dbSession = await getSessionById(sessionId, userId);
               if (!dbSession) {
                 throw new Error('Session not found. Cannot resume session.');
               }
               // Reconstruct Session model from TypeID to get paths
               const sessionModel = Session.fromString(dbSession.id);
-              const workspacePath = dbSession.workspacePath ?? undefined;
-              const workspaceAutoPush = dbSession.workspaceAutoPush;
-              const appAutoDeploy = dbSession.appAutoDeploy;
+              const databricksWorkspacePath =
+                dbSession.databricksWorkspacePath ?? undefined;
+              const databricksWorkspaceAutoPush =
+                dbSession.databricksWorkspaceAutoPush;
+              const databricksAppAutoDeploy = dbSession.databricksAppAutoDeploy;
               // Use model from WebSocket message (frontend always sends the selected model)
               // Fallback to 'databricks-claude-sonnet-4-5' for edge cases (should not happen with current frontend)
               const model = messageModel || 'databricks-claude-sonnet-4-5';
@@ -216,9 +218,9 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                   userMessageContent,
                   model,
                   {
-                    workspaceAutoPush,
+                    databricksWorkspaceAutoPush,
                     claudeConfigAutoPush,
-                    appAutoDeploy,
+                    databricksAppAutoDeploy,
                     sessionId: sessionModel.id,
                     sessionLocalPath: sessionModel.localPath,
                     sessionAppName: sessionModel.appName,
@@ -226,7 +228,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                   },
                   dbSession.claudeCodeSessionId ?? undefined,
                   user,
-                  workspacePath,
+                  databricksWorkspacePath,
                   stream,
                   userPersonalAccessToken
                 )) {

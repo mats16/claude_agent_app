@@ -15,25 +15,34 @@ export type SyncMode = 'manual' | 'auto_push' | 'auto_deploy';
 
 // Helper functions to convert between SyncMode and DB flags
 export function syncModeToFlags(mode: SyncMode): {
-  workspaceAutoPush: boolean;
-  appAutoDeploy: boolean;
+  databricksWorkspaceAutoPush: boolean;
+  databricksAppAutoDeploy: boolean;
 } {
   switch (mode) {
     case 'manual':
-      return { workspaceAutoPush: false, appAutoDeploy: false };
+      return {
+        databricksWorkspaceAutoPush: false,
+        databricksAppAutoDeploy: false,
+      };
     case 'auto_push':
-      return { workspaceAutoPush: true, appAutoDeploy: false };
+      return {
+        databricksWorkspaceAutoPush: true,
+        databricksAppAutoDeploy: false,
+      };
     case 'auto_deploy':
-      return { workspaceAutoPush: true, appAutoDeploy: true };
+      return {
+        databricksWorkspaceAutoPush: true,
+        databricksAppAutoDeploy: true,
+      };
   }
 }
 
 export function flagsToSyncMode(
-  workspaceAutoPush: boolean,
-  appAutoDeploy: boolean
+  databricksWorkspaceAutoPush: boolean,
+  databricksAppAutoDeploy: boolean
 ): SyncMode {
-  if (appAutoDeploy) return 'auto_deploy';
-  if (workspaceAutoPush) return 'auto_push';
+  if (databricksAppAutoDeploy) return 'auto_deploy';
+  if (databricksWorkspaceAutoPush) return 'auto_push';
   return 'manual';
 }
 

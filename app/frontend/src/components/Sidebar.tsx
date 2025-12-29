@@ -308,7 +308,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
           ],
           session_context: {
             model: selectedModel,
-            workspacePath: workspacePath.trim() || undefined,
+            databricksWorkspacePath: workspacePath.trim() || undefined,
             ...syncModeToFlags(syncMode),
           },
         }),

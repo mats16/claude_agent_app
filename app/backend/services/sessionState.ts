@@ -21,6 +21,7 @@ export function notifySessionCreated(
   userId: string,
   session: {
     id: string;
+    claudeCodeSessionId: string | null;
     title: string | null;
     workspacePath: string | null;
     workspaceAutoPush: boolean;

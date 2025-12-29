@@ -128,8 +128,8 @@ export default memo(function SessionList({
   const location = useLocation();
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
 
-  // Extract sessionId from current URL path
-  const currentSessionId = location.pathname.match(/\/sessions\/([^/]+)/)?.[1];
+  // Extract sessionId from current URL path (format: /session_xxx)
+  const currentSessionId = location.pathname.match(/^\/(session_[^/]+)/)?.[1];
 
   const formatDate = useCallback(
     (dateString: string): string => {
@@ -144,7 +144,7 @@ export default memo(function SessionList({
   );
 
   const handleSessionClick = (session: Session) => {
-    navigate(`/sessions/${session.id}`);
+    navigate(`/${session.id}`);
     onSessionSelect?.();
   };
 

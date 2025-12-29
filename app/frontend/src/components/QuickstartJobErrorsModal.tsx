@@ -141,7 +141,7 @@ export default function QuickstartJobErrorsModal({
 
       const data = await response.json();
       onClose();
-      navigate(`/sessions/${data.session_id}`);
+      navigate(`/${data.session_id}`);
     } catch {
       message.error('Failed to create investigation session');
     } finally {

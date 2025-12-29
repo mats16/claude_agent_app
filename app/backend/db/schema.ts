@@ -24,11 +24,12 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
 // Sessions table (with RLS by user_id)
+// id is TypeID format: session_ + UUIDv7 Base32 (e.g., session_01h455vb4pex5vsknk084sn02q)
 export const sessions = pgTable(
   'sessions',
   {
-    id: text('id').primaryKey(),
-    stub: text('stub').notNull(), // 8-char hex unique identifier for directories
+    id: text('id').primaryKey(), // TypeID format: session_xxx
+    claudeCodeSessionId: text('claude_code_session_id'), // Claude Code internal session ID (set after init)
     title: text('title'),
     summary: text('summary'), // Auto-generated session summary from structured output
     model: text('model').notNull(),
@@ -38,7 +39,6 @@ export const sessions = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     workspaceAutoPush: boolean('workspace_auto_push').default(false).notNull(),
     appAutoDeploy: boolean('app_auto_deploy').default(false).notNull(),
-    agentLocalPath: text('agentLocalPath').notNull(), // agent working directory path
     isArchived: boolean('is_archived').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

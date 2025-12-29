@@ -325,7 +325,7 @@ export default function Sidebar({ onSessionCreated }: SidebarProps) {
       clearAttachments();
       onSessionCreated?.(sessionId);
 
-      navigate(`/sessions/${sessionId}`, {
+      navigate(`/${sessionId}`, {
         state: {
           initialMessage: input.trim(),
           model: selectedModel,

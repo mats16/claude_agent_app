@@ -133,3 +133,17 @@ export async function archiveSession(
       .where(eq(sessions.id, id));
   });
 }
+
+// Update Claude Code session ID (with RLS)
+export async function updateClaudeCodeSessionId(
+  id: string,
+  claudeCodeSessionId: string,
+  userId: string
+): Promise<void> {
+  return withUserContext(userId, async () => {
+    await db
+      .update(sessions)
+      .set({ claudeCodeSessionId, updatedAt: new Date() })
+      .where(eq(sessions.id, id));
+  });
+}

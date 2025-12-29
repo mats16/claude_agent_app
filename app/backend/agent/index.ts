@@ -78,10 +78,12 @@ export async function getAccessToken(): Promise<string> {
 export interface ProcessAgentRequestOptions {
   workspaceAutoPush?: boolean; // workspace pushを実行
   claudeConfigAutoPush?: boolean; // claude config pull/push
-  agentLocalPath?: string; // agent working directory path (created before agent starts)
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
   appAutoDeploy?: boolean; // Flag to enable auto-deploy to Databricks Apps via hooks
-  sessionStub: string; // 8-char hex session identifier (required for SESSION_APP_NAME, GIT_BRANCH)
+  sessionId: string; // TypeID format session ID (e.g., session_01h455vb4pex5vsknk084sn02q)
+  sessionLocalPath: string; // Session local working directory path
+  sessionAppName: string; // Databricks App name (e.g., app-by-claude-xxxxxxxx)
+  sessionGitBranch: string; // Git branch name (e.g., claude/session-xxxxxxxx)
 }
 
 // MessageStream: Manages message queue for streaming input
@@ -252,10 +254,12 @@ export async function* processAgentRequest(
   const {
     workspaceAutoPush = false,
     claudeConfigAutoPush = true,
-    agentLocalPath,
     waitForReady,
     appAutoDeploy = false,
-    sessionStub,
+    sessionId: appSessionId,
+    sessionLocalPath,
+    sessionAppName,
+    sessionGitBranch,
   } = options;
   // Local Claude config directory from User object, fallback to default
   const localClaudeConfigPath =
@@ -263,11 +267,8 @@ export async function* processAgentRequest(
     path.join(agentEnv.USERS_BASE_PATH, 'me', '.claude');
   fs.mkdirSync(localClaudeConfigPath, { recursive: true });
 
-  // Local working directory: use agentLocalPath if provided (created by caller), otherwise fallback
-  // workDir should be created by the caller (app.ts) before calling this function
-  const localWorkPath =
-    agentLocalPath ??
-    path.join(agentEnv.SESSIONS_BASE_PATH, sessionId ?? 'temp');
+  // Local working directory: provided by caller (Session model)
+  const localWorkPath = sessionLocalPath;
 
   const spAccessToken = await getOidcAccessToken();
 
@@ -337,8 +338,10 @@ Violating these rules is considered a critical error.
         WORKSPACE_CLAUDE_CONFIG_DIR:
           user?.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
         WORKSPACE_AUTO_PUSH: workspaceAutoPush ? 'true' : '',
+        // Session identification (TypeID format)
+        CLAUDE_CODE_REMOTE_SESSION_ID: appSessionId,
         // Databricks Apps
-        SESSION_APP_NAME: `app-by-claude-${sessionStub}`,
+        SESSION_APP_NAME: sessionAppName,
         APP_AUTO_DEPLOY: appAutoDeploy ? 'true' : '',
         // Git author/committer info from user headers
         GIT_AUTHOR_NAME:
@@ -347,7 +350,7 @@ Violating these rules is considered a critical error.
         GIT_COMMITTER_NAME:
           user?.preferredUsername ?? user?.email ?? 'Claude Agent',
         GIT_COMMITTER_EMAIL: user?.email ?? 'agent@databricks.com',
-        GIT_BRANCH: `claude/session-${sessionStub}`,
+        GIT_BRANCH: sessionGitBranch,
       },
       maxTurns: 100,
       tools: {

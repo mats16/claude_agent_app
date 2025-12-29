@@ -10,7 +10,8 @@ import {
 import { createSessionsWebSocketUrl } from '../utils/websocket';
 
 export interface Session {
-  id: string;
+  id: string; // TypeID format: session_xxx
+  claudeCodeSessionId: string | null; // Claude Code internal session ID
   title: string | null;
   model: string;
   workspacePath: string | null;
@@ -18,7 +19,7 @@ export interface Session {
   userEmail: string | null;
   workspaceAutoPush: boolean;
   appAutoDeploy: boolean;
-  appName?: string | null; // app-by-claude-{stub}, only when appAutoDeploy=true
+  appName?: string | null; // app-by-claude-{shortSuffix}, only when appAutoDeploy=true
   consoleUrl?: string | null; // https://{host}/apps/{app_name}, only when appAutoDeploy=true
   isArchived: boolean;
   createdAt: string;
@@ -106,6 +107,7 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
             // Add new session to the top of the list
             const newSession: Session = {
               id: data.session.id,
+              claudeCodeSessionId: data.session.claudeCodeSessionId ?? null,
               title: data.session.title,
               workspacePath: data.session.workspacePath,
               updatedAt: data.session.updatedAt,

@@ -11,9 +11,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:migrate": "tsx --env-file=../.env db/migrate.ts",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
+    "db:generate": "tsx ../node_modules/drizzle-kit/bin.cjs generate",
+    "db:push": "tsx ../node_modules/drizzle-kit/bin.cjs push",
+    "db:studio": "tsx ../node_modules/drizzle-kit/bin.cjs studio",
     "format": "prettier --write \"**/*.{ts,js,json}\" --ignore-path ../.gitignore",
     "format:check": "prettier --check \"**/*.{ts,js,json}\" --ignore-path ../.gitignore"
   },

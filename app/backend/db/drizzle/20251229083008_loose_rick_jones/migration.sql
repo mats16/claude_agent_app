@@ -22,15 +22,13 @@ CREATE TABLE "oauth_tokens" (
 ALTER TABLE "oauth_tokens" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "sessions" (
 	"id" text PRIMARY KEY,
-	"stub" text NOT NULL,
+	"claude_code_session_id" text,
 	"title" text,
 	"summary" text,
 	"model" text NOT NULL,
-	"workspace_path" text,
+	"databricks_workspace_path" text,
 	"user_id" text NOT NULL,
-	"workspace_auto_push" boolean DEFAULT false NOT NULL,
-	"app_auto_deploy" boolean DEFAULT false NOT NULL,
-	"agentLocalPath" text NOT NULL,
+	"databricks_workspace_auto_push" boolean DEFAULT false NOT NULL,
 	"is_archived" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getOidcAccessToken } from '../agent/index.js';
+import { getOidcAccessToken } from './agent.service.js';
 import {
   parseSubagentContent,
   formatSubagentContent,

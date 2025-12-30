@@ -3,10 +3,10 @@ import path from 'path';
 import fs from 'fs';
 import type { MessageContent } from '@app/shared';
 import {
-  processAgentRequest,
+  startAgent,
   MessageStream,
   getAccessToken,
-} from '../../../agent/index.js';
+} from '../../../services/agent.service.js';
 import { databricks, paths } from '../../../config/index.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 import { saveMessage, getMessagesBySessionId } from '../../../db/events.js';
@@ -146,20 +146,19 @@ export async function createSessionHandler(
     // Note: workspace sync is now handled by settings.json hooks
     const stream = new MessageStream(messageContent);
 
-    // Get user's PAT if configured (for Databricks CLI operations)
+    // Get user's PAT (needed for title generation)
     const userPersonalAccessToken = await getUserPersonalAccessToken(userId);
 
     // Start processing in background
-    const agentIterator = processAgentRequest(
-      draft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
-      messageContent,
+    const agentIterator = startAgent({
+      session: draft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
       user,
-      {
-        claudeConfigAutoPush,
-      },
-      stream,
-      userPersonalAccessToken
-    );
+      userId,
+      messageContent,
+      claudeConfigAutoPush,
+      messageStream: stream,
+      userPersonalAccessToken, // Pass PAT to avoid re-fetching
+    });
 
     // Process events in background
     (async () => {

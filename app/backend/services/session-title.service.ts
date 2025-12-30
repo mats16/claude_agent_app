@@ -1,6 +1,6 @@
 import type { MessageContent } from '@app/shared';
 import { databricks, agentEnv } from '../config/index.js';
-import { getOidcAccessToken } from '../agent/index.js';
+import { getOidcAccessToken } from './agent.service.js';
 import { updateSessionTitle } from '../db/sessions.js';
 import { notifySessionUpdated } from './session-state.service.js';
 

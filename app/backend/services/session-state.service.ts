@@ -1,7 +1,7 @@
 import type { WebSocket as WsWebSocket } from 'ws';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { MessageContent } from '@app/shared';
-import { MessageStream } from '../agent/index.js';
+import { MessageStream } from './agent.service.js';
 
 // Session event queue for streaming events to WebSocket
 export interface SessionQueue {

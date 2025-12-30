@@ -1,4 +1,4 @@
-import { getOidcAccessToken } from '../agent/index.js';
+import { getOidcAccessToken } from './agent.service.js';
 import { claudeConfigExcludePatterns } from '../utils/workspaceClient.js';
 import { enqueueSync } from './workspace-queue.service.js';
 import type { RequestUser } from '../models/RequestUser.js';

@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
-import { getOidcAccessToken } from '../agent/index.js';
+import { getOidcAccessToken } from './agent.service.js';
 import {
   parseSkillContent,
   formatSkillContent,

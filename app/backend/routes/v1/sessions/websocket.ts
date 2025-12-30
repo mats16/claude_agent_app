@@ -1,11 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { MessageContent, IncomingWSMessage } from '@app/shared';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import { processAgentRequest, MessageStream } from '../../../agent/index.js';
+import { startAgent, MessageStream } from '../../../services/agent.service.js';
 import { saveMessage } from '../../../db/events.js';
 import { getSessionById, updateSession } from '../../../db/sessions.js';
 import { getSettingsDirect } from '../../../db/settings.js';
-import { getUserPersonalAccessToken } from '../../../services/user.service.js';
 import { extractRequestContextFromHeaders } from '../../../utils/headers.js';
 import { Session } from '../../../models/Session.js';
 import {
@@ -198,10 +197,6 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               const claudeConfigAutoPush =
                 userSettings?.claudeConfigAutoPush ?? true;
 
-              // Get user's PAT if configured (for Databricks CLI operations)
-              const userPersonalAccessToken =
-                await getUserPersonalAccessToken(userId);
-
               // Ensure user's local directory structure exists
               user.ensureLocalDirs();
 
@@ -216,16 +211,15 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               // Process agent request and stream responses
               // Pass session object - agent extracts all needed properties
               try {
-                for await (const sdkMessage of processAgentRequest(
+                for await (const sdkMessage of startAgent({
                   session, // Pass Session object - claudeCodeSessionId is defined, so resume mode
-                  userMessageContent,
                   user,
-                  {
-                    claudeConfigAutoPush,
-                  },
-                  stream,
-                  userPersonalAccessToken
-                )) {
+                  userId,
+                  messageContent: userMessageContent,
+                  claudeConfigAutoPush,
+                  messageStream: stream,
+                  // userPersonalAccessToken is automatically fetched in startAgent
+                })) {
                   // Save message to database (always execute regardless of WebSocket state)
                   await saveMessage(sdkMessage);
 

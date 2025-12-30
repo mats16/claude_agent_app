@@ -1,4 +1,4 @@
-import { getAccessToken } from '../agent/index.js';
+import { getAccessToken } from './agent.service.js';
 import { databricks } from '../config/index.js';
 
 export interface WorkspaceObject {

@@ -7,6 +7,7 @@ import { getSessionById, updateSession } from '../../../db/sessions.js';
 import { getSettingsDirect } from '../../../db/settings.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContextFromHeaders } from '../../../utils/headers.js';
+import { Session } from '../../../models/Session.js';
 import {
   sessionQueues,
   sessionMessageStreams,
@@ -171,13 +172,17 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               );
 
               // Fetch session to get databricksWorkspacePath, databricksWorkspaceAutoPush, agentLocalPath, and model for resume
-              const session = await getSessionById(sessionId, userId);
-              if (!session) {
+              const selectSession = await getSessionById(sessionId, userId);
+              if (!selectSession) {
                 throw new Error('Session not found. Cannot resume session.');
               }
+
+              // Convert to Session model to get working directory
+              const session = new Session(selectSession);
+
               const databricksWorkspacePath = session.databricksWorkspacePath ?? undefined;
               const databricksWorkspaceAutoPush = session.databricksWorkspaceAutoPush;
-              const sessionAgentLocalPath = session.agentLocalPath;
+              const sessionAgentLocalPath = session.cwd();
               // Use model from WebSocket message (frontend always sends the selected model)
               // Fallback to 'databricks-claude-sonnet-4-5' for edge cases (should not happen with current frontend)
               const sessionModel =

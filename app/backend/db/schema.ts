@@ -39,7 +39,6 @@ export const sessions = pgTable(
     databricksWorkspaceAutoPush: boolean('databricks_workspace_auto_push')
       .default(false)
       .notNull(), // Workspace sync mode
-    agentLocalPath: text('agent_local_path').notNull(), // agent working directory path
     isArchived: boolean('is_archived').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

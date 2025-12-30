@@ -31,7 +31,6 @@ describe('SessionDraft', () => {
       expect(draft.databricksWorkspacePath).toBeNull();
       expect(draft.userId).toBe('');
       expect(draft.databricksWorkspaceAutoPush).toBe(false);
-      expect(draft.agentLocalPath).toBe('');
     });
 
     it('should use provided parameter values', () => {
@@ -40,7 +39,6 @@ describe('SessionDraft', () => {
         databricksWorkspacePath: '/Workspace/Users/test@example.com/project',
         userId: 'user123',
         databricksWorkspaceAutoPush: true,
-        agentLocalPath: '/tmp/test',
       });
 
       expect(draft.model).toBe('claude-sonnet-4-5');
@@ -49,7 +47,6 @@ describe('SessionDraft', () => {
       );
       expect(draft.userId).toBe('user123');
       expect(draft.databricksWorkspaceAutoPush).toBe(true);
-      expect(draft.agentLocalPath).toBe('/tmp/test');
     });
 
     it('should handle null databricksWorkspacePath explicitly', () => {
@@ -132,12 +129,10 @@ describe('SessionDraft', () => {
       expect(workDir).toBe(path.join(testSessionsBase, draft.id));
     });
 
-    it('should update agentLocalPath property', () => {
+    it('should compute cwd() from session ID', () => {
       const draft = new SessionDraft();
-      expect(draft.agentLocalPath).toBe('');
-
-      const workDir = draft.createWorkingDirectory();
-      expect(draft.agentLocalPath).toBe(workDir);
+      const expectedPath = path.join(testSessionsBase, draft.id);
+      expect(draft.cwd()).toBe(expectedPath);
     });
 
     it('should succeed when directory already exists (recursive: true)', () => {
@@ -192,7 +187,6 @@ describe('Session', () => {
         databricksWorkspacePath: '/Workspace/Users/test@example.com/project',
         userId: 'user123',
         databricksWorkspaceAutoPush: true,
-        agentLocalPath: '/home/ws/session_01h455vb4pex5vsknk084sn02q',
         isArchived: false,
         createdAt: new Date('2024-01-01T00:00:00Z'),
         updatedAt: new Date('2024-01-02T00:00:00Z'),
@@ -210,7 +204,11 @@ describe('Session', () => {
       expect(session.databricksWorkspaceAutoPush).toBe(
         dbSession.databricksWorkspaceAutoPush
       );
-      expect(session.agentLocalPath).toBe(dbSession.agentLocalPath);
+
+      // cwd() should be computed from session ID
+      expect(session.cwd()).toBe(
+        path.join(testSessionsBase, dbSession.id)
+      );
 
       // Session-specific properties
       expect(session.claudeCodeSessionId).toBe(dbSession.claudeCodeSessionId);
@@ -231,7 +229,6 @@ describe('Session', () => {
         databricksWorkspacePath: null,
         userId: 'user123',
         databricksWorkspaceAutoPush: false,
-        agentLocalPath: '/tmp/session',
         isArchived: false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -254,7 +251,6 @@ describe('Session', () => {
         databricksWorkspacePath: null,
         userId: 'user123',
         databricksWorkspaceAutoPush: false,
-        agentLocalPath: '/tmp/session',
         isArchived: false,
         createdAt: new Date(),
         updatedAt: new Date(),

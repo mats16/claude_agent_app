@@ -23,7 +23,7 @@ import { enqueueDelete } from '../../../services/workspaceQueueService.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
-import { SessionDraft } from '../../../models/Session.js';
+import { SessionDraft, Session } from '../../../models/Session.js';
 import {
   sessionMessageStreams,
   notifySessionCreated,
@@ -197,7 +197,6 @@ export async function createSessionHandler(
                 databricksWorkspacePath,
                 userId,
                 databricksWorkspaceAutoPush,
-                agentLocalPath: localWorkPath,
               },
               userId
             );
@@ -403,23 +402,24 @@ export async function archiveSessionHandler(
 
   const userId = context.user.sub;
 
-  // Get session to retrieve agentLocalPath before archiving
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  // Get session before archiving
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
+
+  // Convert to Session model to get agentLocalPath
+  const session = new Session(selectSession);
 
   // Archive the session in database
   await archiveSession(sessionId, userId);
 
-  // Delete working directory in background if it exists
-  if (session.agentLocalPath) {
-    console.log(`[Archive] Enqueueing deletion of: ${session.agentLocalPath}`);
-    enqueueDelete({
-      userId,
-      localPath: session.agentLocalPath,
-    });
-  }
+  // Delete working directory in background
+  console.log(`[Archive] Enqueueing deletion of: ${session.cwd()}`);
+  enqueueDelete({
+    userId,
+    localPath: session.cwd(),
+  });
 
   return { success: true };
 }
@@ -766,10 +766,13 @@ export async function getSessionHandler(
   const userId = context.user.sub;
 
   // Get session from database
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
+
+  // Convert to Session model to get agentLocalPath
+  const session = new Session(selectSession);
 
   // Get workspace_url if databricksWorkspacePath is set
   let workspaceUrl: string | null = null;
@@ -791,7 +794,7 @@ export async function getSessionHandler(
     workspace_path: session.databricksWorkspacePath,
     workspace_url: workspaceUrl,
     workspace_auto_push: session.databricksWorkspaceAutoPush,
-    local_path: session.agentLocalPath,
+    local_path: session.cwd(),
     is_archived: session.isArchived,
     model: session.model,
     created_at: session.createdAt.toISOString(),

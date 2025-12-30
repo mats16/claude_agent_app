@@ -68,7 +68,6 @@ export const sessionResponseSchema = z.object({
   workspaceAutoPush: z.boolean(),
   appAutoDeploy: z.boolean(),
   updatedAt: z.string().datetime(),
-  agentLocalPath: z.string().optional(),
   isArchived: z.boolean(),
 });
 

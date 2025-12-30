@@ -10,6 +10,7 @@ import type {
 } from '@app/shared';
 import { extractRequestContext } from '../../../../utils/headers.js';
 import { getSessionById } from '../../../../db/sessions.js';
+import { Session } from '../../../../models/Session.js';
 
 // Size limits
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -121,19 +122,16 @@ export async function getFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get agentLocalPath
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  if (!session.agentLocalPath) {
-    return reply
-      .status(400)
-      .send({ error: 'Session working directory not available' });
-  }
+  // Convert to Session model to get working directory
+  const session = new Session(selectSession);
 
   // Validate file path
-  const validation = validateFilePath(filePath, session.agentLocalPath);
+  const validation = validateFilePath(filePath, session.cwd());
   if (!validation.valid) {
     return reply.status(400).send({ error: validation.error });
   }
@@ -196,19 +194,16 @@ export async function uploadFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get agentLocalPath
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  if (!session.agentLocalPath) {
-    return reply
-      .status(400)
-      .send({ error: 'Session working directory not available' });
-  }
+  // Convert to Session model to get working directory
+  const session = new Session(selectSession);
 
   // Validate file path
-  const validation = validateFilePath(filePath, session.agentLocalPath);
+  const validation = validateFilePath(filePath, session.cwd());
   if (!validation.valid) {
     return reply.status(400).send({ error: validation.error });
   }
@@ -278,19 +273,16 @@ export async function deleteFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get agentLocalPath
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  if (!session.agentLocalPath) {
-    return reply
-      .status(400)
-      .send({ error: 'Session working directory not available' });
-  }
+  // Convert to Session model to get working directory
+  const session = new Session(selectSession);
 
   // Validate file path
-  const validation = validateFilePath(filePath, session.agentLocalPath);
+  const validation = validateFilePath(filePath, session.cwd());
   if (!validation.valid) {
     return reply.status(400).send({ error: validation.error });
   }
@@ -339,33 +331,30 @@ export async function listFilesHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get agentLocalPath
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  if (!session.agentLocalPath) {
-    return reply
-      .status(400)
-      .send({ error: 'Session working directory not available' });
-  }
+  // Convert to Session model to get working directory
+  const session = new Session(selectSession);
 
   // Check if directory exists
   try {
-    await fs.access(session.agentLocalPath);
+    await fs.access(session.cwd());
   } catch {
     return { files: [] };
   }
 
   // Read directory contents
-  const entries = await fs.readdir(session.agentLocalPath, {
+  const entries = await fs.readdir(session.cwd(), {
     withFileTypes: true,
   });
   const files: FileAttachment[] = [];
 
   for (const entry of entries) {
     if (entry.isFile()) {
-      const entryPath = path.join(session.agentLocalPath, entry.name);
+      const entryPath = path.join(session.cwd(), entry.name);
       const stat = await fs.stat(entryPath);
 
       // Detect mime type based on extension

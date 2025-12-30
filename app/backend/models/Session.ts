@@ -14,21 +14,26 @@ export class SessionDraft {
   readonly databricksWorkspacePath: string | null;
   readonly userId: string;
   readonly databricksWorkspaceAutoPush: boolean;
-  readonly agentLocalPath: string;
 
   constructor(params?: {
     model?: string;
     databricksWorkspacePath?: string | null;
     userId?: string;
     databricksWorkspaceAutoPush?: boolean;
-    agentLocalPath?: string;
   }) {
     this.id = typeid('session').toString(); // Generate TypeID
     this.model = params?.model ?? '';
     this.databricksWorkspacePath = params?.databricksWorkspacePath ?? null;
     this.userId = params?.userId ?? '';
     this.databricksWorkspaceAutoPush = params?.databricksWorkspaceAutoPush ?? false;
-    this.agentLocalPath = params?.agentLocalPath ?? '';
+  }
+
+  /**
+   * Get the agent's current working directory path
+   * Computed from session ID: {SESSIONS_BASE_PATH}/{session_id}
+   */
+  cwd(): string {
+    return path.join(paths.sessionsBase, this.id);
   }
 
   /**
@@ -41,7 +46,7 @@ export class SessionDraft {
    * @throws Error if directory creation fails
    */
   createWorkingDirectory(): string {
-    const workDir = path.join(paths.sessionsBase, this.id);
+    const workDir = this.cwd();
     const claudeConfigDir = path.join(workDir, '.claude');
 
     try {
@@ -50,9 +55,6 @@ export class SessionDraft {
 
       // Create .claude config subdirectory
       fs.mkdirSync(claudeConfigDir, { recursive: true });
-
-      // Update agentLocalPath with created directory
-      (this as { agentLocalPath: string }).agentLocalPath = workDir;
 
       return workDir;
     } catch (error) {
@@ -98,7 +100,6 @@ export class Session extends SessionDraft {
       databricksWorkspacePath: selectSession.databricksWorkspacePath,
       userId: selectSession.userId,
       databricksWorkspaceAutoPush: selectSession.databricksWorkspaceAutoPush,
-      agentLocalPath: selectSession.agentLocalPath,
     });
 
     // Override id from DB (TypeID)

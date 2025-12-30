@@ -1,6 +1,7 @@
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { db } from './index.js';
-import { sessions, type NewSession, type Session } from './schema.js';
+import { sessions, type InsertSession, type SelectSession } from './schema.js';
+import { Session, SessionDraft } from '../models/Session.js';
 
 // Helper to execute queries with RLS user context
 async function withUserContext<T>(
@@ -16,7 +17,7 @@ async function withUserContext<T>(
 // Create a new session (with RLS)
 // Uses ON CONFLICT DO NOTHING to handle retries with the same session ID
 export async function createSession(
-  session: NewSession,
+  session: InsertSession,
   userId: string
 ): Promise<void> {
   return withUserContext(userId, async () => {
@@ -24,11 +25,42 @@ export async function createSession(
   });
 }
 
+// Create session from SessionDraft after receiving SDK session ID
+// Converts draft to Session and persists to database
+export async function createSessionFromDraft(
+  draft: SessionDraft,
+  claudeCodeSessionId: string,
+  userId: string
+): Promise<Session> {
+  // Convert draft to session with SDK session ID
+  const session = Session.fromSessionDraft(draft, claudeCodeSessionId);
+
+  // Persist to database
+  await withUserContext(userId, async () => {
+    await db
+      .insert(sessions)
+      .values({
+        id: session.toString(),
+        claudeCodeSessionId: session.claudeCodeSessionId,
+        userId: session.userId,
+        model: session.model,
+        title: session.title,
+        summary: session.summary,
+        databricksWorkspacePath: session.databricksWorkspacePath,
+        databricksWorkspaceAutoPush: session.databricksWorkspaceAutoPush,
+        isArchived: session.isArchived,
+      })
+      .onConflictDoNothing();
+  });
+
+  return session;
+}
+
 // Get session by ID (with RLS)
 export async function getSessionById(
   id: string,
   userId: string
-): Promise<Session | null> {
+): Promise<SelectSession | null> {
   return withUserContext(userId, async () => {
     const result = await db
       .select()
@@ -43,7 +75,7 @@ export async function getSessionById(
 // Get session by ID without RLS (for internal use when user context is already verified)
 export async function getSessionByIdDirect(
   id: string
-): Promise<Session | null> {
+): Promise<SelectSession | null> {
   const result = await db
     .select()
     .from(sessions)
@@ -57,7 +89,7 @@ export async function getSessionByIdDirect(
 export async function getSessionsByUserId(
   userId: string,
   filter: 'active' | 'archived' | 'all' = 'active'
-): Promise<Session[]> {
+): Promise<SelectSession[]> {
   return withUserContext(userId, async () => {
     let whereClause;
     if (filter === 'active') {
@@ -101,15 +133,15 @@ export async function updateSessionTitle(
   });
 }
 
-// Update session settings (title, workspaceAutoPush, workspacePath, appAutoDeploy, model) with RLS
+// Update session settings (title, databricksWorkspaceAutoPush, databricksWorkspacePath, model) with RLS
 export async function updateSession(
   id: string,
   updates: {
     title?: string;
-    workspaceAutoPush?: boolean;
-    workspacePath?: string | null;
-    appAutoDeploy?: boolean;
+    databricksWorkspaceAutoPush?: boolean;
+    databricksWorkspacePath?: string | null;
     model?: string;
+    claudeCodeSessionId?: string; // Allow updating SDK session ID after init
   },
   userId: string
 ): Promise<void> {

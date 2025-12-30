@@ -16,14 +16,12 @@ const { Text } = Typography;
 interface TitleEditModalProps {
   isOpen: boolean;
   currentTitle: string;
-  currentAutoWorkspacePush: boolean;
-  currentWorkspacePath: string | null;
-  currentAppAutoDeploy: boolean;
+  currentDatabricksWorkspaceAutoPush: boolean;
+  currentDatabricksWorkspacePath: string | null;
   onSave: (
     newTitle: string,
-    workspaceAutoPush: boolean,
-    workspacePath: string | null,
-    appAutoDeploy: boolean
+    databricksWorkspaceAutoPush: boolean,
+    databricksWorkspacePath: string | null
   ) => void;
   onClose: () => void;
 }
@@ -31,9 +29,8 @@ interface TitleEditModalProps {
 export default function TitleEditModal({
   isOpen,
   currentTitle,
-  currentAutoWorkspacePush,
-  currentWorkspacePath,
-  currentAppAutoDeploy,
+  currentDatabricksWorkspaceAutoPush,
+  currentDatabricksWorkspacePath,
   onSave,
   onClose,
 }: TitleEditModalProps) {
@@ -41,10 +38,10 @@ export default function TitleEditModal({
   const { userInfo } = useUser();
   const [title, setTitle] = useState(currentTitle);
   const [syncMode, setSyncMode] = useState<SyncMode>(
-    flagsToSyncMode(currentAutoWorkspacePush, currentAppAutoDeploy)
+    currentDatabricksWorkspaceAutoPush ? 'auto_push' : 'manual'
   );
   const [workspacePath, setWorkspacePath] = useState<string | null>(
-    currentWorkspacePath
+    currentDatabricksWorkspacePath
   );
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -52,17 +49,14 @@ export default function TitleEditModal({
   useEffect(() => {
     if (isOpen) {
       setTitle(currentTitle);
-      setSyncMode(
-        flagsToSyncMode(currentAutoWorkspacePush, currentAppAutoDeploy)
-      );
-      setWorkspacePath(currentWorkspacePath);
+      setSyncMode(currentDatabricksWorkspaceAutoPush ? 'auto_push' : 'manual');
+      setWorkspacePath(currentDatabricksWorkspacePath);
     }
   }, [
     isOpen,
     currentTitle,
-    currentAutoWorkspacePush,
-    currentWorkspacePath,
-    currentAppAutoDeploy,
+    currentDatabricksWorkspaceAutoPush,
+    currentDatabricksWorkspacePath,
   ]);
 
   const handleOk = async () => {
@@ -70,13 +64,8 @@ export default function TitleEditModal({
 
     setIsSaving(true);
     try {
-      const { workspaceAutoPush, appAutoDeploy } = syncModeToFlags(syncMode);
-      await onSave(
-        title.trim(),
-        workspaceAutoPush,
-        workspacePath,
-        appAutoDeploy
-      );
+      const databricksWorkspaceAutoPush = syncMode === 'auto_push';
+      await onSave(title.trim(), databricksWorkspaceAutoPush, workspacePath);
       onClose();
     } finally {
       setIsSaving(false);
@@ -117,19 +106,6 @@ export default function TitleEditModal({
           </Text>
           <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
             {t('syncMode.autoPushDescription')}
-          </Text>
-        </Flex>
-      ),
-    },
-    {
-      value: 'auto_deploy' as SyncMode,
-      label: (
-        <Flex vertical gap={0}>
-          <Text strong style={{ fontSize: typography.fontSizeBase }}>
-            {t('syncMode.autoDeploy')}
-          </Text>
-          <Text type="secondary" style={{ fontSize: typography.fontSizeSmall }}>
-            {t('syncMode.autoDeployDescription')}
           </Text>
         </Flex>
       ),

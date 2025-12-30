@@ -144,7 +144,7 @@ export default memo(function SessionList({
   );
 
   const handleSessionClick = (session: Session) => {
-    navigate(`/sessions/${session.id}`);
+    navigate(`/${session.id}`);
     onSessionSelect?.();
   };
 

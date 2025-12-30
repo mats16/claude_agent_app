@@ -12,6 +12,7 @@ import * as workspaceService from '../../../services/workspaceService.js';
 import { saveMessage, getMessagesBySessionId } from '../../../db/events.js';
 import {
   createSession,
+  createSessionFromDraft,
   getSessionById,
   getSessionsByUserId,
   updateSession,
@@ -23,7 +24,7 @@ import { enqueueDelete } from '../../../services/workspaceQueueService.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
-import { generateSessionStub } from '../../../utils/stub.js';
+import { SessionDraft, Session } from '../../../models/Session.js';
 import {
   sessionMessageStreams,
   notifySessionCreated,
@@ -44,9 +45,8 @@ interface CreateSessionBody {
   }>;
   session_context: {
     model: string;
-    workspacePath?: string;
-    workspaceAutoPush?: boolean;
-    appAutoDeploy?: boolean;
+    databricksWorkspacePath?: string;
+    databricksWorkspaceAutoPush?: boolean;
   };
 }
 
@@ -76,13 +76,12 @@ export async function createSessionHandler(
 
   const userMessage = userEvent.message.content;
   const model = session_context.model;
-  const workspacePath = session_context.workspacePath;
-  // Force workspaceAutoPush to false if workspacePath is not specified
-  const workspaceAutoPush =
-    workspacePath && workspacePath.trim()
-      ? (session_context.workspaceAutoPush ?? false)
+  const databricksWorkspacePath = session_context.databricksWorkspacePath;
+  // Force databricksWorkspaceAutoPush to false if databricksWorkspacePath is not specified
+  const databricksWorkspaceAutoPush =
+    databricksWorkspacePath && databricksWorkspacePath.trim()
+      ? (session_context.databricksWorkspaceAutoPush ?? false)
       : false;
-  const appAutoDeploy = session_context.appAutoDeploy ?? false;
 
   // Get user settings for claudeConfigAutoPush (still needed for agent hook)
   const userSettings = await getSettingsDirect(userId);
@@ -117,19 +116,27 @@ export async function createSessionHandler(
       ? [{ type: 'text', text: userMessage }]
       : userMessage;
 
-  // Generate unique stub for workDir and create it before starting agent
-  const sessionStub = generateSessionStub();
-  const localWorkPath = path.join(paths.sessionsBase, sessionStub);
+  // Create SessionDraft for new session
+  const draft = new SessionDraft({
+    userId,
+    model,
+    databricksWorkspacePath,
+    databricksWorkspaceAutoPush,
+  });
+
+  // Create working directory
+  const localWorkPath = draft.createWorkingDirectory();
   console.log(
-    `[New Session] Creating workDir with stub: ${sessionStub}, path: ${localWorkPath}`
+    `[New Session] Created workDir with TypeID: ${draft.toString()}, path: ${localWorkPath}`
   );
-  fs.mkdirSync(localWorkPath, { recursive: true });
+
+  // TypeID string for DB storage and API responses
+  const appSessionId = draft.toString();
 
   // Create settings.json with workspace sync hooks for all sessions
   const claudeSettings = new ClaudeSettings({
-    workspacePath,
-    workspaceAutoPush,
-    appAutoDeploy,
+    workspacePath: databricksWorkspacePath,
+    workspaceAutoPush: databricksWorkspaceAutoPush,
     claudeConfigAutoPush,
   });
   claudeSettings.save(localWorkPath);
@@ -144,18 +151,12 @@ export async function createSessionHandler(
 
     // Start processing in background
     const agentIterator = processAgentRequest(
+      draft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
       messageContent,
-      model,
-      {
-        workspaceAutoPush,
-        claudeConfigAutoPush,
-        agentLocalPath: localWorkPath,
-        appAutoDeploy,
-        sessionStub,
-      },
-      undefined,
       user,
-      workspacePath,
+      {
+        claudeConfigAutoPush,
+      },
       stream,
       userPersonalAccessToken
     );
@@ -165,52 +166,40 @@ export async function createSessionHandler(
       try {
         let userMessageSaved = false;
         for await (const sdkMessage of agentIterator) {
-          // Extract sessionId from init message
+          // Extract SDK session ID from init message
           if (
             sdkMessage.type === 'system' &&
             'subtype' in sdkMessage &&
             sdkMessage.subtype === 'init'
           ) {
-            sessionId = sdkMessage.session_id;
-            getOrCreateQueue(sessionId);
+            sessionId = sdkMessage.session_id; // SDK session ID for resume
+            getOrCreateQueue(appSessionId); // Use TypeID for queue
 
             // Store MessageStream for this session (for interactive messaging)
-            sessionMessageStreams.set(sessionId, stream);
+            sessionMessageStreams.set(appSessionId, stream); // Use TypeID
 
             // Ensure user exists before creating session
             await upsertUser(userId, user.email);
 
-            // Save session to database
-            // Title is null initially, will be auto-generated from structured output
-            const sessionTitle = null;
-            await createSession(
-              {
-                id: sessionId,
-                stub: sessionStub,
-                title: sessionTitle,
-                model,
-                workspacePath,
-                userId,
-                workspaceAutoPush,
-                appAutoDeploy,
-                agentLocalPath: localWorkPath,
-              },
+            // Convert draft to Session and save to database
+            const session = await createSessionFromDraft(
+              draft,
+              sessionId, // SDK session ID from init message
               userId
             );
 
             // Notify session list WebSocket listeners
             notifySessionCreated(userId, {
-              id: sessionId,
-              title: sessionTitle,
-              workspacePath: workspacePath ?? null,
-              workspaceAutoPush,
-              appAutoDeploy,
+              id: appSessionId,
+              title: null, // Title will be generated async
+              databricksWorkspacePath: databricksWorkspacePath ?? null,
+              databricksWorkspaceAutoPush,
               updatedAt: new Date().toISOString(),
             });
 
             // Trigger async title generation (supports both text and images)
             void generateTitleAsync({
-              sessionId,
+              sessionId: appSessionId,
               messageContent,
               userId,
               userAccessToken: userPersonalAccessToken,
@@ -218,19 +207,24 @@ export async function createSessionHandler(
 
             resolveInit?.();
 
-            // Save user message after getting sessionId
+            // Save user message after getting SDK session ID
             if (!userMessageSaved) {
-              const userMsg = createUserMessage(sessionId, messageContent);
+              const userMsg = createUserMessage(appSessionId, messageContent);
               await saveMessage(userMsg);
-              addEventToQueue(sessionId, userMsg);
+              addEventToQueue(appSessionId, userMsg);
               userMessageSaved = true;
             }
           }
 
-          // Save all messages to database
+          // Save all messages to database (use appSessionId for all operations)
           if (sessionId) {
-            await saveMessage(sdkMessage);
-            addEventToQueue(sessionId, sdkMessage);
+            // Override SDK session_id with appSessionId for database consistency
+            const messageToSave = {
+              ...sdkMessage,
+              session_id: appSessionId,
+            };
+            await saveMessage(messageToSave as any);
+            addEventToQueue(appSessionId, messageToSave as any);
           }
         }
       } catch (error: any) {
@@ -255,10 +249,11 @@ export async function createSessionHandler(
           }
         }
       } finally {
+        // Use appSessionId for cleanup (TypeID for app-side operations)
         if (sessionId) {
-          markQueueCompleted(sessionId);
+          markQueueCompleted(appSessionId);
           // Cleanup MessageStream
-          sessionMessageStreams.delete(sessionId);
+          sessionMessageStreams.delete(appSessionId);
         }
       }
     })();
@@ -282,8 +277,9 @@ export async function createSessionHandler(
     return reply.status(500).send({ error: error.message });
   }
 
+  // Return TypeID (app session ID) to client
   return {
-    session_id: sessionId,
+    session_id: appSessionId,
   };
 }
 
@@ -303,9 +299,26 @@ export async function listSessionsHandler(
 
   const userId = context.user.sub;
   const filter = request.query.filter || 'active';
-  const sessionList = await getSessionsByUserId(userId, filter);
+  const selectSessions = await getSessionsByUserId(userId, filter);
 
-  return { sessions: sessionList };
+  // Transform to API response format with Session model
+  const sessions = selectSessions.map((selectSession) => {
+    // Wrap in Session model to access TypeID
+    const session = Session.fromSelectSession(selectSession);
+
+    return {
+      id: session.toString(),
+      title: session.title,
+      model: session.model,
+      workspacePath: session.databricksWorkspacePath,
+      workspaceAutoPush: session.databricksWorkspaceAutoPush,
+      appAutoDeploy: false, // TODO: Implement app auto-deploy feature
+      updatedAt: session.updatedAt.toISOString(),
+      isArchived: session.isArchived,
+    };
+  });
+
+  return { sessions };
 }
 
 // Update session handler
@@ -316,7 +329,6 @@ export async function updateSessionHandler(
       title?: string;
       workspace_auto_push?: boolean;
       workspace_path?: string | null;
-      app_auto_deploy?: boolean;
     };
   }>,
   reply: FastifyReply
@@ -324,9 +336,8 @@ export async function updateSessionHandler(
   const { sessionId } = request.params;
   const {
     title,
-    workspace_auto_push: workspaceAutoPush,
-    workspace_path: workspacePath,
-    app_auto_deploy: appAutoDeploy,
+    workspace_auto_push: databricksWorkspaceAutoPush,
+    workspace_path: databricksWorkspacePath,
   } = request.body;
 
   let context;
@@ -341,40 +352,37 @@ export async function updateSessionHandler(
   // At least one field must be provided
   if (
     title === undefined &&
-    workspaceAutoPush === undefined &&
-    workspacePath === undefined &&
-    appAutoDeploy === undefined
+    databricksWorkspaceAutoPush === undefined &&
+    databricksWorkspacePath === undefined
   ) {
     return reply.status(400).send({
-      error:
-        'title, workspace_auto_push, workspace_path, or app_auto_deploy is required',
+      error: 'title, workspace_auto_push, or workspace_path is required',
     });
   }
 
   const updates: {
     title?: string;
-    workspaceAutoPush?: boolean;
-    workspacePath?: string | null;
-    appAutoDeploy?: boolean;
+    databricksWorkspaceAutoPush?: boolean;
+    databricksWorkspacePath?: string | null;
   } = {};
   if (title !== undefined) updates.title = title;
-  if (appAutoDeploy !== undefined) updates.appAutoDeploy = appAutoDeploy;
-  if (workspacePath !== undefined) {
-    updates.workspacePath = workspacePath || null;
-    // Force workspaceAutoPush to false when workspacePath is cleared
-    if (!workspacePath || !workspacePath.trim()) {
-      updates.workspaceAutoPush = false;
+  if (databricksWorkspacePath !== undefined) {
+    updates.databricksWorkspacePath = databricksWorkspacePath || null;
+    // Force databricksWorkspaceAutoPush to false when databricksWorkspacePath is cleared
+    if (!databricksWorkspacePath || !databricksWorkspacePath.trim()) {
+      updates.databricksWorkspaceAutoPush = false;
     }
   }
-  if (workspaceAutoPush !== undefined) {
-    // Only apply workspaceAutoPush if workspacePath is set
+  if (databricksWorkspaceAutoPush !== undefined) {
+    // Only apply databricksWorkspaceAutoPush if databricksWorkspacePath is set
     // (either from current update or existing session)
-    const session = await getSessionById(sessionId, userId);
-    const finalWorkspacePath = updates.workspacePath ?? session?.workspacePath;
-    if (finalWorkspacePath && finalWorkspacePath.trim()) {
-      updates.workspaceAutoPush = workspaceAutoPush;
+    const selectSession = await getSessionById(sessionId, userId);
+    const finalDatabricksWorkspacePath =
+      updates.databricksWorkspacePath ?? selectSession?.databricksWorkspacePath;
+    if (finalDatabricksWorkspacePath && finalDatabricksWorkspacePath.trim()) {
+      updates.databricksWorkspaceAutoPush = databricksWorkspaceAutoPush;
     } else {
-      updates.workspaceAutoPush = false;
+      updates.databricksWorkspaceAutoPush = false;
     }
   }
 
@@ -398,49 +406,24 @@ export async function archiveSessionHandler(
 
   const userId = context.user.sub;
 
-  // Get session to retrieve agentLocalPath before archiving
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  // Get session before archiving
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
+
+  // Convert to Session model to get agentLocalPath
+  const session = Session.fromSelectSession(selectSession);
 
   // Archive the session in database
   await archiveSession(sessionId, userId);
 
-  // Delete working directory in background if it exists
-  if (session.agentLocalPath) {
-    console.log(`[Archive] Enqueueing deletion of: ${session.agentLocalPath}`);
-    enqueueDelete({
-      userId,
-      localPath: session.agentLocalPath,
-    });
-  }
-
-  // Delete Databricks App if appAutoDeploy was enabled
-  if (session.appAutoDeploy && session.stub) {
-    const appName = `app-by-claude-${session.stub}`;
-    try {
-      const userPat = await getUserPersonalAccessToken(userId);
-      const accessToken = userPat ?? (await getAccessToken());
-
-      const response = await fetch(
-        `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
-        {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
-      );
-
-      if (response.ok || response.status === 404) {
-        console.log(`[Archive] Deleted app: ${appName}`);
-      } else {
-        const data = await response.json();
-        console.error(`[Archive] Failed to delete app ${appName}:`, data);
-      }
-    } catch (error) {
-      console.error(`[Archive] Error deleting app ${appName}:`, error);
-    }
-  }
+  // Delete working directory in background
+  console.log(`[Archive] Enqueueing deletion of: ${session.cwd}`);
+  enqueueDelete({
+    userId,
+    localPath: session.cwd,
+  });
 
   return { success: true };
 }
@@ -462,8 +445,8 @@ export async function getSessionEventsHandler(
   const userId = context.user.sub;
 
   // Check if session exists and belongs to user
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
@@ -524,13 +507,16 @@ export async function getAppLiveStatusHandler(
   const userId = context.user.sub;
 
   // Check if session exists and belongs to user
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const sessionRecord = await getSessionById(sessionId, userId);
+  if (!sessionRecord) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  // Construct app name from session stub
-  const appName = `app-by-claude-${session.stub}`;
+  // Create Session model instance to access helper methods
+  const session = (
+    await import('../../../models/Session.js')
+  ).Session.fromSelectSession(sessionRecord);
+  const appName = session.appName;
 
   // Get access token (User PAT first, then fallback to Service Principal)
   let accessToken: string;
@@ -619,12 +605,15 @@ export async function getAppHandler(
 
   const userId = context.user.sub;
 
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const sessionRecord = await getSessionById(sessionId, userId);
+  if (!sessionRecord) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  const appName = `app-by-claude-${session.stub}`;
+  const session = (
+    await import('../../../models/Session.js')
+  ).Session.fromSelectSession(sessionRecord);
+  const appName = session.appName;
 
   let accessToken: string;
   try {
@@ -671,12 +660,15 @@ export async function listAppDeploymentsHandler(
 
   const userId = context.user.sub;
 
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const sessionRecord = await getSessionById(sessionId, userId);
+  if (!sessionRecord) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  const appName = `app-by-claude-${session.stub}`;
+  const session = (
+    await import('../../../models/Session.js')
+  ).Session.fromSelectSession(sessionRecord);
+  const appName = session.appName;
 
   let accessToken: string;
   try {
@@ -723,12 +715,15 @@ export async function createAppDeploymentHandler(
 
   const userId = context.user.sub;
 
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const sessionRecord = await getSessionById(sessionId, userId);
+  if (!sessionRecord) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  const appName = `app-by-claude-${session.stub}`;
+  const session = (
+    await import('../../../models/Session.js')
+  ).Session.fromSelectSession(sessionRecord);
+  const appName = session.appName;
 
   let accessToken: string;
   try {
@@ -741,8 +736,8 @@ export async function createAppDeploymentHandler(
 
   // Build deployment request body
   const deploymentBody: Record<string, unknown> = {};
-  if (session.workspacePath) {
-    deploymentBody.source_code_path = session.workspacePath;
+  if (sessionRecord.databricksWorkspacePath) {
+    deploymentBody.source_code_path = sessionRecord.databricksWorkspacePath;
   }
 
   try {
@@ -783,16 +778,21 @@ export async function getSessionHandler(
   const userId = context.user.sub;
 
   // Get session from database
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  // Get workspace_url if workspacePath is set
+  // Convert to Session model to get agentLocalPath
+  const session = Session.fromSelectSession(selectSession);
+
+  // Get workspace_url if databricksWorkspacePath is set
   let workspaceUrl: string | null = null;
-  if (session.workspacePath) {
+  if (session.databricksWorkspacePath) {
     try {
-      const status = await workspaceService.getStatus(session.workspacePath);
+      const status = await workspaceService.getStatus(
+        session.databricksWorkspacePath
+      );
       workspaceUrl = status.browse_url;
     } catch (error) {
       // Log error but don't fail the request
@@ -802,27 +802,18 @@ export async function getSessionHandler(
 
   // Build response in snake_case format
   const response: Record<string, unknown> = {
-    id: session.id,
-    stub: session.stub,
+    id: session.toString(),
     title: session.title,
     summary: session.summary,
-    workspace_path: session.workspacePath,
+    workspace_path: session.databricksWorkspacePath,
     workspace_url: workspaceUrl,
-    workspace_auto_push: session.workspaceAutoPush,
-    app_auto_deploy: session.appAutoDeploy,
-    local_path: session.agentLocalPath,
+    workspace_auto_push: session.databricksWorkspaceAutoPush,
+    local_path: session.cwd,
     is_archived: session.isArchived,
     model: session.model,
     created_at: session.createdAt.toISOString(),
     updated_at: session.updatedAt.toISOString(),
   };
-
-  // Only include app_name and console_url when app_auto_deploy is true
-  if (session.appAutoDeploy) {
-    const appName = `app-by-claude-${session.stub}`;
-    response.app_name = appName;
-    response.console_url = `https://${databricks.host}/apps/${appName}`;
-  }
 
   return response;
 }

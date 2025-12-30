@@ -7,6 +7,7 @@ import { getSessionById, updateSession } from '../../../db/sessions.js';
 import { getSettingsDirect } from '../../../db/settings.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContextFromHeaders } from '../../../utils/headers.js';
+import { Session } from '../../../models/Session.js';
 import {
   sessionQueues,
   sessionMessageStreams,
@@ -170,24 +171,26 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                 `[WebSocket] Starting agent for session: ${sessionId}`
               );
 
-              // Fetch session to get workspacePath, workspaceAutoPush, agentLocalPath, appAutoDeploy, stub, and model for resume
-              const session = await getSessionById(sessionId, userId);
-              if (!session) {
+              // Fetch session to get databricksWorkspacePath, databricksWorkspaceAutoPush, agentLocalPath, and model for resume
+              const selectSession = await getSessionById(sessionId, userId);
+              if (!selectSession) {
                 throw new Error('Session not found. Cannot resume session.');
               }
-              const workspacePath = session.workspacePath ?? undefined;
-              const workspaceAutoPush = session.workspaceAutoPush;
-              const appAutoDeploy = session.appAutoDeploy;
-              const sessionAgentLocalPath = session.agentLocalPath;
-              const sessionStub = session.stub;
-              // Use model from WebSocket message (frontend always sends the selected model)
-              // Fallback to 'databricks-claude-sonnet-4-5' for edge cases (should not happen with current frontend)
-              const sessionModel =
-                messageModel || 'databricks-claude-sonnet-4-5';
+
+              // Convert to Session model
+              let session = Session.fromSelectSession(selectSession);
 
               // Update session model in DB if different from saved model
               if (messageModel && messageModel !== session.model) {
                 await updateSession(sessionId, { model: messageModel }, userId);
+                // Re-fetch session to get updated model
+                const updatedSelectSession = await getSessionById(
+                  sessionId,
+                  userId
+                );
+                if (updatedSelectSession) {
+                  session = Session.fromSelectSession(updatedSelectSession);
+                }
               }
 
               // Get user settings for claudeConfigAutoPush
@@ -210,21 +213,16 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               const userMsg = createUserMessage(sessionId, userMessageContent);
               await saveMessage(userMsg);
 
-              // Process agent request and stream responses (use URL sessionId for resume)
+              // Process agent request and stream responses
+              // Pass session object - agent extracts all needed properties
               try {
                 for await (const sdkMessage of processAgentRequest(
+                  session, // Pass Session object - claudeCodeSessionId is defined, so resume mode
                   userMessageContent,
-                  sessionModel,
-                  {
-                    workspaceAutoPush,
-                    claudeConfigAutoPush,
-                    agentLocalPath: sessionAgentLocalPath,
-                    appAutoDeploy,
-                    sessionStub,
-                  },
-                  sessionId,
                   user,
-                  workspacePath,
+                  {
+                    claudeConfigAutoPush,
+                  },
                   stream,
                   userPersonalAccessToken
                 )) {

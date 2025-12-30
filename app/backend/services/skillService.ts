@@ -313,7 +313,9 @@ export async function listPresetSkills(): Promise<PresetListResult> {
           `https://raw.githubusercontent.com/${PRESET_REPO}/${branch}/${PRESET_SKILLS_PATH}/${dir.name}/SKILL.md`
         );
         if (!skillMdResponse.ok) {
-          return { error: { name: dir.name, error: `HTTP ${skillMdResponse.status}` } };
+          return {
+            error: { name: dir.name, error: `HTTP ${skillMdResponse.status}` },
+          };
         }
         const fileContent = await skillMdResponse.text();
         const parsed = parseSkillContent(fileContent);
@@ -329,7 +331,9 @@ export async function listPresetSkills(): Promise<PresetListResult> {
         }
         return { error: { name: dir.name, error: 'Invalid SKILL.md format' } };
       } catch (err: any) {
-        return { error: { name: dir.name, error: err.message || 'Unknown error' } };
+        return {
+          error: { name: dir.name, error: err.message || 'Unknown error' },
+        };
       }
     })
   );
@@ -417,10 +421,9 @@ export async function importGitHubSkill(
       });
     } else {
       // Clone entire repo (shallow) for root-level skill
-      execSync(
-        `git clone --depth 1 -b ${targetBranch} ${repoUrl} ${tmpDir}`,
-        { stdio: 'pipe' }
-      );
+      execSync(`git clone --depth 1 -b ${targetBranch} ${repoUrl} ${tmpDir}`, {
+        stdio: 'pipe',
+      });
     }
 
     const clonedSkillPath = skillPath ? path.join(tmpDir, skillPath) : tmpDir;

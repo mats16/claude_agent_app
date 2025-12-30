@@ -208,7 +208,9 @@ export function useSkills() {
       setDatabricksSkillNames(Array.isArray(data.skills) ? data.skills : []);
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Failed to fetch Databricks skills';
+        err instanceof Error
+          ? err.message
+          : 'Failed to fetch Databricks skills';
       setDatabricksError(message);
       console.error('Failed to fetch Databricks skills:', err);
     } finally {

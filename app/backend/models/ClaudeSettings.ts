@@ -37,7 +37,6 @@ interface ClaudeSettingsJSON {
 export interface ClaudeSettingsOptions {
   workspacePath?: string;
   workspaceAutoPush?: boolean;
-  appAutoDeploy?: boolean;
   claudeConfigAutoPush?: boolean;
 }
 
@@ -47,13 +46,11 @@ export interface ClaudeSettingsOptions {
 export class ClaudeSettings {
   readonly workspacePath?: string;
   readonly workspaceAutoPush: boolean;
-  readonly appAutoDeploy: boolean;
   readonly claudeConfigAutoPush: boolean;
 
   constructor(options: ClaudeSettingsOptions) {
     this.workspacePath = options.workspacePath;
     this.workspaceAutoPush = options.workspaceAutoPush ?? false;
-    this.appAutoDeploy = options.appAutoDeploy ?? false;
     this.claudeConfigAutoPush = options.claudeConfigAutoPush ?? true;
   }
 
@@ -89,12 +86,6 @@ export class ClaudeSettings {
                 command:
                   '[ -n "$WORKSPACE_DIR" ] && databricks workspace export-dir "$WORKSPACE_DIR" .',
               },
-              // Create Databricks Apps for the session
-              {
-                type: 'command',
-                command:
-                  '[ "$APP_AUTO_DEPLOY" = "true" ] && databricks apps create "$SESSION_APP_NAME" --no-wait',
-              },
             ],
           },
         ],
@@ -129,12 +120,6 @@ export class ClaudeSettings {
                 type: 'command',
                 command:
                   '[ "$WORKSPACE_AUTO_PUSH" = "true" ] && databricks sync . "$WORKSPACE_DIR" --exclude "node_modules"',
-              },
-              // Auto deploy Databricks Apps for the session
-              {
-                type: 'command',
-                command:
-                  '[ "$APP_AUTO_DEPLOY" = "true" ] && databricks apps deploy "$SESSION_APP_NAME" --source-code-path "$WORKSPACE_DIR" --no-wait',
               },
             ],
           },

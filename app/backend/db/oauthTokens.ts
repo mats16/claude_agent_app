@@ -1,6 +1,10 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from './index.js';
-import { oauthTokens, type OAuthToken, type NewOAuthToken } from './schema.js';
+import {
+  oauthTokens,
+  type SelectOAuthToken,
+  type InsertOAuthToken,
+} from './schema.js';
 
 // Provider constants
 export const PROVIDER_DATABRICKS = 'databricks';
@@ -24,7 +28,7 @@ async function withUserContext<T>(
 export async function getToken(
   userId: string,
   provider: string
-): Promise<OAuthToken | null> {
+): Promise<SelectOAuthToken | null> {
   return withUserContext(userId, async () => {
     const result = await db
       .select()
@@ -45,7 +49,7 @@ export async function getToken(
 export async function getTokenDirect(
   userId: string,
   provider: string
-): Promise<OAuthToken | null> {
+): Promise<SelectOAuthToken | null> {
   const result = await db
     .select()
     .from(oauthTokens)
@@ -121,7 +125,7 @@ export async function upsertToken(
         );
     } else {
       // Create new token
-      const newToken: NewOAuthToken = {
+      const newToken: InsertOAuthToken = {
         userId,
         provider,
         authType,
@@ -157,9 +161,7 @@ export async function deleteToken(
  * Get Databricks PAT (without RLS - for internal use).
  * Returns the decrypted plaintext token.
  */
-export async function getDatabricksPat(
-  userId: string
-): Promise<string | null> {
+export async function getDatabricksPat(userId: string): Promise<string | null> {
   const token = await getTokenDirect(userId, PROVIDER_DATABRICKS);
   return token?.accessToken ?? null;
 }

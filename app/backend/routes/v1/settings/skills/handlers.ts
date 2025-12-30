@@ -258,9 +258,9 @@ export async function importGitHubSkillHandler(
   // Parse and validate repository URL
   const repoName = parseGitHubRepo(repo);
   if (!repoName) {
-    return reply
-      .status(400)
-      .send({ error: 'Invalid repo format. Use https://github.com/owner/repo' });
+    return reply.status(400).send({
+      error: 'Invalid repo format. Use https://github.com/owner/repo',
+    });
   }
 
   try {

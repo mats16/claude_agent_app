@@ -3,13 +3,16 @@ import { db } from './index.js';
 import {
   users,
   settings,
-  type User,
-  type NewUser,
-  type NewSettings,
+  type SelectUser,
+  type InsertUser,
+  type InsertSettings,
 } from './schema.js';
 
 // Create or update a user (upsert)
-export async function upsertUser(id: string, email: string): Promise<User> {
+export async function upsertUser(
+  id: string,
+  email: string
+): Promise<SelectUser> {
   const existing = await db
     .select()
     .from(users)
@@ -29,7 +32,7 @@ export async function upsertUser(id: string, email: string): Promise<User> {
   }
 
   // Create new user
-  const newUser: NewUser = {
+  const newUser: InsertUser = {
     id,
     email,
   };
@@ -37,7 +40,7 @@ export async function upsertUser(id: string, email: string): Promise<User> {
 
   // Create default settings for new user (requires RLS context)
   await db.execute(sql`SELECT set_config('app.current_user_id', ${id}, true)`);
-  const newSettings: NewSettings = {
+  const newSettings: InsertSettings = {
     userId: id,
     claudeConfigAutoPush: true,
   };
@@ -53,14 +56,16 @@ export async function upsertUser(id: string, email: string): Promise<User> {
 }
 
 // Get user by ID
-export async function getUserById(id: string): Promise<User | null> {
+export async function getUserById(id: string): Promise<SelectUser | null> {
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
 
   return result[0] ?? null;
 }
 
 // Get user by email
-export async function getUserByEmail(email: string): Promise<User | null> {
+export async function getUserByEmail(
+  email: string
+): Promise<SelectUser | null> {
   const result = await db
     .select()
     .from(users)

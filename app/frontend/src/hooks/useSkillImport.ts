@@ -37,7 +37,8 @@ interface UseSkillImportReturn {
 export function useSkillImport(): UseSkillImportReturn {
   // Local state for modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [activeImportTab, setActiveImportTab] = useState<ImportTab>('databricks');
+  const [activeImportTab, setActiveImportTab] =
+    useState<ImportTab>('databricks');
   const [isSavingSkill, setIsSavingSkill] = useState(false);
 
   const { t } = useTranslation();

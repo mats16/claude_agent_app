@@ -1,6 +1,10 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from './index.js';
-import { settings, type Settings, type NewSettings } from './schema.js';
+import {
+  settings,
+  type SelectSettings,
+  type InsertSettings,
+} from './schema.js';
 
 // Helper to execute queries with RLS user context
 async function withUserContext<T>(
@@ -17,7 +21,9 @@ async function withUserContext<T>(
 }
 
 // Get settings by user ID (with RLS)
-export async function getSettings(userId: string): Promise<Settings | null> {
+export async function getSettings(
+  userId: string
+): Promise<SelectSettings | null> {
   return withUserContext(userId, async () => {
     const result = await db
       .select()
@@ -32,7 +38,7 @@ export async function getSettings(userId: string): Promise<Settings | null> {
 // Get settings without RLS (for internal use when user context is already verified)
 export async function getSettingsDirect(
   userId: string
-): Promise<Settings | null> {
+): Promise<SelectSettings | null> {
   const result = await db
     .select()
     .from(settings)
@@ -65,7 +71,7 @@ export async function upsertSettings(
         .where(eq(settings.userId, userId));
     } else {
       // Create new settings
-      const newSettings: NewSettings = {
+      const newSettings: InsertSettings = {
         userId,
         claudeConfigAutoPush: updates.claudeConfigAutoPush ?? true,
       };

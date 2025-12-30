@@ -10,16 +10,13 @@ import {
 import { createSessionsWebSocketUrl } from '../utils/websocket';
 
 export interface Session {
-  id: string;
+  id: string; // TypeID: session_01h455vb...
   title: string | null;
   model: string;
-  workspacePath: string | null;
+  databricksWorkspacePath: string | null; // Databricks workspace path
   workspaceUrl?: string | null; // Fetched from GET /api/v1/sessions/:id
   userEmail: string | null;
-  workspaceAutoPush: boolean;
-  appAutoDeploy: boolean;
-  appName?: string | null; // app-by-claude-{stub}, only when appAutoDeploy=true
-  consoleUrl?: string | null; // https://{host}/apps/{app_name}, only when appAutoDeploy=true
+  databricksWorkspaceAutoPush: boolean; // Workspace sync mode
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -107,13 +104,14 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
             const newSession: Session = {
               id: data.session.id,
               title: data.session.title,
-              workspacePath: data.session.workspacePath,
+              databricksWorkspacePath:
+                data.session.databricksWorkspacePath ?? null,
               updatedAt: data.session.updatedAt,
               createdAt: data.session.updatedAt, // New sessions have same createdAt/updatedAt
               model: '',
               userEmail: null,
-              workspaceAutoPush: data.session.workspaceAutoPush ?? false,
-              appAutoDeploy: data.session.appAutoDeploy ?? false,
+              databricksWorkspaceAutoPush:
+                data.session.databricksWorkspaceAutoPush ?? false,
               isArchived: false, // New sessions are always active
             };
             setSessions((prev) => {

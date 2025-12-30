@@ -79,8 +79,12 @@ export async function buildApp() {
   await fastify.register(queueRoutes, { prefix: '/api/v1/queues' });
   await fastify.register(reposRoutes, { prefix: '/api/v1/repos' });
   await fastify.register(jobsRoutes, { prefix: '/api/v1/jobs' });
-  await fastify.register(publicSkillsRoutes, { prefix: '/api/v1/skills/public' });
-  await fastify.register(publicAgentsRoutes, { prefix: '/api/v1/agents/public' });
+  await fastify.register(publicSkillsRoutes, {
+    prefix: '/api/v1/skills/public',
+  });
+  await fastify.register(publicAgentsRoutes, {
+    prefix: '/api/v1/agents/public',
+  });
 
   // Register cleanup hook first, then start cache cleanup
   // This ensures cleanup runs even if startup fails after cache init

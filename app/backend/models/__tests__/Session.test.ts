@@ -68,7 +68,9 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft();
       const workDir = draft.createWorkingDirectory();
 
-      expect(workDir).toBe(path.join(testSessionsBase, draft.id));
+      // Extract suffix from draft.id (remove 'session_' prefix)
+      const suffix = draft.id.replace(/^session_/, '');
+      expect(workDir).toBe(path.join(testSessionsBase, suffix));
     });
 
     it('should succeed when directory already exists (recursive: true)', () => {
@@ -105,8 +107,9 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft();
       const workDir = draft.createWorkingDirectory();
 
+      const suffix = draft.id.replace(/^session_/, '');
       expect(workDir).toContain(testSessionsBase);
-      expect(workDir).toContain(draft.id);
+      expect(workDir).toContain(suffix);
     });
   });
 });
@@ -147,10 +150,9 @@ describe('Session', () => {
       expect(session.createdAt).toEqual(dbSession.createdAt);
       expect(session.updatedAt).toEqual(dbSession.updatedAt);
 
-      // cwd() should be computed from session ID
-      expect(session.cwd()).toBe(
-        path.join(testSessionsBase, dbSession.id)
-      );
+      // cwd() should be computed from session ID suffix
+      const suffix = dbSession.id.replace(/^session_/, '');
+      expect(session.cwd()).toBe(path.join(testSessionsBase, suffix));
     });
 
     it('should handle null values correctly', () => {

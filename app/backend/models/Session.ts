@@ -1,4 +1,4 @@
-import { typeid } from 'typeid-js';
+import { typeid, TypeID } from 'typeid-js';
 import path from 'path';
 import fs from 'fs';
 import type { SelectSession } from '../db/schema.js';
@@ -10,27 +10,36 @@ import { paths } from '../config/index.js';
  * Provides ID-based helper methods
  */
 export class SessionDraft {
-  readonly id: string; // TypeID with 'session' prefix
+  private _typeId: TypeID<'session'>; // Internal TypeID instance
 
   constructor() {
-    this.id = typeid('session').toString(); // Generate TypeID
+    this._typeId = typeid('session'); // Generate TypeID
+  }
+
+  /**
+   * Get the session ID as string (format: session_XXXXXXXXXXXXXXXXXXXXXXXXXX)
+   */
+  get id(): string {
+    return this._typeId.toString();
   }
 
   /**
    * Get the agent's current working directory path
-   * Computed from session ID: {SESSIONS_BASE_PATH}/{session_id}
+   * Uses TypeID suffix to avoid redundancy (sessionsBase already contains "session")
+   * Path format: {SESSIONS_BASE_PATH}/{suffix}
+   * Example: /home/app/session/01h455vb4pex5vsknk084sn02q
    */
   cwd(): string {
-    return path.join(paths.sessionsBase, this.id);
+    return path.join(paths.sessionsBase, this._typeId.getSuffix());
   }
 
   /**
    * Get app name for Databricks Apps
-   * Strips 'session_' prefix to fit 30-char limit
+   * Uses TypeID suffix directly to avoid string manipulation
    * Example: session_01h455vb4pex5vsknk084sn02q → app-01h455vb4pex5vsknk084sn02q (30 chars)
    */
   getAppName(): string {
-    return `app-${this.id.replace(/^session_/, '')}`;
+    return `app-${this._typeId.getSuffix()}`;
   }
 
   /**
@@ -89,8 +98,10 @@ export class Session extends SessionDraft {
   constructor(selectSession: SelectSession) {
     super();
 
-    // Override id from DB (TypeID)
-    (this as { id: string }).id = selectSession.id;
+    // Override internal TypeID from DB string ID
+    ((this as unknown) as { _typeId: TypeID<'session'> })._typeId = TypeID.fromString(
+      selectSession.id
+    ) as TypeID<'session'>;
 
     this.claudeCodeSessionId = selectSession.claudeCodeSessionId;
     this.userId = selectSession.userId;

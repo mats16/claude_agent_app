@@ -124,8 +124,10 @@ export default function SessionPage() {
   const session = sessionId ? getSession(sessionId) : undefined;
   const isArchived = session?.isArchived ?? false;
   const sessionTitle = session?.title ?? null;
-  const sessionDatabricksWorkspaceAutoPush = session?.databricksWorkspaceAutoPush ?? false;
-  const sessionDatabricksWorkspacePath = session?.databricksWorkspacePath ?? null;
+  const sessionDatabricksWorkspaceAutoPush =
+    session?.databricksWorkspaceAutoPush ?? false;
+  const sessionDatabricksWorkspacePath =
+    session?.databricksWorkspacePath ?? null;
   const sessionWorkspaceUrl = session?.workspaceUrl ?? null;
 
   // Fetch session details (workspace_url) when session page loads
@@ -139,7 +141,9 @@ export default function SessionPage() {
           if (response.ok) {
             const data = await response.json();
             if (data.workspace_url) {
-              updateSessionLocally(sessionId, { workspaceUrl: data.workspace_url });
+              updateSessionLocally(sessionId, {
+                workspaceUrl: data.workspace_url,
+              });
             }
           }
         } catch (error) {
@@ -148,7 +152,12 @@ export default function SessionPage() {
       };
       fetchSessionDetails();
     }
-  }, [sessionId, sessionDatabricksWorkspacePath, sessionWorkspaceUrl, updateSessionLocally]);
+  }, [
+    sessionId,
+    sessionDatabricksWorkspacePath,
+    sessionWorkspaceUrl,
+    updateSessionLocally,
+  ]);
 
   // Removed app auto-deploy functionality
 

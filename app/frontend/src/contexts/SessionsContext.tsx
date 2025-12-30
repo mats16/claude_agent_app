@@ -104,12 +104,14 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
             const newSession: Session = {
               id: data.session.id,
               title: data.session.title,
-              databricksWorkspacePath: data.session.databricksWorkspacePath ?? null,
+              databricksWorkspacePath:
+                data.session.databricksWorkspacePath ?? null,
               updatedAt: data.session.updatedAt,
               createdAt: data.session.updatedAt, // New sessions have same createdAt/updatedAt
               model: '',
               userEmail: null,
-              databricksWorkspaceAutoPush: data.session.databricksWorkspaceAutoPush ?? false,
+              databricksWorkspaceAutoPush:
+                data.session.databricksWorkspaceAutoPush ?? false,
               isArchived: false, // New sessions are always active
             };
             setSessions((prev) => {

@@ -2,9 +2,7 @@
   "version": "8",
   "dialect": "postgres",
   "id": "565a578b-f8a9-4c16-a286-0cee968d166a",
-  "prevIds": [
-    "49588cb2-5cbf-4dff-831d-7956db09f0db"
-  ],
+  "prevIds": ["49588cb2-5cbf-4dff-831d-7956db09f0db"],
   "ddl": [
     {
       "isRlsEnabled": false,
@@ -550,14 +548,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "session_id"
-      ],
+      "columns": ["session_id"],
       "schemaTo": "public",
       "tableTo": "sessions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "events_session_id_sessions_id_fkey",
@@ -567,14 +561,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "oauth_tokens_user_id_users_id_fkey",
@@ -584,14 +574,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "sessions_user_id_users_id_fkey",
@@ -601,14 +587,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "settings_user_id_users_id_fkey",
@@ -617,10 +599,7 @@
       "table": "settings"
     },
     {
-      "columns": [
-        "user_id",
-        "provider"
-      ],
+      "columns": ["user_id", "provider"],
       "nameExplicit": false,
       "name": "oauth_tokens_pkey",
       "entityType": "pks",
@@ -628,9 +607,7 @@
       "table": "oauth_tokens"
     },
     {
-      "columns": [
-        "uuid"
-      ],
+      "columns": ["uuid"],
       "nameExplicit": false,
       "name": "events_pkey",
       "schema": "public",
@@ -638,9 +615,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sessions_pkey",
       "schema": "public",
@@ -648,9 +623,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "nameExplicit": false,
       "name": "settings_pkey",
       "schema": "public",
@@ -658,9 +631,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pkey",
       "schema": "public",
@@ -669,9 +640,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "claude_code_session_id"
-      ],
+      "columns": ["claude_code_session_id"],
       "nullsNotDistinct": false,
       "name": "sessions_claude_code_session_id_key",
       "schema": "public",
@@ -680,9 +649,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "email"
-      ],
+      "columns": ["email"],
       "nullsNotDistinct": false,
       "name": "users_email_key",
       "schema": "public",
@@ -692,9 +659,7 @@
     {
       "as": "PERMISSIVE",
       "for": "ALL",
-      "roles": [
-        "public"
-      ],
+      "roles": ["public"],
       "using": "user_id = current_setting('app.current_user_id', true)",
       "withCheck": "user_id = current_setting('app.current_user_id', true)",
       "name": "oauth_tokens_user_policy",
@@ -705,9 +670,7 @@
     {
       "as": "PERMISSIVE",
       "for": "ALL",
-      "roles": [
-        "public"
-      ],
+      "roles": ["public"],
       "using": "user_id = current_setting('app.current_user_id', true)",
       "withCheck": "user_id = current_setting('app.current_user_id', true)",
       "name": "sessions_user_policy",
@@ -718,9 +681,7 @@
     {
       "as": "PERMISSIVE",
       "for": "ALL",
-      "roles": [
-        "public"
-      ],
+      "roles": ["public"],
       "using": "user_id = current_setting('app.current_user_id', true)",
       "withCheck": "user_id = current_setting('app.current_user_id', true)",
       "name": "settings_user_policy",

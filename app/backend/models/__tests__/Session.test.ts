@@ -16,97 +16,127 @@ vi.mock('../../config/index.js', () => ({
 }));
 
 // Import Session classes after mocking config
-const { SessionId, Session } = await import('../Session.js');
+const { SessionDraft, Session } = await import('../Session.js');
 
-describe('SessionId', () => {
-  describe('generate', () => {
-    it('should generate TypeID with session prefix', () => {
-      const sessionId = SessionId.generate();
-      expect(sessionId.toString()).toMatch(/^session_[a-z0-9]{26}$/);
+describe('SessionDraft', () => {
+  describe('constructor', () => {
+    it('should auto-generate TypeID with session prefix', () => {
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      expect(draft.toString()).toMatch(/^session_[a-z0-9]{26}$/);
     });
 
     it('should generate unique IDs for multiple instances', () => {
-      const id1 = SessionId.generate();
-      const id2 = SessionId.generate();
-      expect(id1.toString()).not.toBe(id2.toString());
-    });
-  });
-
-  describe('fromString', () => {
-    it('should restore SessionId from string', () => {
-      const original = SessionId.generate();
-      const restored = SessionId.fromString(original.toString());
-      expect(restored.toString()).toBe(original.toString());
+      const draft1 = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      const draft2 = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      expect(draft1.toString()).not.toBe(draft2.toString());
     });
 
-    it('should restore specific TypeID string', () => {
-      const idString = 'session_01h455vb4pex5vsknk084sn02q';
-      const sessionId = SessionId.fromString(idString);
-      expect(sessionId.toString()).toBe(idString);
-      expect(sessionId.getSuffix()).toBe('01h455vb4pex5vsknk084sn02q');
+    it('should set claudeCodeSessionId to undefined', () => {
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      expect(draft.claudeCodeSessionId).toBeUndefined();
     });
 
-    it('should throw error for invalid TypeID prefix', () => {
-      const invalidId = 'user_01h455vb4pex5vsknk084sn02q'; // Wrong prefix
-      expect(() => SessionId.fromString(invalidId)).toThrow(
-        "Invalid session ID type: expected 'session', got 'user'"
-      );
+    it('should initialize with provided fields', () => {
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+        title: 'Test Draft',
+        databricksWorkspacePath: '/Workspace/test',
+        databricksWorkspaceAutoPush: true,
+      });
+
+      expect(draft.userId).toBe('user123');
+      expect(draft.model).toBe('claude-sonnet-4-5');
+      expect(draft.title).toBe('Test Draft');
+      expect(draft.databricksWorkspacePath).toBe('/Workspace/test');
+      expect(draft.databricksWorkspaceAutoPush).toBe(true);
     });
 
-    it('should throw error for TypeID without prefix', () => {
-      const invalidId = '01h455vb4pex5vsknk084sn02q'; // No prefix
-      expect(() => SessionId.fromString(invalidId)).toThrow(
-        "Invalid session ID type: expected 'session'"
-      );
+    it('should set default values for optional fields', () => {
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+
+      expect(draft.title).toBeNull();
+      expect(draft.databricksWorkspacePath).toBeNull();
+      expect(draft.databricksWorkspaceAutoPush).toBe(false);
     });
   });
 
   describe('path methods', () => {
     it('should return correct cwd path', () => {
-      const sessionId = SessionId.generate();
-      const cwdPath = sessionId.cwd();
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      const cwdPath = draft.cwd();
       expect(cwdPath).toContain(testSessionsBase);
-      expect(cwdPath).toContain(sessionId.getSuffix());
+      expect(cwdPath).toContain(draft.getSuffix());
     });
 
     it('should compute app name (30 chars max)', () => {
-      const sessionId = SessionId.fromString('session_01h455vb4pex5vsknk084sn02q');
-      expect(sessionId.getAppName()).toBe('app-01h455vb4pex5vsknk084sn02q');
-      expect(sessionId.getAppName().length).toBe(30);
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      const appName = draft.getAppName();
+      expect(appName).toMatch(/^app-[a-z0-9]{26}$/);
+      expect(appName.length).toBe(30);
     });
 
     it('should compute branch name', () => {
-      const sessionId = SessionId.fromString('session_01h455vb4pex5vsknk084sn02q');
-      expect(sessionId.getBranchName()).toBe('claude/session_01h455vb4pex5vsknk084sn02q');
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      const branchName = draft.getBranchName();
+      expect(branchName).toMatch(/^claude\/session_[a-z0-9]{26}$/);
     });
   });
 
   describe('createWorkingDirectory', () => {
     beforeEach(() => {
-      // Clean up any existing test directories
       if (fs.existsSync(testSessionsBase)) {
         fs.rmSync(testSessionsBase, { recursive: true, force: true });
       }
     });
 
     afterEach(() => {
-      // Clean up test directories after each test
       if (fs.existsSync(testSessionsBase)) {
         fs.rmSync(testSessionsBase, { recursive: true, force: true });
       }
     });
 
     it('should create working directory successfully', () => {
-      const sessionId = SessionId.generate();
-      const workDir = sessionId.createWorkingDirectory();
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      const workDir = draft.createWorkingDirectory();
 
       expect(fs.existsSync(workDir)).toBe(true);
       expect(fs.statSync(workDir).isDirectory()).toBe(true);
     });
 
     it('should create .claude subdirectory', () => {
-      const sessionId = SessionId.generate();
-      const workDir = sessionId.createWorkingDirectory();
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      const workDir = draft.createWorkingDirectory();
       const claudeDir = path.join(workDir, '.claude');
 
       expect(fs.existsSync(claudeDir)).toBe(true);
@@ -114,51 +144,25 @@ describe('SessionId', () => {
     });
 
     it('should return the created directory path', () => {
-      const sessionId = SessionId.generate();
-      const workDir = sessionId.createWorkingDirectory();
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+      const workDir = draft.createWorkingDirectory();
 
-      // Extract suffix from TypeID
-      const suffix = sessionId.getSuffix();
+      const suffix = draft.getSuffix();
       expect(workDir).toBe(path.join(testSessionsBase, suffix));
     });
+  });
 
-    it('should succeed when directory already exists (recursive: true)', () => {
-      const sessionId = SessionId.generate();
-
-      // Create directory first time
-      const workDir1 = sessionId.createWorkingDirectory();
-
-      // Create same directory again - should not throw
-      const workDir2 = sessionId.createWorkingDirectory();
-
-      expect(workDir1).toBe(workDir2);
-      expect(fs.existsSync(workDir1)).toBe(true);
-    });
-
-    it('should throw descriptive error when directory creation fails', () => {
-      const sessionId = SessionId.generate();
-
-      // Mock fs.mkdirSync to throw error
-      const originalMkdirSync = fs.mkdirSync;
-      vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {
-        throw new Error('Permission denied');
+  describe('type guards', () => {
+    it('should return true for isDraft()', () => {
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
       });
-
-      expect(() => sessionId.createWorkingDirectory()).toThrow(
-        /Failed to create working directory for session session_.*: Permission denied/
-      );
-
-      // Restore original
-      fs.mkdirSync = originalMkdirSync;
-    });
-
-    it('should create directory at expected path based on config', () => {
-      const sessionId = SessionId.generate();
-      const workDir = sessionId.createWorkingDirectory();
-
-      const suffix = sessionId.getSuffix();
-      expect(workDir).toContain(testSessionsBase);
-      expect(workDir).toContain(suffix);
+      expect(draft.isDraft()).toBe(true);
+      expect(draft.isSession()).toBe(false);
     });
   });
 });
@@ -183,7 +187,7 @@ describe('Session', () => {
       const session = Session.fromSelectSession(dbSession);
 
       // All properties should match DB session
-      expect(session.id.toString()).toBe(dbSession.id);
+      expect(session.toString()).toBe(dbSession.id);
       expect(session.claudeCodeSessionId).toBe(dbSession.claudeCodeSessionId);
       expect(session.title).toBe(dbSession.title);
       expect(session.summary).toBe(dbSession.summary);
@@ -200,7 +204,7 @@ describe('Session', () => {
       expect(session.updatedAt).toEqual(dbSession.updatedAt);
 
       // cwd() should be computed from session ID suffix
-      const suffix = session.id.getSuffix();
+      const suffix = session.getSuffix();
       expect(session.cwd()).toBe(path.join(testSessionsBase, suffix));
     });
 
@@ -225,10 +229,80 @@ describe('Session', () => {
       expect(session.summary).toBeNull();
       expect(session.databricksWorkspacePath).toBeNull();
     });
+
+    it('should validate TypeID prefix', () => {
+      const invalidSession: SelectSession = {
+        id: 'user_01h455vb4pex5vsknk084sn02q', // Wrong prefix
+        claudeCodeSessionId: 'sdk-123',
+        title: null,
+        summary: null,
+        model: 'claude-sonnet-4-5',
+        databricksWorkspacePath: null,
+        userId: 'user123',
+        databricksWorkspaceAutoPush: false,
+        isArchived: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      expect(() => Session.fromSelectSession(invalidSession)).toThrow(
+        "Invalid session ID type: expected 'session', got 'user'"
+      );
+    });
   });
 
-  describe('delegation methods', () => {
-    it('should delegate path methods to SessionId', () => {
+  describe('fromSessionDraft', () => {
+    it('should convert draft to session with SDK session ID', () => {
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+        title: 'Test Draft',
+        databricksWorkspacePath: '/Workspace/test',
+        databricksWorkspaceAutoPush: true,
+      });
+
+      const session = Session.fromSessionDraft(draft, 'sdk-session-456');
+
+      // TypeID should be preserved
+      expect(session.toString()).toBe(draft.toString());
+      expect(session.getSuffix()).toBe(draft.getSuffix());
+
+      // SDK session ID should be set
+      expect(session.claudeCodeSessionId).toBe('sdk-session-456');
+
+      // Fields from draft should be preserved
+      expect(session.userId).toBe(draft.userId);
+      expect(session.model).toBe(draft.model);
+      expect(session.title).toBe(draft.title);
+      expect(session.databricksWorkspacePath).toBe(
+        draft.databricksWorkspacePath
+      );
+      expect(session.databricksWorkspaceAutoPush).toBe(
+        draft.databricksWorkspaceAutoPush
+      );
+
+      // New session fields should have default values
+      expect(session.summary).toBeNull();
+      expect(session.isArchived).toBe(false);
+      expect(session.createdAt).toBeInstanceOf(Date);
+      expect(session.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it('should preserve working directory path', () => {
+      const draft = new SessionDraft({
+        userId: 'user123',
+        model: 'claude-sonnet-4-5',
+      });
+
+      const draftCwd = draft.cwd();
+      const session = Session.fromSessionDraft(draft, 'sdk-123');
+
+      expect(session.cwd()).toBe(draftCwd);
+    });
+  });
+
+  describe('path methods', () => {
+    it('should return correct paths', () => {
       const dbSession: SelectSession = {
         id: 'session_01h455vb4pex5vsknk084sn02q',
         claudeCodeSessionId: 'sdk-123',
@@ -252,6 +326,29 @@ describe('Session', () => {
       expect(session.cwd()).toBe(
         path.join(testSessionsBase, '01h455vb4pex5vsknk084sn02q')
       );
+    });
+  });
+
+  describe('type guards', () => {
+    it('should return true for isSession()', () => {
+      const dbSession: SelectSession = {
+        id: 'session_01h455vb4pex5vsknk084sn02q',
+        claudeCodeSessionId: 'sdk-123',
+        title: 'Test',
+        summary: null,
+        model: 'claude-sonnet-4-5',
+        databricksWorkspacePath: null,
+        userId: 'user123',
+        databricksWorkspaceAutoPush: false,
+        isArchived: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const session = Session.fromSelectSession(dbSession);
+
+      expect(session.isSession()).toBe(true);
+      expect(session.isDraft()).toBe(false);
     });
   });
 });

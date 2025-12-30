@@ -260,7 +260,9 @@ export async function importGitHubSkillHandler(
   if (!repoName) {
     return reply
       .status(400)
-      .send({ error: 'Invalid repo format. Use https://github.com/owner/repo' });
+      .send({
+        error: 'Invalid repo format. Use https://github.com/owner/repo',
+      });
   }
 
   try {

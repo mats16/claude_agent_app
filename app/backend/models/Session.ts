@@ -5,30 +5,56 @@ import type { SelectSession } from '../db/schema.js';
 import { paths } from '../config/index.js';
 
 /**
- * SessionId - Wrapper around TypeID<'session'> with domain-specific utilities
- * Uses composition pattern since TypeID is an external library
- * Factory methods prevent direct instantiation
+ * SessionBase - Abstract base class consolidating TypeID operations and common session fields
+ * Eliminates the need for a separate SessionId wrapper class
  */
-export class SessionId {
-  private readonly _typeId: TypeID<'session'>;
+export abstract class SessionBase {
+  protected readonly _typeId: TypeID<'session'>;
 
-  // Private constructor - use factory methods
-  private constructor(typeId: TypeID<'session'>) {
-    this._typeId = typeId;
+  // Common fields for both Draft and Session
+  readonly userId: string;
+  readonly model: string;
+  readonly databricksWorkspacePath: string | null;
+  readonly databricksWorkspaceAutoPush: boolean;
+
+  // Discriminator - undefined for Draft, string for Session
+  abstract readonly claudeCodeSessionId: string | undefined;
+
+  // Protected constructor - use factory methods or subclass constructors
+  protected constructor(params: {
+    typeId: TypeID<'session'>;
+    userId: string;
+    model: string;
+    databricksWorkspacePath: string | null;
+    databricksWorkspaceAutoPush: boolean;
+  }) {
+    this._typeId = params.typeId;
+    this.userId = params.userId;
+    this.model = params.model;
+    this.databricksWorkspacePath = params.databricksWorkspacePath;
+    this.databricksWorkspaceAutoPush = params.databricksWorkspaceAutoPush;
   }
 
   /**
-   * Factory: Generate new session ID
+   * Public getter: Access the internal TypeID (for factory methods)
+   * Read-only access to the TypeID instance
    */
-  static generate(): SessionId {
-    return new SessionId(typeid('session'));
+  getTypeId(): TypeID<'session'> {
+    return this._typeId;
   }
 
   /**
-   * Factory: Restore from DB string
+   * Protected factory helper: Generate new TypeID
+   */
+  protected static generateTypeId(): TypeID<'session'> {
+    return typeid('session');
+  }
+
+  /**
+   * Protected factory helper: Restore TypeID from string with validation
    * @throws Error if the ID is not a valid session TypeID
    */
-  static fromString(id: string): SessionId {
+  protected static typeIdFromString(id: string): TypeID<'session'> {
     const typeId = TypeID.fromString(id);
 
     // Validate that the TypeID has the correct 'session' prefix
@@ -38,7 +64,7 @@ export class SessionId {
       );
     }
 
-    return new SessionId(typeId as TypeID<'session'>);
+    return typeId as TypeID<'session'>;
   }
 
   /**
@@ -106,28 +132,66 @@ export class SessionId {
       );
     }
   }
+
+  /**
+   * Type guard: Check if this is a SessionDraft
+   */
+  isDraft(): this is SessionDraft {
+    return this.claudeCodeSessionId === undefined;
+  }
+
+  /**
+   * Type guard: Check if this is a Session
+   */
+  isSession(): this is Session {
+    return this.claudeCodeSessionId !== undefined;
+  }
 }
 
 /**
- * Session - Represents a persisted session
- * Uses composition with SessionId for ID-based operations
+ * SessionDraft - Represents a session draft before SDK initialization
+ * claudeCodeSessionId is always undefined
  */
-export class Session {
-  readonly id: SessionId; // Composition, not inheritance
-  readonly claudeCodeSessionId: string; // SDK session ID
-  readonly userId: string;
-  readonly model: string;
+export class SessionDraft extends SessionBase {
+  readonly claudeCodeSessionId: undefined;
+  readonly title: string | null;
+
+  constructor(params: {
+    userId: string;
+    model: string;
+    title?: string | null;
+    databricksWorkspacePath?: string | null;
+    databricksWorkspaceAutoPush?: boolean;
+  }) {
+    // Auto-generate TypeID
+    super({
+      typeId: SessionBase.generateTypeId(),
+      userId: params.userId,
+      model: params.model,
+      databricksWorkspacePath: params.databricksWorkspacePath ?? null,
+      databricksWorkspaceAutoPush: params.databricksWorkspaceAutoPush ?? false,
+    });
+
+    this.claudeCodeSessionId = undefined;
+    this.title = params.title ?? null;
+  }
+}
+
+/**
+ * Session - Represents a persisted session with SDK session ID
+ * Uses inheritance instead of composition for cleaner architecture
+ */
+export class Session extends SessionBase {
+  readonly claudeCodeSessionId: string; // Required, non-undefined
   readonly title: string | null;
   readonly summary: string | null;
-  readonly databricksWorkspacePath: string | null;
-  readonly databricksWorkspaceAutoPush: boolean;
   readonly isArchived: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
   // Private constructor - use factory methods
   private constructor(data: {
-    id: SessionId;
+    typeId: TypeID<'session'>;
     claudeCodeSessionId: string;
     userId: string;
     model: string;
@@ -139,14 +203,17 @@ export class Session {
     createdAt: Date;
     updatedAt: Date;
   }) {
-    this.id = data.id;
+    super({
+      typeId: data.typeId,
+      userId: data.userId,
+      model: data.model,
+      databricksWorkspacePath: data.databricksWorkspacePath,
+      databricksWorkspaceAutoPush: data.databricksWorkspaceAutoPush,
+    });
+
     this.claudeCodeSessionId = data.claudeCodeSessionId;
-    this.userId = data.userId;
-    this.model = data.model;
     this.title = data.title;
     this.summary = data.summary;
-    this.databricksWorkspacePath = data.databricksWorkspacePath;
-    this.databricksWorkspaceAutoPush = data.databricksWorkspaceAutoPush;
     this.isArchived = data.isArchived;
     this.createdAt = data.createdAt;
     this.updatedAt = data.updatedAt;
@@ -157,7 +224,7 @@ export class Session {
    */
   static fromSelectSession(selectSession: SelectSession): Session {
     return new Session({
-      id: SessionId.fromString(selectSession.id),
+      typeId: SessionBase.typeIdFromString(selectSession.id),
       claudeCodeSessionId: selectSession.claudeCodeSessionId,
       userId: selectSession.userId,
       model: selectSession.model,
@@ -172,21 +239,26 @@ export class Session {
   }
 
   /**
-   * Delegate path methods to SessionId
+   * Factory: Create Session from SessionDraft after receiving SDK session ID
    */
-  cwd(): string {
-    return this.id.cwd();
-  }
-
-  getAppName(): string {
-    return this.id.getAppName();
-  }
-
-  getBranchName(): string {
-    return this.id.getBranchName();
-  }
-
-  createWorkingDirectory(): string {
-    return this.id.createWorkingDirectory();
+  static fromSessionDraft(
+    draft: SessionDraft,
+    claudeCodeSessionId: string,
+    createdAt: Date = new Date(),
+    updatedAt: Date = new Date()
+  ): Session {
+    return new Session({
+      typeId: draft.getTypeId(), // Access via protected getter
+      claudeCodeSessionId,
+      userId: draft.userId,
+      model: draft.model,
+      title: draft.title,
+      summary: null, // New sessions have no summary
+      databricksWorkspacePath: draft.databricksWorkspacePath,
+      databricksWorkspaceAutoPush: draft.databricksWorkspaceAutoPush,
+      isArchived: false,
+      createdAt,
+      updatedAt,
+    });
   }
 }

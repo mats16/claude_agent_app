@@ -1,6 +1,10 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from './index.js';
-import { oauthTokens, type SelectOAuthToken, type InsertOAuthToken } from './schema.js';
+import {
+  oauthTokens,
+  type SelectOAuthToken,
+  type InsertOAuthToken,
+} from './schema.js';
 
 // Provider constants
 export const PROVIDER_DATABRICKS = 'databricks';
@@ -157,9 +161,7 @@ export async function deleteToken(
  * Get Databricks PAT (without RLS - for internal use).
  * Returns the decrypted plaintext token.
  */
-export async function getDatabricksPat(
-  userId: string
-): Promise<string | null> {
+export async function getDatabricksPat(userId: string): Promise<string | null> {
   const token = await getTokenDirect(userId, PROVIDER_DATABRICKS);
   return token?.accessToken ?? null;
 }

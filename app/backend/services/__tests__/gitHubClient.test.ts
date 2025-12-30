@@ -9,41 +9,57 @@ import {
 describe('parseGitHubRepo', () => {
   describe('valid inputs', () => {
     it('should parse simple owner/repo URL', () => {
-      expect(parseGitHubRepo('https://github.com/owner/repo')).toBe('owner/repo');
+      expect(parseGitHubRepo('https://github.com/owner/repo')).toBe(
+        'owner/repo'
+      );
     });
 
     it('should parse URL with .git suffix', () => {
-      expect(parseGitHubRepo('https://github.com/owner/repo.git')).toBe('owner/repo');
+      expect(parseGitHubRepo('https://github.com/owner/repo.git')).toBe(
+        'owner/repo'
+      );
     });
 
     it('should parse URL with hyphen in owner', () => {
-      expect(parseGitHubRepo('https://github.com/my-org/repo')).toBe('my-org/repo');
+      expect(parseGitHubRepo('https://github.com/my-org/repo')).toBe(
+        'my-org/repo'
+      );
     });
 
     it('should parse URL with hyphen in repo', () => {
-      expect(parseGitHubRepo('https://github.com/owner/my-repo')).toBe('owner/my-repo');
+      expect(parseGitHubRepo('https://github.com/owner/my-repo')).toBe(
+        'owner/my-repo'
+      );
     });
 
     it('should parse URL with underscore', () => {
-      expect(parseGitHubRepo('https://github.com/my_org/my_repo')).toBe('my_org/my_repo');
+      expect(parseGitHubRepo('https://github.com/my_org/my_repo')).toBe(
+        'my_org/my_repo'
+      );
     });
 
     it('should parse URL with dot in repo name', () => {
-      expect(parseGitHubRepo('https://github.com/owner/repo.js')).toBe('owner/repo.js');
+      expect(parseGitHubRepo('https://github.com/owner/repo.js')).toBe(
+        'owner/repo.js'
+      );
     });
 
     it('should parse URL with numbers', () => {
-      expect(parseGitHubRepo('https://github.com/org123/repo456')).toBe('org123/repo456');
+      expect(parseGitHubRepo('https://github.com/org123/repo456')).toBe(
+        'org123/repo456'
+      );
     });
 
     it('should parse anthropics/skills', () => {
-      expect(parseGitHubRepo('https://github.com/anthropics/skills')).toBe('anthropics/skills');
+      expect(parseGitHubRepo('https://github.com/anthropics/skills')).toBe(
+        'anthropics/skills'
+      );
     });
 
     it('should parse mats16/claude-agent-databricks', () => {
-      expect(parseGitHubRepo('https://github.com/mats16/claude-agent-databricks')).toBe(
-        'mats16/claude-agent-databricks'
-      );
+      expect(
+        parseGitHubRepo('https://github.com/mats16/claude-agent-databricks')
+      ).toBe('mats16/claude-agent-databricks');
     });
   });
 
@@ -57,7 +73,9 @@ describe('parseGitHubRepo', () => {
     });
 
     it('should reject URL with ../ pattern', () => {
-      expect(parseGitHubRepo('https://github.com/../malicious/repo')).toBeNull();
+      expect(
+        parseGitHubRepo('https://github.com/../malicious/repo')
+      ).toBeNull();
     });
 
     it('should reject owner starting with dot', () => {
@@ -115,11 +133,15 @@ describe('parseGitHubRepo', () => {
     });
 
     it('should reject URL with query string', () => {
-      expect(parseGitHubRepo('https://github.com/owner/repo?ref=main')).toBeNull();
+      expect(
+        parseGitHubRepo('https://github.com/owner/repo?ref=main')
+      ).toBeNull();
     });
 
     it('should reject URL with fragment', () => {
-      expect(parseGitHubRepo('https://github.com/owner/repo#readme')).toBeNull();
+      expect(
+        parseGitHubRepo('https://github.com/owner/repo#readme')
+      ).toBeNull();
     });
 
     it('should reject SSH URL', () => {

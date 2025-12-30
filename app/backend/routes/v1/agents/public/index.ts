@@ -43,7 +43,11 @@ async function fetchAgentNames(
   }
 
   const branch = await fetchDefaultBranch(config.repo);
-  const entries = await fetchDirectoryContents(config.repo, config.path, branch);
+  const entries = await fetchDirectoryContents(
+    config.repo,
+    config.path,
+    branch
+  );
 
   const names = entries
     .filter((entry) => entry.type === 'file' && entry.name.endsWith('.md'))

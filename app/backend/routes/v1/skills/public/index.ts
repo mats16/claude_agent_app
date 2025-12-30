@@ -46,7 +46,11 @@ async function fetchSkillNames(
   }
 
   const branch = await fetchDefaultBranch(config.repo);
-  const entries = await fetchDirectoryContents(config.repo, config.path, branch);
+  const entries = await fetchDirectoryContents(
+    config.repo,
+    config.path,
+    branch
+  );
 
   const names = entries
     .filter((entry) => entry.type === 'dir')
@@ -106,7 +110,10 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const result = await fetchSkillNames('anthropic');
         reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
-        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
+        reply.header(
+          'Cache-Control',
+          `public, max-age=${CACHE_MAX_AGE_SECONDS}`
+        );
         return { skills: result.names };
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {
@@ -135,7 +142,10 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
         if (!skill) {
           return reply.status(404).send({ error: 'Skill not found' });
         }
-        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
+        reply.header(
+          'Cache-Control',
+          `public, max-age=${CACHE_MAX_AGE_SECONDS}`
+        );
         return skill;
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {
@@ -157,7 +167,10 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const result = await fetchSkillNames('databricks');
         reply.header('X-Cache', result.cached ? 'HIT' : 'MISS');
-        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
+        reply.header(
+          'Cache-Control',
+          `public, max-age=${CACHE_MAX_AGE_SECONDS}`
+        );
         return { skills: result.names };
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {
@@ -186,7 +199,10 @@ const publicSkillsRoutes: FastifyPluginAsync = async (fastify) => {
         if (!skill) {
           return reply.status(404).send({ error: 'Skill not found' });
         }
-        reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`);
+        reply.header(
+          'Cache-Control',
+          `public, max-age=${CACHE_MAX_AGE_SECONDS}`
+        );
         return skill;
       } catch (error) {
         if (error instanceof GitHubRateLimitError) {

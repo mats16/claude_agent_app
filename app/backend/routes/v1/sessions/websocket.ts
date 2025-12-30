@@ -177,20 +177,20 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                 throw new Error('Session not found. Cannot resume session.');
               }
 
-              // Convert to Session model to get working directory
-              const session = Session.fromSelectSession(selectSession);
-
-              const databricksWorkspacePath = session.databricksWorkspacePath ?? undefined;
-              const databricksWorkspaceAutoPush = session.databricksWorkspaceAutoPush;
-              const sessionAgentLocalPath = session.cwd();
-              // Use model from WebSocket message (frontend always sends the selected model)
-              // Fallback to 'databricks-claude-sonnet-4-5' for edge cases (should not happen with current frontend)
-              const sessionModel =
-                messageModel || 'databricks-claude-sonnet-4-5';
+              // Convert to Session model
+              let session = Session.fromSelectSession(selectSession);
 
               // Update session model in DB if different from saved model
               if (messageModel && messageModel !== session.model) {
                 await updateSession(sessionId, { model: messageModel }, userId);
+                // Re-fetch session to get updated model
+                const updatedSelectSession = await getSessionById(
+                  sessionId,
+                  userId
+                );
+                if (updatedSelectSession) {
+                  session = Session.fromSelectSession(updatedSelectSession);
+                }
               }
 
               // Get user settings for claudeConfigAutoPush
@@ -214,20 +214,15 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               await saveMessage(userMsg);
 
               // Process agent request and stream responses
-              // Use TypeID (session.id) for app operations, SDK ID (claudeCodeSessionId) for resume
+              // Pass session object - agent extracts all needed properties
               try {
                 for await (const sdkMessage of processAgentRequest(
+                  session, // Pass Session object - claudeCodeSessionId is defined, so resume mode
                   userMessageContent,
-                  sessionModel,
-                  {
-                    databricksWorkspaceAutoPush,
-                    claudeConfigAutoPush,
-                    agentLocalPath: sessionAgentLocalPath,
-                    sessionTypeId: session.id.toString(), // Pass TypeID string for env vars (GIT_BRANCH, etc.)
-                  },
-                  session.claudeCodeSessionId, // Use SDK session ID for resume
                   user,
-                  databricksWorkspacePath,
+                  {
+                    claudeConfigAutoPush,
+                  },
                   stream,
                   userPersonalAccessToken
                 )) {

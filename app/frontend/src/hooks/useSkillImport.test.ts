@@ -130,7 +130,9 @@ describe('useSkillImport', () => {
 
   it('should handle failed skill import with error logging', async () => {
     mockImportSkill.mockResolvedValue(false);
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     const { result } = renderHook(() => useSkillImport());
 
@@ -161,7 +163,9 @@ describe('useSkillImport', () => {
   it('should handle import exception with detailed logging', async () => {
     const testError = new Error('Network error');
     mockImportSkill.mockRejectedValue(testError);
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     const { result } = renderHook(() => useSkillImport());
 

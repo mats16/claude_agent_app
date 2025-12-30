@@ -3,7 +3,8 @@ import crypto from 'crypto';
 
 // Mock the config module before importing encryption
 vi.mock('../../config/index.js', () => ({
-  encryptionKey: 'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe',
+  encryptionKey:
+    'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe',
 }));
 
 // Import after mocking
@@ -378,9 +379,7 @@ describe('encryption with invalid key', () => {
     const mod = await import('../encryption.js');
     mod.initializeEncryption(); // Returns false
 
-    expect(() => mod.encrypt('test')).toThrow(
-      'Encryption not initialized'
-    );
+    expect(() => mod.encrypt('test')).toThrow('Encryption not initialized');
   });
 
   it('should throw when decrypting without initialization', async () => {

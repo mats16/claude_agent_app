@@ -1,6 +1,7 @@
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { db } from './index.js';
 import { sessions, type InsertSession, type SelectSession } from './schema.js';
+import { Session, SessionDraft } from '../models/Session.js';
 
 // Helper to execute queries with RLS user context
 async function withUserContext<T>(
@@ -22,6 +23,37 @@ export async function createSession(
   return withUserContext(userId, async () => {
     await db.insert(sessions).values(session).onConflictDoNothing();
   });
+}
+
+// Create session from SessionDraft after receiving SDK session ID
+// Converts draft to Session and persists to database
+export async function createSessionFromDraft(
+  draft: SessionDraft,
+  claudeCodeSessionId: string,
+  userId: string
+): Promise<Session> {
+  // Convert draft to session with SDK session ID
+  const session = Session.fromSessionDraft(draft, claudeCodeSessionId);
+
+  // Persist to database
+  await withUserContext(userId, async () => {
+    await db
+      .insert(sessions)
+      .values({
+        id: session.toString(),
+        claudeCodeSessionId: session.claudeCodeSessionId,
+        userId: session.userId,
+        model: session.model,
+        title: session.title,
+        summary: session.summary,
+        databricksWorkspacePath: session.databricksWorkspacePath,
+        databricksWorkspaceAutoPush: session.databricksWorkspaceAutoPush,
+        isArchived: session.isArchived,
+      })
+      .onConflictDoNothing();
+  });
+
+  return session;
 }
 
 // Get session by ID (with RLS)

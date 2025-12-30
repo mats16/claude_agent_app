@@ -1,6 +1,10 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from './index.js';
-import { settings, type SelectSettings, type InsertSettings } from './schema.js';
+import {
+  settings,
+  type SelectSettings,
+  type InsertSettings,
+} from './schema.js';
 
 // Helper to execute queries with RLS user context
 async function withUserContext<T>(
@@ -17,7 +21,9 @@ async function withUserContext<T>(
 }
 
 // Get settings by user ID (with RLS)
-export async function getSettings(userId: string): Promise<SelectSettings | null> {
+export async function getSettings(
+  userId: string
+): Promise<SelectSettings | null> {
   return withUserContext(userId, async () => {
     const result = await db
       .select()

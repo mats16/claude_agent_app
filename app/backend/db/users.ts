@@ -9,7 +9,10 @@ import {
 } from './schema.js';
 
 // Create or update a user (upsert)
-export async function upsertUser(id: string, email: string): Promise<SelectUser> {
+export async function upsertUser(
+  id: string,
+  email: string
+): Promise<SelectUser> {
   const existing = await db
     .select()
     .from(users)
@@ -60,7 +63,9 @@ export async function getUserById(id: string): Promise<SelectUser | null> {
 }
 
 // Get user by email
-export async function getUserByEmail(email: string): Promise<SelectUser | null> {
+export async function getUserByEmail(
+  email: string
+): Promise<SelectUser | null> {
   const result = await db
     .select()
     .from(users)

@@ -9,6 +9,7 @@ import path from 'path';
 import type { MessageContent } from '@app/shared';
 import { databricks, warehouseIds, agentEnv } from '../config/index.js';
 import type { RequestUser } from '../models/RequestUser.js';
+import type { SessionBase } from '../models/Session.js';
 
 export type { SDKMessage };
 
@@ -74,12 +75,9 @@ export async function getAccessToken(): Promise<string> {
   return spToken;
 }
 
-// Options for processAgentRequest
+// Options for processAgentRequest (minimal, user-level options only)
 export interface ProcessAgentRequestOptions {
-  databricksWorkspaceAutoPush?: boolean; // workspace pushを実行
   claudeConfigAutoPush?: boolean; // claude config pull/push
-  agentLocalPath?: string; // agent working directory path (created before agent starts)
-  sessionTypeId?: string; // TypeID for session (used in env vars like GIT_BRANCH)
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
 }
 
@@ -239,33 +237,29 @@ function buildPrompt(
 // Process agent request using Claude Agent SDK
 // Returns SDKMessage directly without transformation
 export async function* processAgentRequest(
+  session: SessionBase,
   message: MessageContent[],
-  model: string,
-  options: ProcessAgentRequestOptions,
-  sessionId?: string,
-  user?: RequestUser,
-  databricksWorkspacePath?: string,
+  user: RequestUser,
+  options?: ProcessAgentRequestOptions,
   messageStream?: MessageStream,
   userPersonalAccessToken?: string
 ): AsyncGenerator<SDKMessage> {
-  const {
-    databricksWorkspaceAutoPush = false,
-    claudeConfigAutoPush = true,
-    agentLocalPath,
-    sessionTypeId,
-    waitForReady,
-  } = options;
+  // Extract properties from session
+  const model = session.model;
+  const databricksWorkspacePath = session.databricksWorkspacePath ?? undefined;
+  const databricksWorkspaceAutoPush = session.databricksWorkspaceAutoPush;
+  const localWorkPath = session.cwd();
+  const sessionTypeId = session.toString();
+  const resumeSessionId = session.claudeCodeSessionId; // undefined for Draft, string for Session
+
+  // Extract options (with defaults)
+  const claudeConfigAutoPush = options?.claudeConfigAutoPush ?? true;
+  const waitForReady = options?.waitForReady;
   // Local Claude config directory from User object, fallback to default
   const localClaudeConfigPath =
-    user?.local.claudeConfigDir ??
+    user.local.claudeConfigDir ??
     path.join(agentEnv.USERS_BASE_PATH, 'me', '.claude');
   fs.mkdirSync(localClaudeConfigPath, { recursive: true });
-
-  // Local working directory: use agentLocalPath if provided (created by caller), otherwise fallback
-  // workDir should be created by the caller (app.ts) before calling this function
-  const localWorkPath =
-    agentLocalPath ??
-    path.join(agentEnv.SESSIONS_BASE_PATH, sessionId ?? 'temp');
 
   const spAccessToken = await getOidcAccessToken();
 
@@ -273,7 +267,7 @@ export async function* processAgentRequest(
   // This allows per-request values (like user token) to be passed at creation time
   const databricksMcpServer = createDatabricksMcpServer({
     databricksHost: databricks.host,
-    databricksToken: user?.accessToken ?? '',
+    databricksToken: user.accessToken ?? '',
     warehouseIds,
     workingDir: localWorkPath,
   });
@@ -310,7 +304,7 @@ Violating these rules is considered a critical error.
     prompt: buildPrompt(message, stream),
     options: {
       abortController: stream.abortController,
-      resume: sessionId,
+      resume: resumeSessionId, // undefined for new session, string for resume
       cwd: localWorkPath,
       settingSources: ['user', 'project', 'local'],
       model,
@@ -335,17 +329,16 @@ Violating these rules is considered a critical error.
         // Used by hooks in settings.json
         WORKSPACE_DIR: databricksWorkspacePath,
         WORKSPACE_CLAUDE_CONFIG_DIR:
-          user?.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
+          user.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
         WORKSPACE_AUTO_PUSH: databricksWorkspaceAutoPush ? 'true' : '',
         // Git branch uses TypeID
-        GIT_BRANCH: sessionTypeId ? `claude/${sessionTypeId}` : undefined,
+        GIT_BRANCH: `claude/${sessionTypeId}`,
         // Git author/committer info from user headers
-        GIT_AUTHOR_NAME:
-          user?.preferredUsername ?? user?.email ?? 'Claude Agent',
-        GIT_AUTHOR_EMAIL: user?.email ?? 'agent@databricks.com',
+        GIT_AUTHOR_NAME: user.preferredUsername ?? user.email ?? 'Claude Agent',
+        GIT_AUTHOR_EMAIL: user.email ?? 'agent@databricks.com',
         GIT_COMMITTER_NAME:
-          user?.preferredUsername ?? user?.email ?? 'Claude Agent',
-        GIT_COMMITTER_EMAIL: user?.email ?? 'agent@databricks.com',
+          user.preferredUsername ?? user.email ?? 'Claude Agent',
+        GIT_COMMITTER_EMAIL: user.email ?? 'agent@databricks.com',
       },
       maxTurns: 100,
       tools: {

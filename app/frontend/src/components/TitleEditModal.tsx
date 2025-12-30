@@ -65,11 +65,7 @@ export default function TitleEditModal({
     setIsSaving(true);
     try {
       const databricksWorkspaceAutoPush = syncMode === 'auto_push';
-      await onSave(
-        title.trim(),
-        databricksWorkspaceAutoPush,
-        workspacePath
-      );
+      await onSave(title.trim(), databricksWorkspaceAutoPush, workspacePath);
       onClose();
     } finally {
       setIsSaving(false);

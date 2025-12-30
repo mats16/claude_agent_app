@@ -18,7 +18,9 @@ export class GitHubRateLimitError extends Error {
 
   constructor(resetTimestamp: number) {
     const resetDate = new Date(resetTimestamp * 1000);
-    super(`GitHub API rate limit exceeded. Resets at ${resetDate.toISOString()}`);
+    super(
+      `GitHub API rate limit exceeded. Resets at ${resetDate.toISOString()}`
+    );
     this.name = 'GitHubRateLimitError';
     this.resetAt = resetDate;
   }
@@ -52,7 +54,8 @@ function isValidGitHubNameSegment(name: string): boolean {
   if (name.startsWith('.') || name.startsWith('-')) return false;
 
   // Cannot contain path traversal patterns
-  if (name.includes('..') || name.includes('/') || name.includes('\\')) return false;
+  if (name.includes('..') || name.includes('/') || name.includes('\\'))
+    return false;
 
   // Only allow alphanumeric, hyphen, underscore, and dot
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name)) return false;
@@ -156,7 +159,9 @@ function checkRateLimit(response: Response): void {
     if (remaining === '0') {
       const resetHeader = response.headers.get('X-RateLimit-Reset');
       // Fallback to 5 minutes if reset header is missing
-      const resetTimestamp = resetHeader ? parseInt(resetHeader, 10) : Math.floor(Date.now() / 1000) + 300;
+      const resetTimestamp = resetHeader
+        ? parseInt(resetHeader, 10)
+        : Math.floor(Date.now() / 1000) + 300;
       throw new GitHubRateLimitError(resetTimestamp);
     }
   }
@@ -180,7 +185,9 @@ export async function fetchDefaultBranch(repo: string): Promise<string> {
   checkRateLimit(response);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch repository info for ${repo}: ${response.status}`);
+    throw new Error(
+      `Failed to fetch repository info for ${repo}: ${response.status}`
+    );
   }
 
   const data = (await response.json()) as { default_branch: string };
@@ -208,7 +215,11 @@ export async function fetchDirectoryContents(
     throw new Error(`Failed to fetch directory contents: ${response.status}`);
   }
 
-  return (await response.json()) as Array<{ name: string; type: 'dir' | 'file'; path: string }>;
+  return (await response.json()) as Array<{
+    name: string;
+    type: 'dir' | 'file';
+    path: string;
+  }>;
 }
 
 /**
@@ -237,9 +248,10 @@ export async function fetchRawContent(
  * Parse YAML frontmatter from markdown content using js-yaml
  * Returns parsed frontmatter object and body content
  */
-export function parseFrontmatter(
-  content: string
-): { frontmatter: Record<string, unknown>; body: string } {
+export function parseFrontmatter(content: string): {
+  frontmatter: Record<string, unknown>;
+  body: string;
+} {
   const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
 
   if (!frontmatterMatch) {
@@ -273,8 +285,12 @@ export function parseSkillFrontmatter(content: string): {
   const { frontmatter } = parseFrontmatter(content);
   return {
     name: typeof frontmatter.name === 'string' ? frontmatter.name : '',
-    description: typeof frontmatter.description === 'string' ? frontmatter.description : '',
-    version: typeof frontmatter.version === 'string' ? frontmatter.version : '1.0.0',
+    description:
+      typeof frontmatter.description === 'string'
+        ? frontmatter.description
+        : '',
+    version:
+      typeof frontmatter.version === 'string' ? frontmatter.version : '1.0.0',
   };
 }
 
@@ -295,14 +311,21 @@ export function parseAgentFrontmatter(content: string): {
     if (Array.isArray(frontmatter.tools)) {
       tools = frontmatter.tools.map((t) => String(t));
     } else if (typeof frontmatter.tools === 'string') {
-      tools = frontmatter.tools.split(',').map((t) => t.trim()).filter(Boolean);
+      tools = frontmatter.tools
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
     }
   }
 
   return {
     name: typeof frontmatter.name === 'string' ? frontmatter.name : '',
-    description: typeof frontmatter.description === 'string' ? frontmatter.description : '',
-    model: typeof frontmatter.model === 'string' ? frontmatter.model : undefined,
+    description:
+      typeof frontmatter.description === 'string'
+        ? frontmatter.description
+        : '',
+    model:
+      typeof frontmatter.model === 'string' ? frontmatter.model : undefined,
     tools,
   };
 }
@@ -315,7 +338,10 @@ export function formatRateLimitError(error: GitHubRateLimitError): {
   resetAt: string;
   retryAfterSeconds: number;
 } {
-  const retryAfterSeconds = Math.max(0, Math.ceil((error.resetAt.getTime() - Date.now()) / 1000));
+  const retryAfterSeconds = Math.max(
+    0,
+    Math.ceil((error.resetAt.getTime() - Date.now()) / 1000)
+  );
   return {
     error: 'GitHub API rate limit exceeded',
     resetAt: error.resetAt.toISOString(),

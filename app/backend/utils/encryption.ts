@@ -143,11 +143,9 @@ export function encrypt(plaintext: string): string {
   const authTag = cipher.getAuthTag();
 
   // Combine IV, auth tag, and ciphertext with delimiter
-  return [
-    iv.toString('hex'),
-    authTag.toString('hex'),
-    encrypted,
-  ].join(CIPHERTEXT_DELIMITER);
+  return [iv.toString('hex'), authTag.toString('hex'), encrypted].join(
+    CIPHERTEXT_DELIMITER
+  );
 }
 
 /**

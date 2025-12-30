@@ -128,7 +128,7 @@ export async function getFileHandler(
   }
 
   // Convert to Session model to get working directory
-  const session = new Session(selectSession);
+  const session = Session.fromSelectSession(selectSession);
 
   // Validate file path
   const validation = validateFilePath(filePath, session.cwd());
@@ -200,7 +200,7 @@ export async function uploadFileHandler(
   }
 
   // Convert to Session model to get working directory
-  const session = new Session(selectSession);
+  const session = Session.fromSelectSession(selectSession);
 
   // Validate file path
   const validation = validateFilePath(filePath, session.cwd());
@@ -279,7 +279,7 @@ export async function deleteFileHandler(
   }
 
   // Convert to Session model to get working directory
-  const session = new Session(selectSession);
+  const session = Session.fromSelectSession(selectSession);
 
   // Validate file path
   const validation = validateFilePath(filePath, session.cwd());
@@ -337,7 +337,7 @@ export async function listFilesHandler(
   }
 
   // Convert to Session model to get working directory
-  const session = new Session(selectSession);
+  const session = Session.fromSelectSession(selectSession);
 
   // Check if directory exists
   try {

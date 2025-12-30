@@ -178,7 +178,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               }
 
               // Convert to Session model to get working directory
-              const session = new Session(selectSession);
+              const session = Session.fromSelectSession(selectSession);
 
               const databricksWorkspacePath = session.databricksWorkspacePath ?? undefined;
               const databricksWorkspaceAutoPush = session.databricksWorkspaceAutoPush;
@@ -223,7 +223,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                     databricksWorkspaceAutoPush,
                     claudeConfigAutoPush,
                     agentLocalPath: sessionAgentLocalPath,
-                    sessionTypeId: session.id, // Pass TypeID for env vars (GIT_BRANCH, etc.)
+                    sessionTypeId: session.id.toString(), // Pass TypeID string for env vars (GIT_BRANCH, etc.)
                   },
                   session.claudeCodeSessionId, // Use SDK session ID for resume
                   user,

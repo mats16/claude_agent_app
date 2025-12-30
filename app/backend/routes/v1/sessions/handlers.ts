@@ -23,7 +23,7 @@ import { enqueueDelete } from '../../../services/workspaceQueueService.js';
 import { getUserPersonalAccessToken } from '../../../services/userService.js';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
-import { SessionDraft, Session } from '../../../models/Session.js';
+import { SessionId, Session } from '../../../models/Session.js';
 import {
   sessionMessageStreams,
   notifySessionCreated,
@@ -116,16 +116,16 @@ export async function createSessionHandler(
       : userMessage;
 
   // Generate TypeID for new session
-  const draft = new SessionDraft();
+  const newSessionId = SessionId.generate();
 
   // Create working directory and get path
-  const localWorkPath = draft.createWorkingDirectory();
+  const localWorkPath = newSessionId.createWorkingDirectory();
   console.log(
-    `[New Session] Created workDir with TypeID: ${draft.id}, path: ${localWorkPath}`
+    `[New Session] Created workDir with TypeID: ${newSessionId.toString()}, path: ${localWorkPath}`
   );
 
-  // TypeID for API responses and state management
-  const appSessionId = draft.id;
+  // TypeID string for DB storage and API responses
+  const appSessionId = newSessionId.toString();
 
   // Create settings.json with workspace sync hooks for all sessions
   const claudeSettings = new ClaudeSettings({
@@ -151,7 +151,7 @@ export async function createSessionHandler(
         databricksWorkspaceAutoPush,
         claudeConfigAutoPush,
         agentLocalPath: localWorkPath,
-        sessionTypeId: draft.id, // Pass TypeID for env vars
+        sessionTypeId: newSessionId.toString(), // Pass TypeID string for env vars
       },
       undefined, // No resume on creation
       user,
@@ -307,9 +307,26 @@ export async function listSessionsHandler(
 
   const userId = context.user.sub;
   const filter = request.query.filter || 'active';
-  const sessionList = await getSessionsByUserId(userId, filter);
+  const selectSessions = await getSessionsByUserId(userId, filter);
 
-  return { sessions: sessionList };
+  // Transform to API response format with Session model
+  const sessions = selectSessions.map((selectSession) => {
+    // Wrap in Session model to access TypeID
+    const session = Session.fromSelectSession(selectSession);
+
+    return {
+      id: session.id.toString(),
+      title: session.title,
+      model: session.model,
+      workspacePath: session.databricksWorkspacePath,
+      workspaceAutoPush: session.databricksWorkspaceAutoPush,
+      appAutoDeploy: false, // TODO: Implement app auto-deploy feature
+      updatedAt: session.updatedAt.toISOString(),
+      isArchived: session.isArchived,
+    };
+  });
+
+  return { sessions };
 }
 
 // Update session handler
@@ -368,8 +385,8 @@ export async function updateSessionHandler(
   if (databricksWorkspaceAutoPush !== undefined) {
     // Only apply databricksWorkspaceAutoPush if databricksWorkspacePath is set
     // (either from current update or existing session)
-    const session = await getSessionById(sessionId, userId);
-    const finalDatabricksWorkspacePath = updates.databricksWorkspacePath ?? session?.databricksWorkspacePath;
+    const selectSession = await getSessionById(sessionId, userId);
+    const finalDatabricksWorkspacePath = updates.databricksWorkspacePath ?? selectSession?.databricksWorkspacePath;
     if (finalDatabricksWorkspacePath && finalDatabricksWorkspacePath.trim()) {
       updates.databricksWorkspaceAutoPush = databricksWorkspaceAutoPush;
     } else {
@@ -404,7 +421,7 @@ export async function archiveSessionHandler(
   }
 
   // Convert to Session model to get agentLocalPath
-  const session = new Session(selectSession);
+  const session = Session.fromSelectSession(selectSession);
 
   // Archive the session in database
   await archiveSession(sessionId, userId);
@@ -436,8 +453,8 @@ export async function getSessionEventsHandler(
   const userId = context.user.sub;
 
   // Check if session exists and belongs to user
-  const session = await getSessionById(sessionId, userId);
-  if (!session) {
+  const selectSession = await getSessionById(sessionId, userId);
+  if (!selectSession) {
     return reply.status(404).send({ error: 'Session not found' });
   }
 
@@ -504,7 +521,7 @@ export async function getAppLiveStatusHandler(
   }
 
   // Create Session model instance to access helper methods
-  const session = new (await import('../../../models/Session.js')).Session(sessionRecord);
+  const session = (await import('../../../models/Session.js')).Session.fromSelectSession(sessionRecord);
   const appName = session.getAppName();
 
   // Get access token (User PAT first, then fallback to Service Principal)
@@ -599,7 +616,7 @@ export async function getAppHandler(
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  const session = new (await import('../../../models/Session.js')).Session(sessionRecord);
+  const session = (await import('../../../models/Session.js')).Session.fromSelectSession(sessionRecord);
   const appName = session.getAppName();
 
   let accessToken: string;
@@ -652,7 +669,7 @@ export async function listAppDeploymentsHandler(
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  const session = new (await import('../../../models/Session.js')).Session(sessionRecord);
+  const session = (await import('../../../models/Session.js')).Session.fromSelectSession(sessionRecord);
   const appName = session.getAppName();
 
   let accessToken: string;
@@ -705,7 +722,7 @@ export async function createAppDeploymentHandler(
     return reply.status(404).send({ error: 'Session not found' });
   }
 
-  const session = new (await import('../../../models/Session.js')).Session(sessionRecord);
+  const session = (await import('../../../models/Session.js')).Session.fromSelectSession(sessionRecord);
   const appName = session.getAppName();
 
   let accessToken: string;
@@ -767,7 +784,7 @@ export async function getSessionHandler(
   }
 
   // Convert to Session model to get agentLocalPath
-  const session = new Session(selectSession);
+  const session = Session.fromSelectSession(selectSession);
 
   // Get workspace_url if databricksWorkspacePath is set
   let workspaceUrl: string | null = null;
@@ -783,7 +800,7 @@ export async function getSessionHandler(
 
   // Build response in snake_case format
   const response: Record<string, unknown> = {
-    id: session.id,
+    id: session.id.toString(),
     title: session.title,
     summary: session.summary,
     workspace_path: session.databricksWorkspacePath,

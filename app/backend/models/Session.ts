@@ -5,22 +5,41 @@ import type { SelectSession } from '../db/schema.js';
 import { paths } from '../config/index.js';
 
 /**
- * SessionDraft - Simple ID generator for new sessions
- * Used during creation to generate TypeID before saving to DB
- * Provides ID-based helper methods
+ * SessionId - Wrapper around TypeID<'session'> with domain-specific utilities
+ * Uses composition pattern since TypeID is an external library
+ * Factory methods prevent direct instantiation
  */
-export class SessionDraft {
-  private _typeId: TypeID<'session'>; // Internal TypeID instance
+export class SessionId {
+  private readonly _typeId: TypeID<'session'>;
 
-  constructor() {
-    this._typeId = typeid('session'); // Generate TypeID
+  // Private constructor - use factory methods
+  private constructor(typeId: TypeID<'session'>) {
+    this._typeId = typeId;
   }
 
   /**
-   * Get the session ID as string (format: session_XXXXXXXXXXXXXXXXXXXXXXXXXX)
+   * Factory: Generate new session ID
    */
-  get id(): string {
+  static generate(): SessionId {
+    return new SessionId(typeid('session'));
+  }
+
+  /**
+   * Factory: Restore from DB string
+   */
+  static fromString(id: string): SessionId {
+    return new SessionId(TypeID.fromString(id) as TypeID<'session'>);
+  }
+
+  /**
+   * TypeID proxy methods
+   */
+  toString(): string {
     return this._typeId.toString();
+  }
+
+  getSuffix(): string {
+    return this._typeId.getSuffix();
   }
 
   /**
@@ -30,7 +49,7 @@ export class SessionDraft {
    * Example: /home/app/session/01h455vb4pex5vsknk084sn02q
    */
   cwd(): string {
-    return path.join(paths.sessionsBase, this._typeId.getSuffix());
+    return path.join(paths.sessionsBase, this.getSuffix());
   }
 
   /**
@@ -39,14 +58,14 @@ export class SessionDraft {
    * Example: session_01h455vb4pex5vsknk084sn02q → app-01h455vb4pex5vsknk084sn02q (30 chars)
    */
   getAppName(): string {
-    return `app-${this._typeId.getSuffix()}`;
+    return `app-${this.getSuffix()}`;
   }
 
   /**
    * Get git branch name
    */
   getBranchName(): string {
-    return `claude/${this.id}`;
+    return `claude/${this.toString()}`;
   }
 
   /**
@@ -73,7 +92,7 @@ export class SessionDraft {
     } catch (error) {
       const err = error as Error;
       throw new Error(
-        `Failed to create working directory for session ${this.id}: ${err.message}`
+        `Failed to create working directory for session ${this.toString()}: ${err.message}`
       );
     }
   }
@@ -81,9 +100,10 @@ export class SessionDraft {
 
 /**
  * Session - Represents a persisted session
- * Extends SessionDraft to inherit ID-based helper methods
+ * Uses composition with SessionId for ID-based operations
  */
-export class Session extends SessionDraft {
+export class Session {
+  readonly id: SessionId; // Composition, not inheritance
   readonly claudeCodeSessionId: string; // SDK session ID
   readonly userId: string;
   readonly model: string;
@@ -95,23 +115,68 @@ export class Session extends SessionDraft {
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
-  constructor(selectSession: SelectSession) {
-    super();
+  // Private constructor - use factory methods
+  private constructor(data: {
+    id: SessionId;
+    claudeCodeSessionId: string;
+    userId: string;
+    model: string;
+    title: string | null;
+    summary: string | null;
+    databricksWorkspacePath: string | null;
+    databricksWorkspaceAutoPush: boolean;
+    isArchived: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    this.id = data.id;
+    this.claudeCodeSessionId = data.claudeCodeSessionId;
+    this.userId = data.userId;
+    this.model = data.model;
+    this.title = data.title;
+    this.summary = data.summary;
+    this.databricksWorkspacePath = data.databricksWorkspacePath;
+    this.databricksWorkspaceAutoPush = data.databricksWorkspaceAutoPush;
+    this.isArchived = data.isArchived;
+    this.createdAt = data.createdAt;
+    this.updatedAt = data.updatedAt;
+  }
 
-    // Override internal TypeID from DB string ID
-    ((this as unknown) as { _typeId: TypeID<'session'> })._typeId = TypeID.fromString(
-      selectSession.id
-    ) as TypeID<'session'>;
+  /**
+   * Factory: Create Session from DB query result
+   */
+  static fromSelectSession(selectSession: SelectSession): Session {
+    return new Session({
+      id: SessionId.fromString(selectSession.id),
+      claudeCodeSessionId: selectSession.claudeCodeSessionId,
+      userId: selectSession.userId,
+      model: selectSession.model,
+      title: selectSession.title,
+      summary: selectSession.summary,
+      databricksWorkspacePath: selectSession.databricksWorkspacePath,
+      databricksWorkspaceAutoPush: selectSession.databricksWorkspaceAutoPush,
+      isArchived: selectSession.isArchived,
+      createdAt: selectSession.createdAt,
+      updatedAt: selectSession.updatedAt,
+    });
+  }
 
-    this.claudeCodeSessionId = selectSession.claudeCodeSessionId;
-    this.userId = selectSession.userId;
-    this.model = selectSession.model;
-    this.title = selectSession.title;
-    this.summary = selectSession.summary;
-    this.databricksWorkspacePath = selectSession.databricksWorkspacePath;
-    this.databricksWorkspaceAutoPush = selectSession.databricksWorkspaceAutoPush;
-    this.isArchived = selectSession.isArchived;
-    this.createdAt = selectSession.createdAt;
-    this.updatedAt = selectSession.updatedAt;
+  /**
+   * Delegate path methods to SessionId
+   */
+  cwd(): string {
+    return this.id.cwd();
+  }
+
+  getAppName(): string {
+    return this.id.getAppName();
+  }
+
+  getBranchName(): string {
+    return this.id.getBranchName();
+  }
+
+  createWorkingDirectory(): string {
+    return this.id.createWorkingDirectory();
   }
 }

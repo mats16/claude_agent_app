@@ -33,7 +33,7 @@ import {
   markQueueCompleted,
   createUserMessage,
 } from '../../../services/session-state.service.js';
-import { generateTitleAsync } from '../../../services/title.service.js';
+import { generateTitleAsync } from '../../../services/session-title.service.js';
 
 // Types
 interface CreateSessionBody {

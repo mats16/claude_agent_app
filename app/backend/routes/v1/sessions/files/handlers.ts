@@ -131,7 +131,7 @@ export async function getFileHandler(
   const session = Session.fromSelectSession(selectSession);
 
   // Validate file path
-  const validation = validateFilePath(filePath, session.cwd());
+  const validation = validateFilePath(filePath, session.cwd);
   if (!validation.valid) {
     return reply.status(400).send({ error: validation.error });
   }
@@ -203,7 +203,7 @@ export async function uploadFileHandler(
   const session = Session.fromSelectSession(selectSession);
 
   // Validate file path
-  const validation = validateFilePath(filePath, session.cwd());
+  const validation = validateFilePath(filePath, session.cwd);
   if (!validation.valid) {
     return reply.status(400).send({ error: validation.error });
   }
@@ -282,7 +282,7 @@ export async function deleteFileHandler(
   const session = Session.fromSelectSession(selectSession);
 
   // Validate file path
-  const validation = validateFilePath(filePath, session.cwd());
+  const validation = validateFilePath(filePath, session.cwd);
   if (!validation.valid) {
     return reply.status(400).send({ error: validation.error });
   }
@@ -341,20 +341,20 @@ export async function listFilesHandler(
 
   // Check if directory exists
   try {
-    await fs.access(session.cwd());
+    await fs.access(session.cwd);
   } catch {
     return { files: [] };
   }
 
   // Read directory contents
-  const entries = await fs.readdir(session.cwd(), {
+  const entries = await fs.readdir(session.cwd, {
     withFileTypes: true,
   });
   const files: FileAttachment[] = [];
 
   for (const entry of entries) {
     if (entry.isFile()) {
-      const entryPath = path.join(session.cwd(), entry.name);
+      const entryPath = path.join(session.cwd, entry.name);
       const stat = await fs.stat(entryPath);
 
       // Detect mime type based on extension

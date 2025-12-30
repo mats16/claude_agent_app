@@ -84,9 +84,9 @@ describe('SessionDraft', () => {
         userId: 'user123',
         model: 'claude-sonnet-4-5',
       });
-      const cwdPath = draft.cwd();
+      const cwdPath = draft.cwd;
       expect(cwdPath).toContain(testSessionsBase);
-      expect(cwdPath).toContain(draft.getSuffix());
+      expect(cwdPath).toContain(draft.getIdSuffix());
     });
 
     it('should compute app name (30 chars max)', () => {
@@ -94,7 +94,7 @@ describe('SessionDraft', () => {
         userId: 'user123',
         model: 'claude-sonnet-4-5',
       });
-      const appName = draft.getAppName();
+      const appName = draft.appName;
       expect(appName).toMatch(/^app-[a-z0-9]{26}$/);
       expect(appName.length).toBe(30);
     });
@@ -104,7 +104,7 @@ describe('SessionDraft', () => {
         userId: 'user123',
         model: 'claude-sonnet-4-5',
       });
-      const branchName = draft.getBranchName();
+      const branchName = draft.branchName;
       expect(branchName).toMatch(/^claude\/session_[a-z0-9]{26}$/);
     });
   });
@@ -152,7 +152,7 @@ describe('SessionDraft', () => {
       });
       const workDir = draft.createWorkingDirectory();
 
-      const suffix = draft.getSuffix();
+      const suffix = draft.getIdSuffix();
       expect(workDir).toBe(path.join(testSessionsBase, suffix));
     });
   });
@@ -206,8 +206,8 @@ describe('Session', () => {
       expect(session.updatedAt).toEqual(dbSession.updatedAt);
 
       // cwd() should be computed from session ID suffix
-      const suffix = session.getSuffix();
-      expect(session.cwd()).toBe(path.join(testSessionsBase, suffix));
+      const suffix = session.getIdSuffix();
+      expect(session.cwd).toBe(path.join(testSessionsBase, suffix));
     });
 
     it('should handle null values correctly', () => {
@@ -268,7 +268,7 @@ describe('Session', () => {
       // TypeID should be preserved
       expect(session.id).toBe(draft.id);
       expect(session.toString()).toBe(draft.toString());
-      expect(session.getSuffix()).toBe(draft.getSuffix());
+      expect(session.getIdSuffix()).toBe(draft.getIdSuffix());
 
       // SDK session ID should be set
       expect(session.claudeCodeSessionId).toBe('sdk-session-456');
@@ -297,10 +297,10 @@ describe('Session', () => {
         model: 'claude-sonnet-4-5',
       });
 
-      const draftCwd = draft.cwd();
+      const draftCwd = draft.cwd;
       const session = Session.fromSessionDraft(draft, 'sdk-123');
 
-      expect(session.cwd()).toBe(draftCwd);
+      expect(session.cwd).toBe(draftCwd);
     });
   });
 
@@ -322,11 +322,11 @@ describe('Session', () => {
 
       const session = Session.fromSelectSession(dbSession);
 
-      expect(session.getAppName()).toBe('app-01h455vb4pex5vsknk084sn02q');
-      expect(session.getBranchName()).toBe(
+      expect(session.appName).toBe('app-01h455vb4pex5vsknk084sn02q');
+      expect(session.branchName).toBe(
         'claude/session_01h455vb4pex5vsknk084sn02q'
       );
-      expect(session.cwd()).toBe(
+      expect(session.cwd).toBe(
         path.join(testSessionsBase, '01h455vb4pex5vsknk084sn02q')
       );
     });

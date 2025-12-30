@@ -244,14 +244,6 @@ export async function* processAgentRequest(
   messageStream?: MessageStream,
   userPersonalAccessToken?: string
 ): AsyncGenerator<SDKMessage> {
-  // Extract properties from session
-  const model = session.model;
-  const databricksWorkspacePath = session.databricksWorkspacePath ?? undefined;
-  const databricksWorkspaceAutoPush = session.databricksWorkspaceAutoPush;
-  const localWorkPath = session.cwd();
-  const sessionTypeId = session.toString();
-  const resumeSessionId = session.claudeCodeSessionId; // undefined for Draft, string for Session
-
   // Extract options (with defaults)
   const claudeConfigAutoPush = options?.claudeConfigAutoPush ?? true;
   const waitForReady = options?.waitForReady;
@@ -269,7 +261,7 @@ export async function* processAgentRequest(
     databricksHost: databricks.host,
     databricksToken: user.accessToken ?? '',
     warehouseIds,
-    workingDir: localWorkPath,
+    workingDir: session.cwd,
   });
 
   const additionalSystemPrompt = `
@@ -283,7 +275,7 @@ If the words Catalog, Schema, or Table appear, treat them as elements of the Uni
 
 You are allowed to read and modify files ONLY under:
 
-- ${localWorkPath}/**
+- ${session.cwd}/**
 
 ## Forbidden actions
 
@@ -304,16 +296,16 @@ Violating these rules is considered a critical error.
     prompt: buildPrompt(message, stream),
     options: {
       abortController: stream.abortController,
-      resume: resumeSessionId, // undefined for new session, string for resume
-      cwd: localWorkPath,
+      resume: session.claudeCodeSessionId, // undefined for new session (Draft), string for resume
+      cwd: session.cwd,
       settingSources: ['user', 'project', 'local'],
-      model,
+      model: session.model,
       env: {
         ...agentEnv,
         CLAUDE_CONFIG_DIR: localClaudeConfigPath,
-        CLAUDE_CONFIG_AUTO_PUSH: claudeConfigAutoPush ? 'true' : '',
-        // Register app-managed session ID with SDK
-        CLAUDE_CODE_REMOTE_SESSION_ID: sessionTypeId,
+        CLAUDE_CONFIG_AUTO_PUSH: claudeConfigAutoPush ? 'true' : undefined,
+        CLAUDE_CODE_SESSION_ID: session.claudeCodeSessionId,
+        CLAUDE_CODE_REMOTE_SESSION_ID: session.id, // e.g. session_01h455vb4pex5vsknk084sn02q
         // Use PAT if available, otherwise fall back to Service Principal token
         ANTHROPIC_AUTH_TOKEN: userPersonalAccessToken ?? spAccessToken,
         // Pass user's PAT as DATABRICKS_TOKEN if available (for Databricks CLI commands)
@@ -327,12 +319,12 @@ Violating these rules is considered a critical error.
           : databricks.clientSecret,
         DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
         // Used by hooks in settings.json
-        WORKSPACE_DIR: databricksWorkspacePath,
+        WORKSPACE_DIR: session.databricksWorkspacePath ?? undefined,
         WORKSPACE_CLAUDE_CONFIG_DIR:
           user.remote.claudeConfigDir ?? '/Workspace/Users/me/.claude',
-        WORKSPACE_AUTO_PUSH: databricksWorkspaceAutoPush ? 'true' : '',
+        WORKSPACE_AUTO_PUSH: session.databricksWorkspaceAutoPush ? 'true' : undefined,
         // Git branch uses TypeID
-        GIT_BRANCH: `claude/${sessionTypeId}`,
+        GIT_BRANCH: session.branchName,
         // Git author/committer info from user headers
         GIT_AUTHOR_NAME: user.preferredUsername ?? user.email ?? 'Claude Agent',
         GIT_AUTHOR_EMAIL: user.email ?? 'agent@databricks.com',

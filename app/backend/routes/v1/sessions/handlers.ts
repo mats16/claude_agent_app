@@ -419,10 +419,10 @@ export async function archiveSessionHandler(
   await archiveSession(sessionId, userId);
 
   // Delete working directory in background
-  console.log(`[Archive] Enqueueing deletion of: ${session.cwd()}`);
+  console.log(`[Archive] Enqueueing deletion of: ${session.cwd}`);
   enqueueDelete({
     userId,
-    localPath: session.cwd(),
+    localPath: session.cwd,
   });
 
   return { success: true };
@@ -516,7 +516,7 @@ export async function getAppLiveStatusHandler(
   const session = (
     await import('../../../models/Session.js')
   ).Session.fromSelectSession(sessionRecord);
-  const appName = session.getAppName();
+  const appName = session.appName;
 
   // Get access token (User PAT first, then fallback to Service Principal)
   let accessToken: string;
@@ -613,7 +613,7 @@ export async function getAppHandler(
   const session = (
     await import('../../../models/Session.js')
   ).Session.fromSelectSession(sessionRecord);
-  const appName = session.getAppName();
+  const appName = session.appName;
 
   let accessToken: string;
   try {
@@ -668,7 +668,7 @@ export async function listAppDeploymentsHandler(
   const session = (
     await import('../../../models/Session.js')
   ).Session.fromSelectSession(sessionRecord);
-  const appName = session.getAppName();
+  const appName = session.appName;
 
   let accessToken: string;
   try {
@@ -723,7 +723,7 @@ export async function createAppDeploymentHandler(
   const session = (
     await import('../../../models/Session.js')
   ).Session.fromSelectSession(sessionRecord);
-  const appName = session.getAppName();
+  const appName = session.appName;
 
   let accessToken: string;
   try {
@@ -808,7 +808,7 @@ export async function getSessionHandler(
     workspace_path: session.databricksWorkspacePath,
     workspace_url: workspaceUrl,
     workspace_auto_push: session.databricksWorkspaceAutoPush,
-    local_path: session.cwd(),
+    local_path: session.cwd,
     is_archived: session.isArchived,
     model: session.model,
     created_at: session.createdAt.toISOString(),

@@ -70,7 +70,7 @@ export abstract class SessionBase {
     return this._typeId.toString();
   }
 
-  getSuffix(): string {
+  getIdSuffix(): string {
     return this._typeId.getSuffix();
   }
 
@@ -80,8 +80,8 @@ export abstract class SessionBase {
    * Path format: {SESSIONS_BASE_PATH}/{suffix}
    * Example: /home/app/session/01h455vb4pex5vsknk084sn02q
    */
-  cwd(): string {
-    return path.join(paths.sessionsBase, this.getSuffix());
+  get cwd(): string {
+    return path.join(paths.sessionsBase, this.getIdSuffix());
   }
 
   /**
@@ -89,14 +89,14 @@ export abstract class SessionBase {
    * Uses TypeID suffix directly to avoid string manipulation
    * Example: session_01h455vb4pex5vsknk084sn02q → app-01h455vb4pex5vsknk084sn02q (30 chars)
    */
-  getAppName(): string {
-    return `app-${this.getSuffix()}`;
+  get appName(): string {
+    return `app-${this.getIdSuffix()}`;
   }
 
   /**
    * Get git branch name
    */
-  getBranchName(): string {
+  get branchName(): string {
     return `claude/${this.toString()}`;
   }
 
@@ -110,7 +110,7 @@ export abstract class SessionBase {
    * @throws Error if directory creation fails
    */
   createWorkingDirectory(): string {
-    const workDir = this.cwd();
+    const workDir = this.cwd;
     const claudeConfigDir = path.join(workDir, '.claude');
 
     try {

@@ -1,7 +1,7 @@
 import { typeid } from 'typeid-js';
 import path from 'path';
 import fs from 'fs';
-import type { SelectSession as DBSession } from '../db/schema.js';
+import type { SelectSession } from '../db/schema.js';
 import { paths } from '../config/index.js';
 
 /**
@@ -92,23 +92,23 @@ export class Session extends SessionDraft {
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
-  constructor(dbSession: DBSession) {
+  constructor(selectSession: SelectSession) {
     super({
-      model: dbSession.model,
-      databricksWorkspacePath: dbSession.databricksWorkspacePath,
-      userId: dbSession.userId,
-      databricksWorkspaceAutoPush: dbSession.databricksWorkspaceAutoPush,
-      agentLocalPath: dbSession.agentLocalPath,
+      model: selectSession.model,
+      databricksWorkspacePath: selectSession.databricksWorkspacePath,
+      userId: selectSession.userId,
+      databricksWorkspaceAutoPush: selectSession.databricksWorkspaceAutoPush,
+      agentLocalPath: selectSession.agentLocalPath,
     });
 
     // Override id from DB (TypeID)
-    (this as { id: string }).id = dbSession.id;
+    (this as { id: string }).id = selectSession.id;
 
-    this.claudeCodeSessionId = dbSession.claudeCodeSessionId;
-    this.title = dbSession.title;
-    this.summary = dbSession.summary;
-    this.isArchived = dbSession.isArchived;
-    this.createdAt = dbSession.createdAt;
-    this.updatedAt = dbSession.updatedAt;
+    this.claudeCodeSessionId = selectSession.claudeCodeSessionId;
+    this.title = selectSession.title;
+    this.summary = selectSession.summary;
+    this.isArchived = selectSession.isArchived;
+    this.createdAt = selectSession.createdAt;
+    this.updatedAt = selectSession.updatedAt;
   }
 }

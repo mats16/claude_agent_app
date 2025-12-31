@@ -2,6 +2,7 @@ import { Session, SessionDraft } from '../models/Session.js';
 import type { SelectSession } from '../db/schema.js';
 import * as sessionRepo from '../db/sessions.js';
 import { enqueueDelete } from './workspace-queue.service.js';
+import { SessionNotFoundError, ValidationError } from '../errors/ServiceErrors.js';
 
 /**
  * Create session from SessionDraft after receiving SDK session ID.
@@ -108,7 +109,7 @@ export async function updateSessionSettings(
   const currentSession = await getSession(sessionId, userId);
 
   if (!currentSession) {
-    throw new Error(`Session ${sessionId} not found or access denied`);
+    throw new SessionNotFoundError(sessionId);
   }
 
   // Business logic: Validate workspace path rules
@@ -119,7 +120,7 @@ export async function updateSessionSettings(
       : currentSession.databricksWorkspacePath;
 
     if (!finalWorkspacePath) {
-      throw new Error(
+      throw new ValidationError(
         'databricksWorkspaceAutoPush requires databricksWorkspacePath to be set'
       );
     }
@@ -149,17 +150,15 @@ export async function archiveSessionWithCleanup(
   const session = await getSession(sessionId, userId);
 
   if (!session) {
-    throw new Error(`Session ${sessionId} not found`);
+    throw new SessionNotFoundError(sessionId);
   }
 
   // Archive in database
   await sessionRepo.archiveSession(sessionId, userId);
 
-  // Enqueue workspace deletion if workspace path is set
-  if (session.databricksWorkspacePath) {
-    enqueueDelete({
-      userId: session.userId,
-      localPath: session.cwd,
-    });
-  }
+  // Enqueue local directory cleanup (always needed)
+  enqueueDelete({
+    userId: session.userId,
+    localPath: session.cwd,
+  });
 }

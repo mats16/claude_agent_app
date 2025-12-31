@@ -10,6 +10,7 @@ import { Session, SessionDraft } from '../models/Session.js';
 import type { SelectSession } from '../db/schema.js';
 import * as sessionRepo from '../db/sessions.js';
 import * as workspaceQueueService from './workspace-queue.service.js';
+import { SessionNotFoundError, ValidationError } from '../errors/ServiceErrors.js';
 
 // Mock database to avoid DATABASE_URL requirement
 vi.mock('../db/index.js', () => ({
@@ -268,17 +269,20 @@ describe('session.service', () => {
       );
     });
 
-    it('should throw error when session not found', async () => {
+    it('should throw SessionNotFoundError when session not found', async () => {
       // Arrange
       vi.mocked(sessionRepo.getSessionById).mockResolvedValue(null);
 
       // Act & Assert
       await expect(
         updateSessionSettings(mockSessionId, mockUserId, { title: 'New Title' })
-      ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found or access denied');
+      ).rejects.toThrow(SessionNotFoundError);
+      await expect(
+        updateSessionSettings(mockSessionId, mockUserId, { title: 'New Title' })
+      ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');
     });
 
-    it('should validate workspace path when enabling auto-push', async () => {
+    it('should throw ValidationError when enabling auto-push without workspace path', async () => {
       // Arrange - Session with NO workspace path
       const sessionWithoutPath: SelectSession = {
         ...mockSelectSession,
@@ -289,6 +293,11 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.getSessionById).mockResolvedValue(sessionWithoutPath);
 
       // Act & Assert - Should fail when trying to enable auto-push without path
+      await expect(
+        updateSessionSettings(mockSessionId, mockUserId, {
+          databricksWorkspaceAutoPush: true,
+        })
+      ).rejects.toThrow(ValidationError);
       await expect(
         updateSessionSettings(mockSessionId, mockUserId, {
           databricksWorkspaceAutoPush: true,
@@ -402,7 +411,7 @@ describe('session.service', () => {
       });
     });
 
-    it('should archive session without cleanup when no workspace path', async () => {
+    it('should archive session and always enqueue cleanup (even without workspace path)', async () => {
       // Arrange - Session without workspace path
       const sessionWithoutPath: SelectSession = {
         ...mockSelectSession,
@@ -417,14 +426,21 @@ describe('session.service', () => {
 
       // Assert
       expect(sessionRepo.archiveSession).toHaveBeenCalledWith(mockSessionId, mockUserId);
-      expect(workspaceQueueService.enqueueDelete).not.toHaveBeenCalled();
+      // Local directory cleanup should always be enqueued
+      expect(workspaceQueueService.enqueueDelete).toHaveBeenCalledWith({
+        userId: mockUserId,
+        localPath: expect.stringMatching(/01h455vb4pex5vsknk084sn02q/),
+      });
     });
 
-    it('should throw error when session not found', async () => {
+    it('should throw SessionNotFoundError when session not found', async () => {
       // Arrange
       vi.mocked(sessionRepo.getSessionById).mockResolvedValue(null);
 
       // Act & Assert
+      await expect(
+        archiveSessionWithCleanup(mockSessionId, mockUserId)
+      ).rejects.toThrow(SessionNotFoundError);
       await expect(
         archiveSessionWithCleanup(mockSessionId, mockUserId)
       ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');

@@ -16,6 +16,7 @@ import { ensureUser, getUserPersonalAccessToken } from '../../../services/user.s
 import { extractRequestContext } from '../../../utils/headers.js';
 import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
 import { SessionDraft } from '../../../models/Session.js';
+import { SessionNotFoundError } from '../../../errors/ServiceErrors.js';
 import {
   sessionMessageStreams,
   notifySessionCreated,
@@ -398,7 +399,7 @@ export async function archiveSessionHandler(
     await sessionService.archiveSessionWithCleanup(sessionId, userId);
     return { success: true };
   } catch (error: any) {
-    if (error.message.includes('not found')) {
+    if (error instanceof SessionNotFoundError) {
       return reply.status(404).send({ error: 'Session not found' });
     }
     throw error;
@@ -423,16 +424,16 @@ export async function getSessionEventsHandler(
 
   try {
     // getSessionMessages includes session ownership check
-    const messages = await eventService.getSessionMessages(sessionId, userId);
+    const response = await eventService.getSessionMessages(sessionId, userId);
 
     return {
-      data: messages,
-      first_id: null, // TODO: Implement pagination with first/last IDs
-      last_id: null,
-      has_more: false,
+      data: response.messages,
+      first_id: response.first_id,
+      last_id: response.last_id,
+      has_more: false, // TODO: Implement pagination
     };
   } catch (error: any) {
-    if (error.message.includes('not found') || error.message.includes('access denied')) {
+    if (error instanceof SessionNotFoundError) {
       return reply.status(404).send({ error: 'Session not found' });
     }
     throw error;

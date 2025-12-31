@@ -1,6 +1,16 @@
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import * as eventRepo from '../db/events.js';
 import * as sessionService from './session.service.js';
+import { SessionNotFoundError, ValidationError } from '../errors/ServiceErrors.js';
+
+/**
+ * Response type for getSessionMessages
+ */
+export interface SessionMessagesResponse {
+  messages: SDKMessage[];
+  first_id: string | null;
+  last_id: string | null;
+}
 
 /**
  * Save session message with validation.
@@ -15,11 +25,11 @@ import * as sessionService from './session.service.js';
 export async function saveSessionMessage(sdkMessage: SDKMessage): Promise<void> {
   // Validation: Basic message structure
   if (!sdkMessage.session_id) {
-    throw new Error('sdkMessage.session_id is required');
+    throw new ValidationError('sdkMessage.session_id is required');
   }
 
   if (!sdkMessage.type) {
-    throw new Error('sdkMessage.type is required');
+    throw new ValidationError('sdkMessage.type is required');
   }
 
   // Repository call: UUID generation and seq numbering handled by repository
@@ -32,21 +42,25 @@ export async function saveSessionMessage(sdkMessage: SDKMessage): Promise<void> 
  *
  * @param sessionId - Session ID (TypeID)
  * @param userId - User ID for ownership verification
- * @returns Array of SDK messages
+ * @returns Session messages with pagination metadata
  */
 export async function getSessionMessages(
   sessionId: string,
   userId: string
-): Promise<SDKMessage[]> {
+): Promise<SessionMessagesResponse> {
   // Business logic: Verify session ownership
   const session = await sessionService.getSession(sessionId, userId);
 
   if (!session) {
-    throw new Error(`Session ${sessionId} not found or access denied`);
+    throw new SessionNotFoundError(sessionId);
   }
 
   // Repository call
-  const messages = await eventRepo.getMessagesBySessionId(sessionId);
+  const events = await eventRepo.getMessagesBySessionId(sessionId);
 
-  return messages.map((m) => m.message);
+  return {
+    messages: events.map((e) => e.message),
+    first_id: events.length > 0 ? events[0].id : null,
+    last_id: events.length > 0 ? events[events.length - 1].id : null,
+  };
 }

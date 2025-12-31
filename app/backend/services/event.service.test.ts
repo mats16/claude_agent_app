@@ -8,6 +8,7 @@ import * as eventRepo from '../db/events.js';
 import * as sessionService from './session.service.js';
 import { Session } from '../models/Session.js';
 import type { SelectSession } from '../db/schema.js';
+import { SessionNotFoundError, ValidationError } from '../errors/ServiceErrors.js';
 
 // Mock database to avoid DATABASE_URL requirement
 vi.mock('../db/index.js', () => ({
@@ -74,7 +75,7 @@ describe('event.service', () => {
       expect(eventRepo.saveMessage).toHaveBeenCalledWith(mockSdkMessage);
     });
 
-    it('should throw error when session_id is missing', async () => {
+    it('should throw ValidationError when session_id is missing', async () => {
       // Arrange
       const invalidMessage = {
         type: 'input',
@@ -83,6 +84,7 @@ describe('event.service', () => {
       } as SDKMessage;
 
       // Act & Assert
+      await expect(saveSessionMessage(invalidMessage)).rejects.toThrow(ValidationError);
       await expect(saveSessionMessage(invalidMessage)).rejects.toThrow(
         'sdkMessage.session_id is required'
       );
@@ -91,7 +93,7 @@ describe('event.service', () => {
       expect(eventRepo.saveMessage).not.toHaveBeenCalled();
     });
 
-    it('should throw error when type is missing', async () => {
+    it('should throw ValidationError when type is missing', async () => {
       // Arrange
       const invalidMessage = {
         session_id: mockSessionId,
@@ -100,6 +102,7 @@ describe('event.service', () => {
       } as any as SDKMessage;
 
       // Act & Assert
+      await expect(saveSessionMessage(invalidMessage)).rejects.toThrow(ValidationError);
       await expect(saveSessionMessage(invalidMessage)).rejects.toThrow(
         'sdkMessage.type is required'
       );
@@ -193,9 +196,11 @@ describe('event.service', () => {
       const result = await getSessionMessages(mockSessionId, mockUserId);
 
       // Assert
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual(mockMessages[0].message);
-      expect(result[1]).toEqual(mockMessages[1].message);
+      expect(result.messages).toHaveLength(2);
+      expect(result.messages[0]).toEqual(mockMessages[0].message);
+      expect(result.messages[1]).toEqual(mockMessages[1].message);
+      expect(result.first_id).toBe('msg-1');
+      expect(result.last_id).toBe('msg-2');
 
       expect(sessionService.getSession).toHaveBeenCalledWith(mockSessionId, mockUserId);
       expect(eventRepo.getMessagesBySessionId).toHaveBeenCalledWith(mockSessionId);
@@ -212,23 +217,28 @@ describe('event.service', () => {
       const result = await getSessionMessages(mockSessionId, mockUserId);
 
       // Assert
-      expect(result).toEqual([]);
+      expect(result.messages).toEqual([]);
+      expect(result.first_id).toBeNull();
+      expect(result.last_id).toBeNull();
     });
 
-    it('should throw error when session not found', async () => {
+    it('should throw SessionNotFoundError when session not found', async () => {
       // Arrange
       vi.mocked(sessionService.getSession).mockResolvedValue(null);
 
       // Act & Assert
       await expect(
         getSessionMessages(mockSessionId, mockUserId)
-      ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found or access denied');
+      ).rejects.toThrow(SessionNotFoundError);
+      await expect(
+        getSessionMessages(mockSessionId, mockUserId)
+      ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');
 
       // Should not attempt to fetch messages
       expect(eventRepo.getMessagesBySessionId).not.toHaveBeenCalled();
     });
 
-    it('should throw error when user lacks access to session', async () => {
+    it('should throw SessionNotFoundError when user lacks access to session', async () => {
       // Arrange - Session exists but belongs to different user
       const differentUserId = 'different-user-456';
 
@@ -238,7 +248,10 @@ describe('event.service', () => {
       // Act & Assert
       await expect(
         getSessionMessages(mockSessionId, differentUserId)
-      ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found or access denied');
+      ).rejects.toThrow(SessionNotFoundError);
+      await expect(
+        getSessionMessages(mockSessionId, differentUserId)
+      ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');
     });
 
     it('should extract messages from repository response correctly', async () => {
@@ -285,12 +298,14 @@ describe('event.service', () => {
       const result = await getSessionMessages(mockSessionId, mockUserId);
 
       // Assert
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual(mockSdkMessage1);
-      expect(result[1]).toEqual(mockSdkMessage2);
-      expect(result[0].type).toBe('input');
-      expect(result[1].type).toBe('result');
-      expect(result[1].subtype).toBe('completed');
+      expect(result.messages).toHaveLength(2);
+      expect(result.messages[0]).toEqual(mockSdkMessage1);
+      expect(result.messages[1]).toEqual(mockSdkMessage2);
+      expect(result.messages[0].type).toBe('input');
+      expect(result.messages[1].type).toBe('result');
+      expect(result.messages[1].subtype).toBe('completed');
+      expect(result.first_id).toBe('msg-1');
+      expect(result.last_id).toBe('msg-2');
     });
   });
 });

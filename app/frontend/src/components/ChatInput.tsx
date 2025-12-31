@@ -431,7 +431,7 @@ export default function ChatInput({
           {/* Model selector */}
           {selectedModel && onModelChange && (
             <Tooltip
-              title={modelDisabled ? t('models.cannotChangeDuringSession') : ''}
+              title={isAgentProcessing ? t('models.cannotChangeDuringProcessing') : ''}
               styles={{ root: { maxWidth: 400 } }}
             >
               <Select

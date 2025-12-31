@@ -37,7 +37,8 @@
     "haiku": "Haiku 4.5",
     "haikuDescription": "Fastest for quick answers",
     "comingSoon": "Coming soon",
-    "cannotChangeDuringSession": "Model cannot be changed during an active session"
+    "cannotChangeDuringSession": "Model cannot be changed during an active session",
+    "cannotChangeDuringProcessing": "Model cannot be changed while processing"
   },
   "accountMenu": {
     "accountSettings": "Account settings",

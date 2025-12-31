@@ -11,6 +11,7 @@ import { getUserById, createUser, updateUserEmail } from '../db/users.js';
 import { isEncryptionAvailable } from '../utils/encryption.js';
 import type { RequestUser } from '../models/RequestUser.js';
 import type { SelectUser } from '../db/schema.js';
+import * as settingsService from './settings.service.js';
 
 // Databricks token info from /api/2.0/token/list
 interface DatabricksTokenInfo {
@@ -44,6 +45,11 @@ export interface UserSettings {
  * @param id - User ID
  * @param email - User email
  * @returns Created or existing user
+ *
+ * @note Current implementation does not use database transactions due to RLS complexity.
+ * If settings creation fails after user creation, the settings will be created on next access
+ * via upsertSettings. This is acceptable for the current use case, but could be improved
+ * in the future by implementing transaction support with RLS context management.
  */
 export async function ensureUserWithDefaults(
   id: string,
@@ -64,10 +70,19 @@ export async function ensureUserWithDefaults(
   // Create new user
   const newUser = await createUser(id, email);
 
-  // Create default settings (using upsertSettings to ensure it's created)
-  await upsertSettings(id, {
-    claudeConfigAutoPush: true,
-  });
+  // Create default settings
+  // Note: If this fails, settings will be created on next upsertSettings call
+  try {
+    await upsertSettings(id, {
+      claudeConfigAutoPush: true,
+    });
+  } catch (error) {
+    console.error(
+      `Failed to create default settings for user ${id}:`,
+      error
+    );
+    // Do not throw - settings will be created later if needed
+  }
 
   return newUser;
 }
@@ -139,27 +154,24 @@ export async function getUserInfo(user: RequestUser): Promise<UserInfo> {
   };
 }
 
-// Get user settings
+/**
+ * Get user settings (delegates to settings.service).
+ * @deprecated Use settingsService.getUserSettings() directly
+ */
 export async function getUserSettings(userId: string): Promise<UserSettings> {
-  const userSettings = await getSettings(userId);
-
-  if (!userSettings) {
-    return { userId, claudeConfigAutoPush: true };
-  }
-
-  return {
-    userId: userSettings.userId,
-    claudeConfigAutoPush: userSettings.claudeConfigAutoPush,
-  };
+  return settingsService.getUserSettings(userId);
 }
 
-// Update user settings
+/**
+ * Update user settings (delegates to settings.service).
+ * @deprecated Use settingsService.updateUserSettings() directly
+ */
 export async function updateUserSettings(
   user: RequestUser,
   settings: { claudeConfigAutoPush?: boolean }
 ): Promise<void> {
   await ensureUser(user);
-  await upsertSettings(user.sub, settings);
+  await settingsService.updateUserSettings(user.sub, settings);
 }
 
 // Check if PAT is configured for user

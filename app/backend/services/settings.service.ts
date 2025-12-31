@@ -33,12 +33,17 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
  * Update user settings with validation.
  *
  * @param userId - User ID
- * @param updates - Settings to update
+ * @param updates - Settings to update (at least one field required)
  */
 export async function updateUserSettings(
   userId: string,
   updates: { claudeConfigAutoPush?: boolean }
 ): Promise<void> {
+  // Validation: At least one field must be provided
+  if (Object.keys(updates).length === 0) {
+    throw new Error('At least one setting field must be provided');
+  }
+
   // Validation: claudeConfigAutoPush must be a boolean if provided
   if (
     updates.claudeConfigAutoPush !== undefined &&

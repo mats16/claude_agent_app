@@ -11,6 +11,7 @@ import { enqueueDelete } from './workspace-queue.service.js';
  * @param claudeCodeSessionId - SDK session ID from init message
  * @param userId - User ID for RLS context
  * @returns Session domain model instance
+ * @throws Error if session creation fails
  */
 export async function createSessionFromDraft(
   draft: SessionDraft,
@@ -20,23 +21,32 @@ export async function createSessionFromDraft(
   // Domain model conversion (business logic)
   const session = Session.fromSessionDraft(draft, claudeCodeSessionId);
 
-  // Repository call (data access)
-  await sessionRepo.createSession(
-    {
-      id: session.toString(),
-      claudeCodeSessionId: session.claudeCodeSessionId,
-      userId: session.userId,
-      model: session.model,
-      title: session.title,
-      summary: session.summary,
-      databricksWorkspacePath: session.databricksWorkspacePath,
-      databricksWorkspaceAutoPush: session.databricksWorkspaceAutoPush,
-      isArchived: session.isArchived,
-    },
-    userId
-  );
+  try {
+    // Repository call (data access)
+    // Uses ON CONFLICT DO NOTHING to handle retries with the same session ID
+    await sessionRepo.createSession(
+      {
+        id: session.toString(),
+        claudeCodeSessionId: session.claudeCodeSessionId,
+        userId: session.userId,
+        model: session.model,
+        title: session.title,
+        summary: session.summary,
+        databricksWorkspacePath: session.databricksWorkspacePath,
+        databricksWorkspaceAutoPush: session.databricksWorkspaceAutoPush,
+        isArchived: session.isArchived,
+      },
+      userId
+    );
 
-  return session;
+    return session;
+  } catch (error) {
+    // Provide better error context for session creation failures
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to create session ${session.toString()}: ${errorMessage}`
+    );
+  }
 }
 
 /**
@@ -78,6 +88,7 @@ export async function listUserSessions(
 /**
  * Update session settings with workspace path validation.
  * Validates that databricksWorkspaceAutoPush requires databricksWorkspacePath.
+ * Always fetches current session first to perform validation and ensure consistency.
  *
  * @param sessionId - Session ID (TypeID)
  * @param userId - User ID for RLS context
@@ -93,17 +104,24 @@ export async function updateSessionSettings(
     model?: string;
   }
 ): Promise<void> {
+  // Always fetch current session for validation
+  const currentSession = await getSession(sessionId, userId);
+
+  if (!currentSession) {
+    throw new Error(`Session ${sessionId} not found or access denied`);
+  }
+
   // Business logic: Validate workspace path rules
   if (updates.databricksWorkspaceAutoPush === true) {
-    // If enabling auto-push, ensure workspace path is set
-    if (!updates.databricksWorkspacePath) {
-      // Need to check current session to see if it has a workspace path
-      const currentSession = await getSession(sessionId, userId);
-      if (!currentSession?.databricksWorkspacePath) {
-        throw new Error(
-          'databricksWorkspaceAutoPush requires databricksWorkspacePath to be set'
-        );
-      }
+    // If enabling auto-push, ensure workspace path is set (either in updates or current session)
+    const finalWorkspacePath = updates.databricksWorkspacePath !== undefined
+      ? updates.databricksWorkspacePath
+      : currentSession.databricksWorkspacePath;
+
+    if (!finalWorkspacePath) {
+      throw new Error(
+        'databricksWorkspaceAutoPush requires databricksWorkspacePath to be set'
+      );
     }
   }
 

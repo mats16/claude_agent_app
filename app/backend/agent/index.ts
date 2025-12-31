@@ -16,6 +16,7 @@ export type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 
 // Options for processAgentRequest (minimal, user-level options only)
 export interface ProcessAgentRequestOptions {
+  model?: string; // model to use (defaults to 'sonnet')
   claudeConfigAutoPush?: boolean; // claude config pull/push
   waitForReady?: Promise<void>; // Promise to wait for before processing first message (e.g., workspace pull)
 }

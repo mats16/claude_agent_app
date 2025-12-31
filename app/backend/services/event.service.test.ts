@@ -143,7 +143,6 @@ describe('event.service', () => {
       id: mockSessionId,
       claudeCodeSessionId: 'claude-session-456',
       userId: mockUserId,
-      model: 'claude-sonnet-4.5',
       title: 'Test Session',
       summary: null,
       databricksWorkspacePath: null,

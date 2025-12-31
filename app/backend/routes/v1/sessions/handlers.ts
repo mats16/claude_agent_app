@@ -1,7 +1,12 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import path from 'path';
 import fs from 'fs';
-import type { MessageContent } from '@app/shared';
+import type {
+  MessageContent,
+  SessionListItem,
+  SessionListResponse,
+  SessionResponse,
+} from '@app/shared';
 import {
   startAgent,
   MessageStream,
@@ -294,7 +299,7 @@ export async function listSessionsHandler(
   const sessions_list = await sessionService.listUserSessions(userId, filter);
 
   // Transform to API response format
-  const sessions = sessions_list.map((session) => ({
+  const sessions: SessionListItem[] = sessions_list.map((session) => ({
     id: session.toString(),
     title: session.title,
     workspacePath: session.databricksWorkspacePath,
@@ -304,7 +309,8 @@ export async function listSessionsHandler(
     isArchived: session.isArchived,
   }));
 
-  return { sessions };
+  const response: SessionListResponse = { sessions };
+  return response;
 }
 
 // Update session handler
@@ -753,7 +759,7 @@ export async function getSessionHandler(
   const lastUsedModel = await eventRepo.getLastUsedModel(sessionId);
 
   // Build response in snake_case format
-  const response: Record<string, unknown> = {
+  const response: SessionResponse = {
     id: session.toString(),
     title: session.title,
     summary: session.summary,

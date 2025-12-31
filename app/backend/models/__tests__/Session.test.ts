@@ -23,7 +23,6 @@ describe('SessionDraft', () => {
     it('should auto-generate TypeID with session prefix', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       expect(draft.id).toMatch(/^session_[a-z0-9]{26}$/);
       expect(draft.toString()).toMatch(/^session_[a-z0-9]{26}$/);
@@ -32,11 +31,9 @@ describe('SessionDraft', () => {
     it('should generate unique IDs for multiple instances', () => {
       const draft1 = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       const draft2 = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       expect(draft1.id).not.toBe(draft2.id);
       expect(draft1.toString()).not.toBe(draft2.toString());
@@ -45,7 +42,6 @@ describe('SessionDraft', () => {
     it('should set claudeCodeSessionId to undefined', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       expect(draft.claudeCodeSessionId).toBeUndefined();
     });
@@ -53,14 +49,12 @@ describe('SessionDraft', () => {
     it('should initialize with provided fields', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
         title: 'Test Draft',
         databricksWorkspacePath: '/Workspace/test',
         databricksWorkspaceAutoPush: true,
       });
 
       expect(draft.userId).toBe('user123');
-      expect(draft.model).toBe('claude-sonnet-4-5');
       expect(draft.title).toBe('Test Draft');
       expect(draft.databricksWorkspacePath).toBe('/Workspace/test');
       expect(draft.databricksWorkspaceAutoPush).toBe(true);
@@ -69,7 +63,6 @@ describe('SessionDraft', () => {
     it('should set default values for optional fields', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
 
       expect(draft.title).toBeNull();
@@ -82,7 +75,6 @@ describe('SessionDraft', () => {
     it('should return correct cwd path', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       const cwdPath = draft.cwd;
       expect(cwdPath).toContain(testSessionsBase);
@@ -92,7 +84,6 @@ describe('SessionDraft', () => {
     it('should compute app name (30 chars max)', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       const appName = draft.appName;
       expect(appName).toMatch(/^app-[a-z0-9]{26}$/);
@@ -102,7 +93,6 @@ describe('SessionDraft', () => {
     it('should compute branch name', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       const branchName = draft.branchName;
       expect(branchName).toMatch(/^claude\/session_[a-z0-9]{26}$/);
@@ -125,7 +115,6 @@ describe('SessionDraft', () => {
     it('should create working directory successfully', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       const workDir = draft.createWorkingDirectory();
 
@@ -136,7 +125,6 @@ describe('SessionDraft', () => {
     it('should create .claude subdirectory', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       const workDir = draft.createWorkingDirectory();
       const claudeDir = path.join(workDir, '.claude');
@@ -148,7 +136,6 @@ describe('SessionDraft', () => {
     it('should return the created directory path', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       const workDir = draft.createWorkingDirectory();
 
@@ -161,7 +148,6 @@ describe('SessionDraft', () => {
     it('should return true for isDraft()', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
       expect(draft.isDraft()).toBe(true);
     });
@@ -176,7 +162,6 @@ describe('Session', () => {
         claudeCodeSessionId: 'sdk-session-123',
         title: 'Test Session',
         summary: 'A test session summary',
-        model: 'claude-sonnet-4-5',
         databricksWorkspacePath: '/Workspace/Users/test@example.com/project',
         userId: 'user123',
         databricksWorkspaceAutoPush: true,
@@ -193,7 +178,6 @@ describe('Session', () => {
       expect(session.claudeCodeSessionId).toBe(dbSession.claudeCodeSessionId);
       expect(session.title).toBe(dbSession.title);
       expect(session.summary).toBe(dbSession.summary);
-      expect(session.model).toBe(dbSession.model);
       expect(session.databricksWorkspacePath).toBe(
         dbSession.databricksWorkspacePath
       );
@@ -216,7 +200,6 @@ describe('Session', () => {
         claudeCodeSessionId: 'sdk-123',
         title: null,
         summary: null,
-        model: 'claude-sonnet-4-5',
         databricksWorkspacePath: null,
         userId: 'user123',
         databricksWorkspaceAutoPush: false,
@@ -238,7 +221,6 @@ describe('Session', () => {
         claudeCodeSessionId: 'sdk-123',
         title: null,
         summary: null,
-        model: 'claude-sonnet-4-5',
         databricksWorkspacePath: null,
         userId: 'user123',
         databricksWorkspaceAutoPush: false,
@@ -257,7 +239,6 @@ describe('Session', () => {
     it('should convert draft to session with SDK session ID', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
         title: 'Test Draft',
         databricksWorkspacePath: '/Workspace/test',
         databricksWorkspaceAutoPush: true,
@@ -275,7 +256,6 @@ describe('Session', () => {
 
       // Fields from draft should be preserved
       expect(session.userId).toBe(draft.userId);
-      expect(session.model).toBe(draft.model);
       expect(session.title).toBe(draft.title);
       expect(session.databricksWorkspacePath).toBe(
         draft.databricksWorkspacePath
@@ -294,7 +274,6 @@ describe('Session', () => {
     it('should preserve working directory path', () => {
       const draft = new SessionDraft({
         userId: 'user123',
-        model: 'claude-sonnet-4-5',
       });
 
       const draftCwd = draft.cwd;
@@ -311,7 +290,6 @@ describe('Session', () => {
         claudeCodeSessionId: 'sdk-123',
         title: 'Test',
         summary: null,
-        model: 'claude-sonnet-4-5',
         databricksWorkspacePath: null,
         userId: 'user123',
         databricksWorkspaceAutoPush: false,
@@ -339,7 +317,6 @@ describe('Session', () => {
         claudeCodeSessionId: 'sdk-123',
         title: 'Test',
         summary: null,
-        model: 'claude-sonnet-4-5',
         databricksWorkspacePath: null,
         userId: 'user123',
         databricksWorkspaceAutoPush: false,

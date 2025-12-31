@@ -39,7 +39,6 @@ describe('session.service', () => {
       // Arrange
       const draft = new SessionDraft({
         userId: mockUserId,
-        model: 'claude-sonnet-4.5',
         title: 'Test Session',
         databricksWorkspacePath: '/Workspace/Users/test@example.com/sessions/test',
         databricksWorkspaceAutoPush: true,
@@ -58,7 +57,6 @@ describe('session.service', () => {
       expect(result).toBeInstanceOf(Session);
       expect(result.claudeCodeSessionId).toBe(mockClaudeCodeSessionId);
       expect(result.userId).toBe(mockUserId);
-      expect(result.model).toBe('claude-sonnet-4.5');
       expect(result.title).toBe('Test Session');
       expect(result.databricksWorkspacePath).toBe('/Workspace/Users/test@example.com/sessions/test');
       expect(result.databricksWorkspaceAutoPush).toBe(true);
@@ -71,7 +69,6 @@ describe('session.service', () => {
           id: result.toString(),
           claudeCodeSessionId: mockClaudeCodeSessionId,
           userId: mockUserId,
-          model: 'claude-sonnet-4.5',
           title: 'Test Session',
           summary: null,
           databricksWorkspacePath: '/Workspace/Users/test@example.com/sessions/test',
@@ -86,7 +83,6 @@ describe('session.service', () => {
       // Arrange
       const draft = new SessionDraft({
         userId: mockUserId,
-        model: 'claude-sonnet-4.5',
       });
 
       vi.mocked(sessionRepo.createSession).mockResolvedValue(undefined);
@@ -108,7 +104,6 @@ describe('session.service', () => {
       // Arrange
       const draft = new SessionDraft({
         userId: mockUserId,
-        model: 'claude-sonnet-4.5',
       });
 
       const dbError = new Error('Database connection failed');
@@ -128,7 +123,6 @@ describe('session.service', () => {
         id: mockSessionId,
         claudeCodeSessionId: mockClaudeCodeSessionId,
         userId: mockUserId,
-        model: 'claude-sonnet-4.5',
         title: 'Test Session',
         summary: 'A test session summary',
         databricksWorkspacePath: '/Workspace/Users/test@example.com/sessions/test',
@@ -174,7 +168,6 @@ describe('session.service', () => {
           id: 'session_01h455vb4pex5vsknk084sn02q',
           claudeCodeSessionId: 'claude-1',
           userId: mockUserId,
-          model: 'claude-sonnet-4.5',
           title: 'Session 1',
           summary: null,
           databricksWorkspacePath: null,
@@ -187,7 +180,6 @@ describe('session.service', () => {
           id: 'session_01h455vb4pex5vsknk084sn02r',
           claudeCodeSessionId: 'claude-2',
           userId: mockUserId,
-          model: 'claude-opus-4.5',
           title: 'Session 2',
           summary: 'Summary 2',
           databricksWorkspacePath: '/Workspace/test',
@@ -241,7 +233,6 @@ describe('session.service', () => {
       id: mockSessionId,
       claudeCodeSessionId: mockClaudeCodeSessionId,
       userId: mockUserId,
-      model: 'claude-sonnet-4.5',
       title: 'Test Session',
       summary: null,
       databricksWorkspacePath: '/Workspace/Users/test@example.com/sessions/test',
@@ -384,7 +375,6 @@ describe('session.service', () => {
       id: mockSessionId,
       claudeCodeSessionId: mockClaudeCodeSessionId,
       userId: mockUserId,
-      model: 'claude-sonnet-4.5',
       title: 'Test Session',
       summary: null,
       databricksWorkspacePath: '/Workspace/Users/test@example.com/sessions/test',

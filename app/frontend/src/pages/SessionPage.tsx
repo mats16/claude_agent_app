@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import type { SessionResponse } from '@app/shared';
 import { useDraft, getSessionDraftKey } from '../hooks/useDraft';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -142,7 +143,7 @@ export default function SessionPage() {
         try {
           const response = await fetch(`/api/v1/sessions/${sessionId}`);
           if (response.ok) {
-            const data = await response.json();
+            const data: SessionResponse = await response.json();
             const updates: Record<string, unknown> = {};
             if (data.workspace_url) {
               updates.workspaceUrl = data.workspace_url;

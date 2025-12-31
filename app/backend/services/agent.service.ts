@@ -269,6 +269,7 @@ export async function* processAgentRequest(
   userPersonalAccessToken?: string
 ): AsyncGenerator<SDKMessage> {
   // Extract options (with defaults)
+  const model = options?.model ?? 'sonnet';
   const claudeConfigAutoPush = options?.claudeConfigAutoPush ?? true;
   const waitForReady = options?.waitForReady;
 
@@ -287,6 +288,7 @@ export async function* processAgentRequest(
   const sdkOptions = buildSDKQueryOptions({
     session,
     user,
+    model,
     messageStream: stream,
     userPersonalAccessToken,
     spAccessToken,

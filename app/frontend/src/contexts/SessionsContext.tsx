@@ -7,6 +7,7 @@ import {
   useMemo,
   ReactNode,
 } from 'react';
+import type { SessionListResponse } from '@app/shared';
 import { createSessionsWebSocketUrl } from '../utils/websocket';
 
 export interface Session {
@@ -57,8 +58,19 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch sessions');
       }
-      const data = await response.json();
-      setSessions(data.sessions || []);
+      const data: SessionListResponse = await response.json();
+      // Transform API response to internal Session format
+      const sessions: Session[] = data.sessions.map((item) => ({
+        id: item.id,
+        title: item.title,
+        databricksWorkspacePath: item.workspacePath,
+        userEmail: null, // Not provided in list response
+        databricksWorkspaceAutoPush: item.workspaceAutoPush,
+        isArchived: item.isArchived,
+        createdAt: item.updatedAt, // List response only has updatedAt
+        updatedAt: item.updatedAt,
+      }));
+      setSessions(sessions);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {

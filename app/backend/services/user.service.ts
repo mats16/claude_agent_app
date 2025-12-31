@@ -1,13 +1,17 @@
 import { getAccessToken } from './agent.service.js';
 import { databricks } from '../config/index.js';
-import { getSettings, upsertSettings } from '../db/settings.js';
 import {
   getDatabricksPat,
   hasDatabricksPat as hasPatInDb,
   setDatabricksPat as setPatInDb,
   deleteDatabricksPat,
 } from '../db/oauthTokens.js';
-import { getUserById, createUser, updateUserEmail } from '../db/users.js';
+import {
+  getUserById,
+  createUser,
+  updateUserEmail,
+  createUserWithDefaultSettings,
+} from '../db/users.js';
 import { isEncryptionAvailable } from '../utils/encryption.js';
 import type { RequestUser } from '../models/RequestUser.js';
 import type { SelectUser } from '../db/schema.js';
@@ -40,16 +44,12 @@ export interface UserSettings {
 
 /**
  * Ensure user exists in database with default settings.
- * This orchestrates user creation and default settings creation.
+ * Uses a transaction to atomically create both user and settings.
  *
  * @param id - User ID
  * @param email - User email
  * @returns Created or existing user
- *
- * @note Current implementation does not use database transactions due to RLS complexity.
- * If settings creation fails after user creation, the settings will be created on next access
- * via upsertSettings. This is acceptable for the current use case, but could be improved
- * in the future by implementing transaction support with RLS context management.
+ * @throws Error if user creation transaction fails
  */
 export async function ensureUserWithDefaults(
   id: string,
@@ -67,24 +67,11 @@ export async function ensureUserWithDefaults(
     return existing;
   }
 
-  // Create new user
-  const newUser = await createUser(id, email);
-
-  // Create default settings
-  // Note: If this fails, settings will be created on next upsertSettings call
-  try {
-    await upsertSettings(id, {
-      claudeConfigAutoPush: true,
-    });
-  } catch (error) {
-    console.error(
-      `Failed to create default settings for user ${id}:`,
-      error
-    );
-    // Do not throw - settings will be created later if needed
-  }
-
-  return newUser;
+  // Create new user with default settings in a transaction
+  // This ensures atomicity - either both are created or neither
+  return createUserWithDefaultSettings(id, email, {
+    claudeConfigAutoPush: true,
+  });
 }
 
 /**

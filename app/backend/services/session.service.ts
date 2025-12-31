@@ -157,6 +157,9 @@ export async function archiveSessionWithCleanup(
 
   // Enqueue workspace deletion if workspace path is set
   if (session.databricksWorkspacePath) {
-    enqueueDelete(sessionId, session.databricksWorkspacePath);
+    enqueueDelete({
+      userId: session.userId,
+      localPath: session.cwd,
+    });
   }
 }

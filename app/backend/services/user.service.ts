@@ -7,9 +7,10 @@ import {
   setDatabricksPat as setPatInDb,
   deleteDatabricksPat,
 } from '../db/oauthTokens.js';
-import { upsertUser } from '../db/users.js';
+import { getUserById, createUser, updateUserEmail } from '../db/users.js';
 import { isEncryptionAvailable } from '../utils/encryption.js';
 import type { RequestUser } from '../models/RequestUser.js';
+import type { SelectUser } from '../db/schema.js';
 
 // Databricks token info from /api/2.0/token/list
 interface DatabricksTokenInfo {
@@ -36,9 +37,48 @@ export interface UserSettings {
   claudeConfigAutoPush: boolean;
 }
 
-// Ensure user exists in database
+/**
+ * Ensure user exists in database with default settings.
+ * This orchestrates user creation and default settings creation.
+ *
+ * @param id - User ID
+ * @param email - User email
+ * @returns Created or existing user
+ */
+export async function ensureUserWithDefaults(
+  id: string,
+  email: string
+): Promise<SelectUser> {
+  // Check if user exists
+  const existing = await getUserById(id);
+
+  if (existing) {
+    // Update email if different
+    if (existing.email !== email) {
+      await updateUserEmail(id, email);
+      return { ...existing, email, updatedAt: new Date() };
+    }
+    return existing;
+  }
+
+  // Create new user
+  const newUser = await createUser(id, email);
+
+  // Create default settings (using upsertSettings to ensure it's created)
+  await upsertSettings(id, {
+    claudeConfigAutoPush: true,
+  });
+
+  return newUser;
+}
+
+/**
+ * Ensure user exists in database (convenience wrapper).
+ *
+ * @param user - Request user object
+ */
 export async function ensureUser(user: RequestUser): Promise<void> {
-  await upsertUser(user.sub, user.email);
+  await ensureUserWithDefaults(user.sub, user.email);
 }
 
 // Check if user has workspace permission by attempting to create .claude directory

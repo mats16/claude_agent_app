@@ -2,17 +2,7 @@ import { eq, desc, sql, and } from 'drizzle-orm';
 import { db } from './index.js';
 import { sessions, type InsertSession, type SelectSession } from './schema.js';
 import { Session, SessionDraft } from '../models/Session.js';
-
-// Helper to execute queries with RLS user context
-async function withUserContext<T>(
-  userId: string,
-  fn: () => Promise<T>
-): Promise<T> {
-  await db.execute(
-    sql`SELECT set_config('app.current_user_id', ${userId}, true)`
-  );
-  return fn();
-}
+import { withUserContext } from './rls.util.js';
 
 // Create a new session (with RLS)
 // Uses ON CONFLICT DO NOTHING to handle retries with the same session ID

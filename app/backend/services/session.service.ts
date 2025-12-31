@@ -1,0 +1,144 @@
+import { Session, SessionDraft } from '../models/Session.js';
+import type { SelectSession } from '../db/schema.js';
+import * as sessionRepo from '../db/sessions.js';
+import { enqueueDelete } from './workspace-queue.service.js';
+
+/**
+ * Create session from SessionDraft after receiving SDK session ID.
+ * This function orchestrates domain model conversion and database persistence.
+ *
+ * @param draft - SessionDraft containing session initialization data
+ * @param claudeCodeSessionId - SDK session ID from init message
+ * @param userId - User ID for RLS context
+ * @returns Session domain model instance
+ */
+export async function createSessionFromDraft(
+  draft: SessionDraft,
+  claudeCodeSessionId: string,
+  userId: string
+): Promise<Session> {
+  // Domain model conversion (business logic)
+  const session = Session.fromSessionDraft(draft, claudeCodeSessionId);
+
+  // Repository call (data access)
+  await sessionRepo.createSession(
+    {
+      id: session.toString(),
+      claudeCodeSessionId: session.claudeCodeSessionId,
+      userId: session.userId,
+      model: session.model,
+      title: session.title,
+      summary: session.summary,
+      databricksWorkspacePath: session.databricksWorkspacePath,
+      databricksWorkspaceAutoPush: session.databricksWorkspaceAutoPush,
+      isArchived: session.isArchived,
+    },
+    userId
+  );
+
+  return session;
+}
+
+/**
+ * Get session by ID with domain model conversion.
+ *
+ * @param sessionId - Session ID (TypeID)
+ * @param userId - User ID for RLS context
+ * @returns Session domain model or null if not found
+ */
+export async function getSession(
+  sessionId: string,
+  userId: string
+): Promise<Session | null> {
+  const selectSession = await sessionRepo.getSessionById(sessionId, userId);
+
+  if (!selectSession) {
+    return null;
+  }
+
+  return Session.fromSelectSession(selectSession);
+}
+
+/**
+ * List user sessions with filtering and domain model conversion.
+ *
+ * @param userId - User ID for RLS context
+ * @param filter - Filter type: 'active', 'archived', or 'all'
+ * @returns Array of Session domain models
+ */
+export async function listUserSessions(
+  userId: string,
+  filter: 'active' | 'archived' | 'all' = 'active'
+): Promise<Session[]> {
+  const selectSessions = await sessionRepo.getSessionsByUserId(userId, filter);
+
+  return selectSessions.map((s) => Session.fromSelectSession(s));
+}
+
+/**
+ * Update session settings with workspace path validation.
+ * Validates that databricksWorkspaceAutoPush requires databricksWorkspacePath.
+ *
+ * @param sessionId - Session ID (TypeID)
+ * @param userId - User ID for RLS context
+ * @param updates - Fields to update
+ */
+export async function updateSessionSettings(
+  sessionId: string,
+  userId: string,
+  updates: {
+    title?: string;
+    databricksWorkspaceAutoPush?: boolean;
+    databricksWorkspacePath?: string | null;
+    model?: string;
+  }
+): Promise<void> {
+  // Business logic: Validate workspace path rules
+  if (updates.databricksWorkspaceAutoPush === true) {
+    // If enabling auto-push, ensure workspace path is set
+    if (!updates.databricksWorkspacePath) {
+      // Need to check current session to see if it has a workspace path
+      const currentSession = await getSession(sessionId, userId);
+      if (!currentSession?.databricksWorkspacePath) {
+        throw new Error(
+          'databricksWorkspaceAutoPush requires databricksWorkspacePath to be set'
+        );
+      }
+    }
+  }
+
+  // If clearing workspace path, also disable auto-push
+  if (updates.databricksWorkspacePath === null) {
+    updates.databricksWorkspaceAutoPush = false;
+  }
+
+  // Repository call
+  await sessionRepo.updateSession(sessionId, updates, userId);
+}
+
+/**
+ * Archive session and enqueue workspace cleanup.
+ * This orchestrates the archival process with cleanup scheduling.
+ *
+ * @param sessionId - Session ID (TypeID)
+ * @param userId - User ID for RLS context
+ */
+export async function archiveSessionWithCleanup(
+  sessionId: string,
+  userId: string
+): Promise<void> {
+  // Get session to determine if cleanup is needed
+  const session = await getSession(sessionId, userId);
+
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found`);
+  }
+
+  // Archive in database
+  await sessionRepo.archiveSession(sessionId, userId);
+
+  // Enqueue workspace deletion if workspace path is set
+  if (session.databricksWorkspacePath) {
+    enqueueDelete(sessionId, session.databricksWorkspacePath);
+  }
+}

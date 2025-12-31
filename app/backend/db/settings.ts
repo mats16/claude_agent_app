@@ -1,24 +1,11 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from './index.js';
 import {
   settings,
   type SelectSettings,
   type InsertSettings,
 } from './schema.js';
-
-// Helper to execute queries with RLS user context
-async function withUserContext<T>(
-  userId: string,
-  fn: () => Promise<T>
-): Promise<T> {
-  // Set the user context for RLS policy
-  // Using set_config() instead of SET LOCAL because it supports parameterized queries
-  // The third parameter (true) makes it local to the current transaction
-  await db.execute(
-    sql`SELECT set_config('app.current_user_id', ${userId}, true)`
-  );
-  return fn();
-}
+import { withUserContext } from './rls.util.js';
 
 // Get settings by user ID (with RLS)
 export async function getSettings(

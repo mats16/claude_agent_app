@@ -1,25 +1,15 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from './index.js';
 import {
   oauthTokens,
   type SelectOAuthToken,
   type InsertOAuthToken,
 } from './schema.js';
+import { withUserContext } from './rls.util.js';
 
 // Provider constants
 export const PROVIDER_DATABRICKS = 'databricks';
 export const AUTH_TYPE_PAT = 'pat';
-
-// Helper to execute queries with RLS user context
-async function withUserContext<T>(
-  userId: string,
-  fn: () => Promise<T>
-): Promise<T> {
-  await db.execute(
-    sql`SELECT set_config('app.current_user_id', ${userId}, true)`
-  );
-  return fn();
-}
 
 /**
  * Get token by user and provider (with RLS).

@@ -6,6 +6,14 @@ export interface UserSettings {
 }
 
 /**
+ * Default user settings applied when creating a new user.
+ * This constant ensures consistency across user creation and settings retrieval.
+ */
+export const DEFAULT_USER_SETTINGS = {
+  claudeConfigAutoPush: true,
+} as const;
+
+/**
  * Get user settings with default fallback.
  * Returns default settings if user settings don't exist.
  *
@@ -19,7 +27,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
     // Return default settings
     return {
       userId,
-      claudeConfigAutoPush: true,
+      ...DEFAULT_USER_SETTINGS,
     };
   }
 

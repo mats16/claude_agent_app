@@ -8,14 +8,14 @@ import {
 } from '../db/oauthTokens.js';
 import {
   getUserById,
-  createUser,
   updateUserEmail,
   createUserWithDefaultSettings,
 } from '../db/users.js';
 import { isEncryptionAvailable } from '../utils/encryption.js';
 import type { RequestUser } from '../models/RequestUser.js';
 import type { SelectUser } from '../db/schema.js';
-import * as settingsService from './settings.service.js';
+import * as settingsService from './user-settings.service.js';
+import { DEFAULT_USER_SETTINGS } from './user-settings.service.js';
 
 // Databricks token info from /api/2.0/token/list
 interface DatabricksTokenInfo {
@@ -69,9 +69,7 @@ export async function ensureUserWithDefaults(
 
   // Create new user with default settings in a transaction
   // This ensures atomicity - either both are created or neither
-  return createUserWithDefaultSettings(id, email, {
-    claudeConfigAutoPush: true,
-  });
+  return createUserWithDefaultSettings(id, email, DEFAULT_USER_SETTINGS);
 }
 
 /**

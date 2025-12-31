@@ -66,8 +66,14 @@ export async function getMessagesBySessionId(
 }
 
 /**
- * Get the last used model for a session from init or result events.
- * The model is stored in the SDK message payload.
+ * Get the last used model for a session from init events.
+ *
+ * The model is stored in the SDK init message payload:
+ * { type: 'system', subtype: 'init', model: 'claude-sonnet-4-5-20250514', ... }
+ *
+ * Each time the agent starts (new session or resume), an init event is created
+ * with the model used for that turn. By getting the most recent init event,
+ * we can determine the last model that was used.
  *
  * @param sessionId - Session ID
  * @returns The model string or null if not found
@@ -75,7 +81,8 @@ export async function getMessagesBySessionId(
 export async function getLastUsedModel(
   sessionId: string
 ): Promise<string | null> {
-  // Query for init (type='system', subtype='init') or result events
+  // Query for init events only (type='system', subtype='init')
+  // These are the only events guaranteed to contain the model field
   // Order by seq DESC to get the most recent
   const result = await db
     .select({ message: events.message })
@@ -83,10 +90,8 @@ export async function getLastUsedModel(
     .where(
       and(
         eq(events.sessionId, sessionId),
-        or(
-          and(eq(events.type, 'system'), eq(events.subtype, 'init')),
-          eq(events.type, 'result')
-        )
+        eq(events.type, 'system'),
+        eq(events.subtype, 'init')
       )
     )
     .orderBy(desc(events.seq))
@@ -96,13 +101,16 @@ export async function getLastUsedModel(
     return null;
   }
 
-  // Extract model from message
+  // Extract model from init message
   // SDK init message structure: { type: 'system', subtype: 'init', model: '...', ... }
-  // SDK result message structure may also contain model info
   const message = result[0].message as Record<string, unknown>;
   if (typeof message.model === 'string') {
     return message.model;
   }
 
+  // Model field not found in init event (unexpected)
+  console.warn(
+    `[getLastUsedModel] Init event found but no model field for session ${sessionId}`
+  );
   return null;
 }

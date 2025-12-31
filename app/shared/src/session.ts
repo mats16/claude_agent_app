@@ -1,3 +1,5 @@
+import type { MessageContent } from './index.js';
+
 // ============================================
 // Session Types
 // ============================================
@@ -57,4 +59,28 @@ export interface SessionResponse {
   last_used_model: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================
+// Session WebSocket Types
+// ============================================
+
+export interface WSResumeMessage {
+  type: 'resume';
+  sessionId: string;
+}
+
+export interface WSUserMessage {
+  type: 'user_message';
+  content: MessageContent[]; // Always array of content blocks
+  model?: string;
+  sessionId?: string;
+}
+
+export interface WSControlRequest {
+  type: 'control_request';
+  request_id: string;
+  request: {
+    subtype: 'interrupt';
+  };
 }

@@ -63,25 +63,12 @@ export interface WSConnectMessage {
   last_event_uuid?: string;
 }
 
-export interface WSResumeMessage {
-  type: 'resume';
-  sessionId: string;
-}
-
-export interface WSUserMessage {
-  type: 'user_message';
-  content: MessageContent[]; // Always array of content blocks
-  model?: string;
-  sessionId?: string;
-}
-
-export interface WSControlRequest {
-  type: 'control_request';
-  request_id: string;
-  request: {
-    subtype: 'interrupt';
-  };
-}
+// Session-related WebSocket types are in session.ts
+import type {
+  WSResumeMessage,
+  WSUserMessage,
+  WSControlRequest,
+} from './session.js';
 
 export type IncomingWSMessage =
   | WSConnectMessage

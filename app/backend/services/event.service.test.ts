@@ -34,12 +34,12 @@ describe('event.service', () => {
   describe('saveSessionMessage', () => {
     it('should save valid SDK message', async () => {
       // Arrange
-      const mockSdkMessage: SDKMessage = {
+      const mockSdkMessage = {
         session_id: mockSessionId,
-        type: 'input',
-        created_at: '2025-01-01T00:00:00Z',
+        type: 'user',
+        uuid: '550e8400-e29b-41d4-a716-446655440000',
         message: { role: 'user', content: 'Hello' },
-      };
+      } as unknown as SDKMessage;
 
       vi.mocked(eventRepo.saveMessage).mockResolvedValue(undefined);
 
@@ -52,19 +52,14 @@ describe('event.service', () => {
 
     it('should save SDK message with all fields', async () => {
       // Arrange
-      const mockSdkMessage: SDKMessage = {
+      const mockSdkMessage = {
         session_id: mockSessionId,
         type: 'result',
-        subtype: 'completed',
-        created_at: '2025-01-01T00:00:00Z',
-        message: {
-          role: 'assistant',
-          content: 'Response',
-        },
-        result: {
-          status: 'success',
-        },
-      };
+        uuid: '650e8400-e29b-41d4-a716-446655440000',
+        subtype: 'success',
+        is_error: false,
+        result: 'Task completed successfully',
+      } as unknown as SDKMessage;
 
       vi.mocked(eventRepo.saveMessage).mockResolvedValue(undefined);
 
@@ -78,10 +73,10 @@ describe('event.service', () => {
     it('should throw ValidationError when session_id is missing', async () => {
       // Arrange
       const invalidMessage = {
-        type: 'input',
-        created_at: '2025-01-01T00:00:00Z',
+        type: 'user',
+        uuid: '750e8400-e29b-41d4-a716-446655440000',
         message: { role: 'user', content: 'Hello' },
-      } as SDKMessage;
+      } as unknown as SDKMessage;
 
       // Act & Assert
       await expect(saveSessionMessage(invalidMessage)).rejects.toThrow(ValidationError);
@@ -113,12 +108,12 @@ describe('event.service', () => {
 
     it('should throw error when session_id is empty string', async () => {
       // Arrange
-      const invalidMessage: SDKMessage = {
+      const invalidMessage = {
         session_id: '',
-        type: 'input',
-        created_at: '2025-01-01T00:00:00Z',
+        type: 'user',
+        uuid: '850e8400-e29b-41d4-a716-446655440000',
         message: { role: 'user', content: 'Hello' },
-      };
+      } as unknown as SDKMessage;
 
       // Act & Assert
       await expect(saveSessionMessage(invalidMessage)).rejects.toThrow(
@@ -128,12 +123,12 @@ describe('event.service', () => {
 
     it('should propagate repository errors', async () => {
       // Arrange
-      const mockSdkMessage: SDKMessage = {
+      const mockSdkMessage = {
         session_id: mockSessionId,
-        type: 'input',
-        created_at: '2025-01-01T00:00:00Z',
+        type: 'user',
+        uuid: '950e8400-e29b-41d4-a716-446655440000',
         message: { role: 'user', content: 'Hello' },
-      };
+      } as unknown as SDKMessage;
 
       const dbError = new Error('Database write failed');
       vi.mocked(eventRepo.saveMessage).mockRejectedValue(dbError);
@@ -167,19 +162,19 @@ describe('event.service', () => {
           uuid: 'msg-1',
           message: {
             session_id: mockSessionId,
-            type: 'input',
-            created_at: '2025-01-01T00:00:00Z',
+            type: 'user',
+            uuid: 'a50e8400-e29b-41d4-a716-446655440000',
             message: { role: 'user', content: 'Hello' },
-          } as SDKMessage,
+          } as unknown as SDKMessage,
         },
         {
           uuid: 'msg-2',
           message: {
             session_id: mockSessionId,
-            type: 'output',
-            created_at: '2025-01-01T00:00:01Z',
+            type: 'assistant',
+            uuid: 'b50e8400-e29b-41d4-a716-446655440000',
             message: { role: 'assistant', content: 'Hi there!' },
-          } as SDKMessage,
+          } as unknown as SDKMessage,
         },
       ];
 
@@ -252,21 +247,21 @@ describe('event.service', () => {
       // Arrange
       const mockSession = Session.fromSelectSession(mockSelectSession);
 
-      const mockSdkMessage1: SDKMessage = {
+      const mockSdkMessage1 = {
         session_id: mockSessionId,
-        type: 'input',
-        created_at: '2025-01-01T00:00:00Z',
+        type: 'user',
+        uuid: 'c50e8400-e29b-41d4-a716-446655440000',
         message: { role: 'user', content: 'Test message 1' },
-      };
+      } as unknown as SDKMessage;
 
-      const mockSdkMessage2: SDKMessage = {
+      const mockSdkMessage2 = {
         session_id: mockSessionId,
         type: 'result',
-        subtype: 'completed',
-        created_at: '2025-01-01T00:00:01Z',
-        message: { role: 'assistant', content: 'Test message 2' },
-        result: { status: 'success' },
-      };
+        uuid: 'd50e8400-e29b-41d4-a716-446655440000',
+        subtype: 'success',
+        is_error: false,
+        result: 'Task completed',
+      } as unknown as SDKMessage;
 
       const mockMessages = [
         {
@@ -289,9 +284,9 @@ describe('event.service', () => {
       expect(result.messages).toHaveLength(2);
       expect(result.messages[0]).toEqual(mockSdkMessage1);
       expect(result.messages[1]).toEqual(mockSdkMessage2);
-      expect(result.messages[0].type).toBe('input');
+      expect(result.messages[0].type).toBe('user');
       expect(result.messages[1].type).toBe('result');
-      expect(result.messages[1].subtype).toBe('completed');
+      expect((result.messages[1] as any).subtype).toBe('success');
       expect(result.first_id).toBe('msg-1');
       expect(result.last_id).toBe('msg-2');
     });

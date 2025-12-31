@@ -117,7 +117,7 @@ export async function createSessionHandler(
       : userMessage;
 
   // Create SessionDraft for new session
-  const draft = new SessionDraft({
+  const sessionDraft = new SessionDraft({
     userId,
     model,
     databricksWorkspacePath,
@@ -125,13 +125,13 @@ export async function createSessionHandler(
   });
 
   // Create working directory
-  const localWorkPath = draft.createWorkingDirectory();
+  const localWorkPath = sessionDraft.createWorkingDirectory();
   console.log(
-    `[New Session] Created workDir with TypeID: ${draft.toString()}, path: ${localWorkPath}`
+    `[New Session] Created workDir with TypeID: ${sessionDraft.toString()}, path: ${localWorkPath}`
   );
 
   // TypeID string for DB storage and API responses
-  const appSessionId = draft.toString();
+  const appSessionId = sessionDraft.toString();
 
   // Create settings.json with workspace sync hooks for all sessions
   const claudeSettings = new ClaudeSettings({
@@ -151,7 +151,7 @@ export async function createSessionHandler(
 
     // Start processing in background
     const agentIterator = startAgent({
-      session: draft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
+      session: sessionDraft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
       user,
       messageContent,
       claudeConfigAutoPush,
@@ -179,9 +179,9 @@ export async function createSessionHandler(
             // Ensure user exists before creating session
             await upsertUser(userId, user.email);
 
-            // Convert draft to Session and save to database
+            // Convert sessionDraft to Session and save to database
             const session = await createSessionFromDraft(
-              draft,
+              sessionDraft,
               sessionId, // SDK session ID from init message
               userId
             );

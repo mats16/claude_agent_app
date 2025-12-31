@@ -430,6 +430,7 @@ export default function ChatInput({
             <Select
               value={selectedModel}
               onChange={onModelChange}
+              disabled={true}
               style={{
                 width: 'auto',
                 minWidth: 100,

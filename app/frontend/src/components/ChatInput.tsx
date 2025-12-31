@@ -5,7 +5,7 @@
 
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Flex, message, Select, Tooltip } from 'antd';
+import { Button, Input, Flex, message, Select } from 'antd';
 import {
   SendOutlined,
   PaperClipOutlined,
@@ -72,8 +72,6 @@ interface ChatInputProps {
   selectedModel?: string;
   /** Callback when model changes */
   onModelChange?: (model: string) => void;
-  /** Whether the model selector is disabled */
-  modelDisabled?: boolean;
 }
 
 export default function ChatInput({
@@ -94,7 +92,6 @@ export default function ChatInput({
   maxFiles = 10,
   selectedModel,
   onModelChange,
-  modelDisabled = false,
 }: ChatInputProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -430,51 +427,45 @@ export default function ChatInput({
           <div style={{ flex: 1 }} />
           {/* Model selector */}
           {selectedModel && onModelChange && (
-            <Tooltip
-              title={isAgentProcessing ? t('models.cannotChangeDuringProcessing') : ''}
-              styles={{ root: { maxWidth: 400 } }}
-            >
-              <Select
-                value={selectedModel}
-                onChange={onModelChange}
-                disabled={modelDisabled || isAgentProcessing}
-                style={{
-                  width: 'auto',
-                  minWidth: 100,
-                  background: 'transparent',
-                }}
-                size="small"
-                variant="borderless"
-                popupMatchSelectWidth={240}
-                placement="topLeft"
-                suffixIcon={<CaretDownOutlined />}
-                optionRender={(option) => (
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{option.label}</div>
-                    <div style={{ fontSize: 12, color: colors.textSecondary }}>
-                      {option.data.description}
-                    </div>
+            <Select
+              value={selectedModel}
+              onChange={onModelChange}
+              style={{
+                width: 'auto',
+                minWidth: 100,
+                background: 'transparent',
+              }}
+              size="small"
+              variant="borderless"
+              popupMatchSelectWidth={240}
+              placement="topLeft"
+              suffixIcon={<CaretDownOutlined />}
+              optionRender={(option) => (
+                <div>
+                  <div style={{ fontWeight: 500 }}>{option.label}</div>
+                  <div style={{ fontSize: 12, color: colors.textSecondary }}>
+                    {option.data.description}
                   </div>
-                )}
-                options={[
-                  {
-                    value: 'opus',
-                    label: t('models.opus'),
-                    description: t('models.opusDescription'),
-                  },
-                  {
-                    value: 'sonnet',
-                    label: t('models.sonnet'),
-                    description: t('models.sonnetDescription'),
-                  },
-                  {
-                    value: 'haiku',
-                    label: t('models.haiku'),
-                    description: t('models.haikuDescription'),
-                  },
-                ]}
-              />
-            </Tooltip>
+                </div>
+              )}
+              options={[
+                {
+                  value: 'opus',
+                  label: t('models.opus'),
+                  description: t('models.opusDescription'),
+                },
+                {
+                  value: 'sonnet',
+                  label: t('models.sonnet'),
+                  description: t('models.sonnetDescription'),
+                },
+                {
+                  value: 'haiku',
+                  label: t('models.haiku'),
+                  description: t('models.haikuDescription'),
+                },
+              ]}
+            />
           )}
           {showStopButton ? (
             <Button

@@ -169,25 +169,10 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                 `[WebSocket] Starting agent for session: ${sessionId}`
               );
 
-              // Fetch session to get databricksWorkspacePath, databricksWorkspaceAutoPush, agentLocalPath, and model for resume
-              let session = await sessionService.getSession(sessionId, userId);
+              // Fetch session to get databricksWorkspacePath, databricksWorkspaceAutoPush, agentLocalPath for resume
+              const session = await sessionService.getSession(sessionId, userId);
               if (!session) {
                 throw new Error('Session not found. Cannot resume session.');
-              }
-
-              // Update session model in DB if different from saved model
-              if (messageModel && messageModel !== session.model) {
-                await sessionService.updateSessionSettings(sessionId, userId, {
-                  model: messageModel
-                });
-                // Re-fetch session to get updated model
-                const updatedSession = await sessionService.getSession(
-                  sessionId,
-                  userId
-                );
-                if (updatedSession) {
-                  session = updatedSession;
-                }
               }
 
               // Get user settings for claudeConfigAutoPush
@@ -211,6 +196,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
                 for await (const sdkMessage of startAgent({
                   session, // Pass Session object - claudeCodeSessionId is defined, so resume mode
                   user,
+                  model: messageModel || 'sonnet', // Use model from message, default to sonnet
                   messageContent: userMessageContent,
                   claudeConfigAutoPush,
                   messageStream: stream,

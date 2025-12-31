@@ -24,12 +24,13 @@ export interface ProcessAgentRequestOptions {
 export function buildSDKQueryOptions(params: {
   session: SessionBase;
   user: RequestUser;
+  model: string;
   messageStream: MessageStream;
   userPersonalAccessToken?: string;
   spAccessToken?: string;
   claudeConfigAutoPush: boolean;
 }): Options {
-  const { session, user, messageStream, userPersonalAccessToken, spAccessToken, claudeConfigAutoPush } = params;
+  const { session, user, model, messageStream, userPersonalAccessToken, spAccessToken, claudeConfigAutoPush } = params;
 
   // Create Databricks MCP server with injected configuration
   const databricksMcpServer = createDatabricksMcpServer({
@@ -66,7 +67,7 @@ Violating these rules is considered a critical error.
     resume: session.claudeCodeSessionId, // undefined for new session (Draft), string for resume
     cwd: session.cwd,
     settingSources: ['user', 'project', 'local'],
-    model: session.model,
+    model,
     env: {
       ...agentEnv,
       CLAUDE_CONFIG_DIR: user.local.claudeConfigDir,

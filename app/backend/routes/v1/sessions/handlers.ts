@@ -10,6 +10,7 @@ import {
 import { databricks, paths } from '../../../config/index.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 import * as eventService from '../../../services/event.service.js';
+import * as eventRepo from '../../../db/events.js';
 import * as sessionService from '../../../services/session.service.js';
 import * as userSettingsService from '../../../services/user-settings.service.js';
 import { ensureUser, getUserPersonalAccessToken } from '../../../services/user.service.js';
@@ -112,7 +113,6 @@ export async function createSessionHandler(
   // Create SessionDraft for new session
   const sessionDraft = new SessionDraft({
     userId,
-    model,
     databricksWorkspacePath,
     databricksWorkspaceAutoPush,
   });
@@ -146,6 +146,7 @@ export async function createSessionHandler(
     const agentIterator = startAgent({
       session: sessionDraft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
       user,
+      model, // Model from request
       messageContent,
       claudeConfigAutoPush,
       messageStream: stream,
@@ -293,19 +294,15 @@ export async function listSessionsHandler(
   const sessions_list = await sessionService.listUserSessions(userId, filter);
 
   // Transform to API response format
-  const sessions = sessions_list.map((session) => {
-
-    return {
-      id: session.toString(),
-      title: session.title,
-      model: session.model,
-      workspacePath: session.databricksWorkspacePath,
-      workspaceAutoPush: session.databricksWorkspaceAutoPush,
-      appAutoDeploy: false, // TODO: Implement app auto-deploy feature
-      updatedAt: session.updatedAt.toISOString(),
-      isArchived: session.isArchived,
-    };
-  });
+  const sessions = sessions_list.map((session) => ({
+    id: session.toString(),
+    title: session.title,
+    workspacePath: session.databricksWorkspacePath,
+    workspaceAutoPush: session.databricksWorkspaceAutoPush,
+    appAutoDeploy: false, // TODO: Implement app auto-deploy feature
+    updatedAt: session.updatedAt.toISOString(),
+    isArchived: session.isArchived,
+  }));
 
   return { sessions };
 }
@@ -752,6 +749,9 @@ export async function getSessionHandler(
     }
   }
 
+  // Get last used model from events (init or result events)
+  const lastUsedModel = await eventRepo.getLastUsedModel(sessionId);
+
   // Build response in snake_case format
   const response: Record<string, unknown> = {
     id: session.toString(),
@@ -762,7 +762,7 @@ export async function getSessionHandler(
     workspace_auto_push: session.databricksWorkspaceAutoPush,
     local_path: session.cwd,
     is_archived: session.isArchived,
-    model: session.model,
+    last_used_model: lastUsedModel,
     created_at: session.createdAt.toISOString(),
     updated_at: session.updatedAt.toISOString(),
   };

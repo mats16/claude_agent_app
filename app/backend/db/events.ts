@@ -1,4 +1,4 @@
-import { eq, asc, sql } from 'drizzle-orm';
+import { eq, asc, desc, sql, or, and } from 'drizzle-orm';
 import crypto from 'crypto';
 import { db } from './index.js';
 import { events } from './schema.js';
@@ -63,4 +63,46 @@ export async function getMessagesBySessionId(
     uuid: row.uuid,
     message: row.message as SDKMessage,
   }));
+}
+
+/**
+ * Get the last used model for a session from init or result events.
+ * The model is stored in the SDK message payload.
+ *
+ * @param sessionId - Session ID
+ * @returns The model string or null if not found
+ */
+export async function getLastUsedModel(
+  sessionId: string
+): Promise<string | null> {
+  // Query for init (type='system', subtype='init') or result events
+  // Order by seq DESC to get the most recent
+  const result = await db
+    .select({ message: events.message })
+    .from(events)
+    .where(
+      and(
+        eq(events.sessionId, sessionId),
+        or(
+          and(eq(events.type, 'system'), eq(events.subtype, 'init')),
+          eq(events.type, 'result')
+        )
+      )
+    )
+    .orderBy(desc(events.seq))
+    .limit(1);
+
+  if (result.length === 0) {
+    return null;
+  }
+
+  // Extract model from message
+  // SDK init message structure: { type: 'system', subtype: 'init', model: '...', ... }
+  // SDK result message structure may also contain model info
+  const message = result[0].message as Record<string, unknown>;
+  if (typeof message.model === 'string') {
+    return message.model;
+  }
+
+  return null;
 }

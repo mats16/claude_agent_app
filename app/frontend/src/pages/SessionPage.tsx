@@ -130,20 +130,28 @@ export default function SessionPage() {
     session?.databricksWorkspacePath ?? null;
   const sessionWorkspaceUrl = session?.workspaceUrl ?? null;
 
-  // Fetch session details (workspace_url) when session page loads
+  // Fetch session details (workspace_url, last_used_model) when session page loads
   useEffect(() => {
     if (!sessionId) return;
-    // Skip if we already have workspace_url
-    if (sessionDatabricksWorkspacePath && !sessionWorkspaceUrl) {
+    // Skip if we already have workspace_url and lastUsedModel
+    const needsFetch =
+      (sessionDatabricksWorkspacePath && !sessionWorkspaceUrl) ||
+      session?.lastUsedModel === undefined;
+    if (needsFetch) {
       const fetchSessionDetails = async () => {
         try {
           const response = await fetch(`/api/v1/sessions/${sessionId}`);
           if (response.ok) {
             const data = await response.json();
+            const updates: Record<string, unknown> = {};
             if (data.workspace_url) {
-              updateSessionLocally(sessionId, {
-                workspaceUrl: data.workspace_url,
-              });
+              updates.workspaceUrl = data.workspace_url;
+            }
+            if (data.last_used_model !== undefined) {
+              updates.lastUsedModel = data.last_used_model;
+            }
+            if (Object.keys(updates).length > 0) {
+              updateSessionLocally(sessionId, updates);
             }
           }
         } catch (error) {
@@ -156,6 +164,7 @@ export default function SessionPage() {
     sessionId,
     sessionDatabricksWorkspacePath,
     sessionWorkspaceUrl,
+    session?.lastUsedModel,
     updateSessionLocally,
   ]);
 
@@ -224,7 +233,7 @@ export default function SessionPage() {
   } = useAgent({
     sessionId,
     initialMessage,
-    model: locationState?.model || session?.model,
+    model: locationState?.model || session?.lastUsedModel || undefined,
   });
 
   // Image upload handling via custom hook

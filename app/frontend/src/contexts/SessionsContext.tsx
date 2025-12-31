@@ -12,9 +12,9 @@ import { createSessionsWebSocketUrl } from '../utils/websocket';
 export interface Session {
   id: string; // TypeID: session_01h455vb...
   title: string | null;
-  model: string;
   databricksWorkspacePath: string | null; // Databricks workspace path
   workspaceUrl?: string | null; // Fetched from GET /api/v1/sessions/:id
+  lastUsedModel?: string | null; // Fetched from GET /api/v1/sessions/:id (from events)
   userEmail: string | null;
   databricksWorkspaceAutoPush: boolean; // Workspace sync mode
   isArchived: boolean;
@@ -108,7 +108,6 @@ export function SessionsProvider({ children }: SessionsProviderProps) {
                 data.session.databricksWorkspacePath ?? null,
               updatedAt: data.session.updatedAt,
               createdAt: data.session.updatedAt, // New sessions have same createdAt/updatedAt
-              model: '',
               userEmail: null,
               databricksWorkspaceAutoPush:
                 data.session.databricksWorkspaceAutoPush ?? false,

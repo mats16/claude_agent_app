@@ -33,7 +33,6 @@ export async function createSessionFromDraft(
         id: session.toString(),
         claudeCodeSessionId: session.claudeCodeSessionId,
         userId: session.userId,
-        model: session.model,
         title: session.title,
         summary: session.summary,
         databricksWorkspacePath: session.databricksWorkspacePath,
@@ -123,14 +122,13 @@ export async function updateSessionTitle(
   });
 }
 
-// Update session settings (title, databricksWorkspaceAutoPush, databricksWorkspacePath, model) with RLS
+// Update session settings (title, databricksWorkspaceAutoPush, databricksWorkspacePath) with RLS
 export async function updateSession(
   id: string,
   updates: {
     title?: string;
     databricksWorkspaceAutoPush?: boolean;
     databricksWorkspacePath?: string | null;
-    model?: string;
     claudeCodeSessionId?: string; // Allow updating SDK session ID after init
   },
   userId: string

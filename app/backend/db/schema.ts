@@ -31,7 +31,6 @@ export const sessions = pgTable(
     claudeCodeSessionId: text('claude_code_session_id').notNull().unique(), // SDK session ID
     title: text('title'),
     summary: text('summary'), // Auto-generated session summary from structured output
-    model: text('model').notNull(),
     databricksWorkspacePath: text('databricks_workspace_path'), // Databricks workspace path
     userId: text('user_id')
       .notNull()

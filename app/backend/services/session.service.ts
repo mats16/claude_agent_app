@@ -30,7 +30,6 @@ export async function createSessionFromDraft(
         id: session.toString(),
         claudeCodeSessionId: session.claudeCodeSessionId,
         userId: session.userId,
-        model: session.model,
         title: session.title,
         summary: session.summary,
         databricksWorkspacePath: session.databricksWorkspacePath,
@@ -102,7 +101,6 @@ export async function updateSessionSettings(
     title?: string;
     databricksWorkspaceAutoPush?: boolean;
     databricksWorkspacePath?: string | null;
-    model?: string;
   }
 ): Promise<void> {
   // Always fetch current session for validation

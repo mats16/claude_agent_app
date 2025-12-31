@@ -16,7 +16,6 @@ export abstract class SessionBase {
 
   // Common fields for both Draft and Session
   readonly userId: string;
-  readonly model: string;
   readonly databricksWorkspacePath: string | null;
   readonly databricksWorkspaceAutoPush: boolean;
 
@@ -27,14 +26,12 @@ export abstract class SessionBase {
   protected constructor(params: {
     typeId: TypeID<'session'>;
     userId: string;
-    model: string;
     databricksWorkspacePath: string | null;
     databricksWorkspaceAutoPush: boolean;
   }) {
     this._typeId = params.typeId;
     this.id = params.typeId.toString();
     this.userId = params.userId;
-    this.model = params.model;
     this.databricksWorkspacePath = params.databricksWorkspacePath;
     this.databricksWorkspaceAutoPush = params.databricksWorkspaceAutoPush;
   }
@@ -147,7 +144,6 @@ export class SessionDraft extends SessionBase {
 
   constructor(params: {
     userId: string;
-    model: string;
     title?: string | null;
     databricksWorkspacePath?: string | null;
     databricksWorkspaceAutoPush?: boolean;
@@ -156,7 +152,6 @@ export class SessionDraft extends SessionBase {
     super({
       typeId: SessionBase.generateTypeId(),
       userId: params.userId,
-      model: params.model,
       databricksWorkspacePath: params.databricksWorkspacePath ?? null,
       databricksWorkspaceAutoPush: params.databricksWorkspaceAutoPush ?? false,
     });
@@ -183,7 +178,6 @@ export class Session extends SessionBase {
     typeId: TypeID<'session'>;
     claudeCodeSessionId: string;
     userId: string;
-    model: string;
     title: string | null;
     summary: string | null;
     databricksWorkspacePath: string | null;
@@ -195,7 +189,6 @@ export class Session extends SessionBase {
     super({
       typeId: data.typeId,
       userId: data.userId,
-      model: data.model,
       databricksWorkspacePath: data.databricksWorkspacePath,
       databricksWorkspaceAutoPush: data.databricksWorkspaceAutoPush,
     });
@@ -216,7 +209,6 @@ export class Session extends SessionBase {
       typeId: SessionBase.typeIdFromString(selectSession.id),
       claudeCodeSessionId: selectSession.claudeCodeSessionId,
       userId: selectSession.userId,
-      model: selectSession.model,
       title: selectSession.title,
       summary: selectSession.summary,
       databricksWorkspacePath: selectSession.databricksWorkspacePath,
@@ -240,7 +232,6 @@ export class Session extends SessionBase {
       typeId: SessionBase.typeIdFromString(draft.id), // Restore TypeID from id string
       claudeCodeSessionId,
       userId: draft.userId,
-      model: draft.model,
       title: draft.title,
       summary: null, // New sessions have no summary
       databricksWorkspacePath: draft.databricksWorkspacePath,

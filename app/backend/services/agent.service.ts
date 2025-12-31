@@ -314,6 +314,7 @@ export async function* processAgentRequest(
 export interface StartAgentParams {
   session: SessionBase; // SessionDraft or Session
   user: RequestUser;
+  model: string; // Model to use for this request
   messageContent: MessageContent[];
   claudeConfigAutoPush?: boolean;
   messageStream?: MessageStream; // Optional, will be created if not provided
@@ -329,6 +330,7 @@ export async function* startAgent(
   const {
     session,
     user,
+    model,
     messageContent,
     claudeConfigAutoPush = true,
     messageStream,
@@ -360,6 +362,7 @@ export async function* startAgent(
   const sdkOptions = buildSDKQueryOptions({
     session,
     user,
+    model,
     messageStream: stream,
     userPersonalAccessToken: pat,
     spAccessToken,

@@ -7,6 +7,7 @@ import type {
   SessionListResponse,
   SessionResponse,
 } from '@app/shared';
+import { toShortModelName } from '@app/shared';
 import {
   startAgent,
   MessageStream,
@@ -756,7 +757,11 @@ export async function getSessionHandler(
   }
 
   // Get last used model from events (init or result events)
-  const lastUsedModel = await eventRepo.getLastUsedModel(sessionId);
+  const lastUsedModelFull = await eventRepo.getLastUsedModel(sessionId);
+  // Convert full model name to short name (e.g., "databricks-claude-haiku-4-5" → "haiku")
+  const lastUsedModel = lastUsedModelFull
+    ? toShortModelName(lastUsedModelFull)
+    : null;
 
   // Build response in snake_case format
   const response: SessionResponse = {

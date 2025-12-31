@@ -91,3 +91,6 @@ export interface WSErrorResponse {
 
 // Re-export session types
 export * from './session.js';
+
+// Re-export Claude model utilities
+export * from './claude-model.js';

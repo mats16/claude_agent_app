@@ -162,7 +162,7 @@ export function useAgent(options: UseAgentOptions = {}) {
   const [sessionNotFound, setSessionNotFound] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [selectedModel, setSelectedModelState] = useState(
-    model || 'databricks-claude-sonnet-4-5'
+    model || 'sonnet'
   );
   // Track if model was explicitly set by user (not from props)
   const modelSetByUserRef = useRef(false);
@@ -262,7 +262,7 @@ export function useAgent(options: UseAgentOptions = {}) {
   // Update selectedModel when model prop changes (e.g., session data loaded async)
   useEffect(() => {
     if (!modelSetByUserRef.current) {
-      setSelectedModelState(model || 'databricks-claude-sonnet-4-5');
+      setSelectedModelState(model || 'sonnet');
     }
   }, [model]);
 

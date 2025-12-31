@@ -130,7 +130,7 @@ export default function QuickstartJobErrorsModal({
             },
           ],
           session_context: {
-            model: 'databricks-claude-sonnet-4-5',
+            model: 'sonnet',
           },
         }),
       });

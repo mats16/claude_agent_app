@@ -458,17 +458,17 @@ export default function ChatInput({
                 )}
                 options={[
                   {
-                    value: 'databricks-claude-opus-4-5',
+                    value: 'opus',
                     label: t('models.opus'),
                     description: t('models.opusDescription'),
                   },
                   {
-                    value: 'databricks-claude-sonnet-4-5',
+                    value: 'sonnet',
                     label: t('models.sonnet'),
                     description: t('models.sonnetDescription'),
                   },
                   {
-                    value: 'databricks-claude-haiku-4-5',
+                    value: 'haiku',
                     label: t('models.haiku'),
                     description: t('models.haikuDescription'),
                   },

@@ -6,6 +6,7 @@ import type {
   SessionListItem,
   SessionListResponse,
   SessionResponse,
+  FullModelName,
 } from '@app/shared';
 import { toShortModelName } from '@app/shared';
 import {
@@ -149,15 +150,17 @@ export async function createSessionHandler(
     const userPersonalAccessToken = await getUserPersonalAccessToken(userId);
 
     // Start processing in background
-    const agentIterator = startAgent({
-      session: sessionDraft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
+    const agentIterator = startSession(
+      sessionDraft,
       user,
-      model, // Model from request
       messageContent,
+      {
+        model,
       claudeConfigAutoPush,
       messageStream: stream,
-      userPersonalAccessToken, // Pass to avoid re-fetching inside startAgent
-    });
+        userPersonalAccessToken,
+      }
+    );
 
     // Process events in background
     (async () => {
@@ -759,9 +762,16 @@ export async function getSessionHandler(
   // Get last used model from events (init or result events)
   const lastUsedModelFull = await eventRepo.getLastUsedModel(sessionId);
   // Convert full model name to short name (e.g., "databricks-claude-haiku-4-5" → "haiku")
-  const lastUsedModel = lastUsedModelFull
-    ? toShortModelName(lastUsedModelFull)
-    : null;
+  let lastUsedModel: string | null = null;
+  if (lastUsedModelFull) {
+    try {
+      lastUsedModel = toShortModelName(lastUsedModelFull as FullModelName);
+    } catch (error) {
+      // If conversion fails, use the raw model name
+      console.warn(`Failed to convert model name: ${lastUsedModelFull}`, error);
+      lastUsedModel = lastUsedModelFull;
+    }
+  }
 
   // Build response in snake_case format
   const response: SessionResponse = {

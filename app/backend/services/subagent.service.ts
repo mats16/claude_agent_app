@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getOidcAccessToken } from './agent.service.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import {
   parseSubagentContent,
   formatSubagentContent,
@@ -57,7 +57,7 @@ async function putAgentToWorkspace(
     return;
   }
 
-  const spToken = await getOidcAccessToken();
+  const spToken = await getServicePrincipalAccessToken();
   if (!spToken) {
     console.error('[Subagents] Workspace sync skipped (no SP token available)');
     return;
@@ -91,7 +91,7 @@ async function deleteAgentFromWorkspace(
     return;
   }
 
-  const spToken = await getOidcAccessToken();
+  const spToken = await getServicePrincipalAccessToken();
   if (!spToken) {
     console.error(
       '[Subagents] Workspace delete skipped (no SP token available)'

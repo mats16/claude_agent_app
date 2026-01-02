@@ -1,5 +1,5 @@
-import { getAccessToken } from './agent.service.js';
 import { databricks } from '../config/index.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import {
   getDatabricksPat,
   hasDatabricksPat as hasPatInDb,
@@ -83,13 +83,13 @@ export async function checkWorkspacePermission(
   const claudeConfigPath = user.remote.claudeConfigDir;
 
   try {
-    const token = await getAccessToken();
+    const spToken = await getServicePrincipalAccessToken();
     const response = await fetch(
       `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${spToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: claudeConfigPath }),
@@ -275,4 +275,22 @@ export async function setDatabricksPat(
 // Clear PAT
 export async function clearDatabricksPat(userId: string): Promise<void> {
   await deleteDatabricksPat(userId);
+}
+
+/**
+ * Get access token for Databricks API calls.
+ * Uses PAT if available for the user, otherwise falls back to Service Principal.
+ *
+ * @param userId - User ID to check for PAT
+ * @returns Access token (PAT or Service Principal)
+ * @throws Error if no PAT and SP credentials not configured
+ */
+export async function getPersonalAccessToken(userId: string): Promise<string> {
+  const userPat = await getUserPersonalAccessToken(userId);
+  if (userPat) {
+    return userPat;
+  }
+
+  // getServicePrincipalAccessToken() now throws if credentials not configured
+  return await getServicePrincipalAccessToken();
 }

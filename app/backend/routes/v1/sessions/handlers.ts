@@ -5,14 +5,13 @@ import type { MessageContent } from '@app/shared';
 import {
   startAgent,
   MessageStream,
-  getAccessToken,
 } from '../../../services/agent.service.js';
 import { databricks, paths } from '../../../config/index.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 import * as eventService from '../../../services/event.service.js';
 import * as sessionService from '../../../services/session.service.js';
 import * as userSettingsService from '../../../services/user-settings.service.js';
-import { ensureUser, getUserPersonalAccessToken } from '../../../services/user.service.js';
+import { ensureUser, getPersonalAccessToken, getUserPersonalAccessToken } from '../../../services/user.service.js';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
 import { SessionDraft } from '../../../models/Session.js';
@@ -485,8 +484,7 @@ export async function getAppLiveStatusHandler(
   // Get access token (User PAT first, then fallback to Service Principal)
   let accessToken: string;
   try {
-    const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    accessToken = await getPersonalAccessToken(userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -578,8 +576,7 @@ export async function getAppHandler(
 
   let accessToken: string;
   try {
-    const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    accessToken = await getPersonalAccessToken(userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -630,8 +627,7 @@ export async function listAppDeploymentsHandler(
 
   let accessToken: string;
   try {
-    const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    accessToken = await getPersonalAccessToken(userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -682,8 +678,7 @@ export async function createAppDeploymentHandler(
 
   let accessToken: string;
   try {
-    const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    accessToken = await getPersonalAccessToken(userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });

@@ -1,7 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { getAccessTokenForUser } from '../../../utils/auth.js';
-import { getAccessToken } from '../../../agent/index.js';
+import { getPersonalAccessToken } from '../../../services/user.service.js';
 import { databricks } from '../../../config/index.js';
 
 // List jobs (wrapper for /api/2.2/jobs/list)
@@ -11,18 +10,11 @@ export async function listJobsHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  let userId: string | undefined;
 
-  try {
-    const context = extractRequestContext(request);
-    userId = context.user.sub;
-  } catch {
-    // Ignore - will use SP token
-  }
+  const context = extractRequestContext(request);
+  const userId = context.user.sub;
 
-  const accessToken = userId
-    ? await getAccessTokenForUser(userId)
-    : await getAccessToken();
+  const accessToken = await getPersonalAccessToken(userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')
@@ -47,18 +39,10 @@ export async function listJobRunsHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  let userId: string | undefined;
+  const context = extractRequestContext(request);
+  const userId = context.user.sub;
 
-  try {
-    const context = extractRequestContext(request);
-    userId = context.user.sub;
-  } catch {
-    // Ignore - will use SP token
-  }
-
-  const accessToken = userId
-    ? await getAccessTokenForUser(userId)
-    : await getAccessToken();
+  const accessToken = await getPersonalAccessToken(userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')

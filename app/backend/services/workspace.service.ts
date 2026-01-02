@@ -1,4 +1,4 @@
-import { getAccessToken } from './agent.service.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import { databricks } from '../config/index.js';
 
 export interface WorkspaceObject {
@@ -43,7 +43,7 @@ export async function listWorkspace(
   workspacePath: string,
   accessToken?: string
 ): Promise<WorkspaceListResult> {
-  const token = accessToken ?? (await getAccessToken());
+  const token = accessToken ?? await getServicePrincipalAccessToken();
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -93,7 +93,7 @@ export async function createDirectory(
   workspacePath: string,
   accessToken?: string
 ): Promise<{ path: string }> {
-  const token = accessToken ?? (await getAccessToken());
+  const token = accessToken ?? await getServicePrincipalAccessToken();
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
     {
@@ -127,7 +127,7 @@ export async function getStatus(
   workspacePath: string,
   accessToken?: string
 ): Promise<WorkspaceStatus> {
-  const token = accessToken ?? (await getAccessToken());
+  const token = accessToken ?? await getServicePrincipalAccessToken();
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -181,7 +181,7 @@ export async function getStatusRaw(
   workspacePath: string,
   accessToken?: string
 ): Promise<RawApiResponse> {
-  const token = accessToken ?? (await getAccessToken());
+  const token = accessToken ?? await getServicePrincipalAccessToken();
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -199,7 +199,7 @@ export async function listWorkspaceRaw(
   workspacePath: string,
   accessToken?: string
 ): Promise<RawApiResponse> {
-  const token = accessToken ?? (await getAccessToken());
+  const token = accessToken ?? await getServicePrincipalAccessToken();
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -217,7 +217,7 @@ export async function mkdirsRaw(
   workspacePath: string,
   accessToken?: string
 ): Promise<RawApiResponse> {
-  const token = accessToken ?? (await getAccessToken());
+  const token = accessToken ?? await getServicePrincipalAccessToken();
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
     {

@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
-import { getOidcAccessToken } from './agent.service.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import {
   parseSkillContent,
   formatSkillContent,
@@ -76,7 +76,7 @@ async function syncSkillToWorkspace(
     return;
   }
 
-  const spToken = await getOidcAccessToken();
+  const spToken = await getServicePrincipalAccessToken();
   if (!spToken) {
     console.error('[Skills] Workspace sync skipped (no SP token available)');
     return;
@@ -117,7 +117,7 @@ async function deleteSkillFromWorkspace(
     return;
   }
 
-  const spToken = await getOidcAccessToken();
+  const spToken = await getServicePrincipalAccessToken();
   if (!spToken) {
     console.error('[Skills] Workspace delete skipped (no SP token available)');
     return;

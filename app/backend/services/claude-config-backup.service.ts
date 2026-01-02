@@ -1,11 +1,11 @@
-import { getOidcAccessToken } from './agent.service.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import { claudeConfigExcludePatterns } from '../utils/workspaceClient.js';
 import { enqueueSync } from './workspace-queue.service.js';
 import type { RequestUser } from '../models/RequestUser.js';
 
 // Pull (restore) claude config from workspace to local
 export async function pullClaudeConfig(user: RequestUser): Promise<string> {
-  const spAccessToken = await getOidcAccessToken();
+  const spAccessToken = await getServicePrincipalAccessToken();
   if (!spAccessToken) {
     throw new Error('Failed to get SP access token for backup pull');
   }
@@ -27,7 +27,7 @@ export async function pullClaudeConfig(user: RequestUser): Promise<string> {
 
 // Push (backup) claude config from local to workspace
 export async function pushClaudeConfig(user: RequestUser): Promise<string> {
-  const spAccessToken = await getOidcAccessToken();
+  const spAccessToken = await getServicePrincipalAccessToken();
   if (!spAccessToken) {
     throw new Error('Failed to get SP access token for backup push');
   }
@@ -55,7 +55,7 @@ export async function pushClaudeConfig(user: RequestUser): Promise<string> {
 export async function manualPullClaudeConfig(
   user: RequestUser
 ): Promise<string> {
-  const spAccessToken = await getOidcAccessToken();
+  const spAccessToken = await getServicePrincipalAccessToken();
   if (!spAccessToken) {
     throw new Error('Failed to get SP access token for manual pull');
   }

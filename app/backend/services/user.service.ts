@@ -84,11 +84,6 @@ export async function checkWorkspacePermission(
 
   try {
     const spToken = await getServicePrincipalAccessToken();
-    if (!spToken) {
-      throw new Error(
-        'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-      );
-    }
     const response = await fetch(
       `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
       {

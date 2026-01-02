@@ -45,11 +45,6 @@ export async function listWorkspace(
 ): Promise<WorkspaceListResult> {
   const spToken = await getServicePrincipalAccessToken();
   const token = accessToken ?? spToken;
-  if (!token) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -101,11 +96,6 @@ export async function createDirectory(
 ): Promise<{ path: string }> {
   const spToken = await getServicePrincipalAccessToken();
   const token = accessToken ?? spToken;
-  if (!token) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
     {
@@ -141,11 +131,6 @@ export async function getStatus(
 ): Promise<WorkspaceStatus> {
   const spToken = await getServicePrincipalAccessToken();
   const token = accessToken ?? spToken;
-  if (!token) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -201,11 +186,6 @@ export async function getStatusRaw(
 ): Promise<RawApiResponse> {
   const spToken = await getServicePrincipalAccessToken();
   const token = accessToken ?? spToken;
-  if (!token) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -225,11 +205,6 @@ export async function listWorkspaceRaw(
 ): Promise<RawApiResponse> {
   const spToken = await getServicePrincipalAccessToken();
   const token = accessToken ?? spToken;
-  if (!token) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
     {
@@ -249,11 +224,6 @@ export async function mkdirsRaw(
 ): Promise<RawApiResponse> {
   const spToken = await getServicePrincipalAccessToken();
   const token = accessToken ?? spToken;
-  if (!token) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
   const response = await fetch(
     `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
     {

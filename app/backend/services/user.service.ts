@@ -1,4 +1,4 @@
-import { getAccessToken } from './agent.service.js';
+import { getAccessToken } from '../utils/auth.js';
 import { databricks } from '../config/index.js';
 import {
   getDatabricksPat,

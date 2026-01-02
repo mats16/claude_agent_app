@@ -5,8 +5,8 @@ import type { MessageContent } from '@app/shared';
 import {
   startAgent,
   MessageStream,
-  getAccessToken,
 } from '../../../services/agent.service.js';
+import { getAccessToken } from '../../../utils/auth.js';
 import { databricks, paths } from '../../../config/index.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 import * as eventService from '../../../services/event.service.js';

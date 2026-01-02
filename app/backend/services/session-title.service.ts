@@ -1,6 +1,6 @@
 import type { MessageContent } from '@app/shared';
 import { databricks, agentEnv } from '../config/index.js';
-import { getOidcAccessToken } from './agent.service.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import { updateSessionTitle } from '../db/sessions.js';
 import { notifySessionUpdated } from './session-state.service.js';
 
@@ -48,7 +48,7 @@ async function callHaikuForTitle(
   messageContent: MessageContent[],
   userAccessToken?: string
 ): Promise<string | null> {
-  const accessToken = userAccessToken ?? (await getOidcAccessToken());
+  const accessToken = userAccessToken ?? (await getServicePrincipalAccessToken());
   if (!accessToken) {
     console.warn('[TitleService] No access token available');
     return null;

@@ -8,8 +8,6 @@ import type { MessageStream } from '../services/agent.service.js';
 // Re-export from service for backward compatibility
 export {
   MessageStream,
-  getOidcAccessToken,
-  getAccessToken,
   processAgentRequest,
 } from '../services/agent.service.js';
 export type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';

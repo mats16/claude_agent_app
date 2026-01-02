@@ -14,73 +14,9 @@ import {
   type ProcessAgentRequestOptions,
 } from '../agent/index.js';
 import { getUserPersonalAccessToken } from './user.service.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 
 export type { SDKMessage };
-
-// Token cache for service principal
-let cachedToken: { token: string; expiresAt: number } | null = null;
-
-// Token expiry buffer (5 minutes) to prevent using tokens about to expire
-const TOKEN_EXPIRY_BUFFER_SECONDS = 300;
-
-// Get service principal access token from Databricks OAuth2
-export async function getOidcAccessToken(): Promise<string | undefined> {
-  // Check if cached token is still valid
-  if (cachedToken && Date.now() < cachedToken.expiresAt) {
-    return cachedToken.token;
-  }
-
-  if (!databricks.clientId || !databricks.clientSecret) {
-    return undefined;
-  }
-
-  // Request token from Databricks OAuth2 endpoint
-  const tokenUrl = `https://${databricks.host}/oidc/v1/token`;
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: databricks.clientId,
-      client_secret: databricks.clientSecret,
-      scope: 'all-apis',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Failed to get service principal token: ${response.status} ${errorText}`
-    );
-  }
-
-  const data = (await response.json()) as {
-    access_token: string;
-    expires_in?: number;
-  };
-  const expiresIn = data.expires_in || 3600; // Default to 1 hour
-
-  // Cache token with buffer before expiration
-  cachedToken = {
-    token: data.access_token,
-    expiresAt: Date.now() + (expiresIn - TOKEN_EXPIRY_BUFFER_SECONDS) * 1000,
-  };
-
-  return data.access_token;
-}
-
-// Get access token (Service Principal only)
-export async function getAccessToken(): Promise<string> {
-  const spToken = await getOidcAccessToken();
-  if (!spToken) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
-  return spToken;
-}
 
 // MessageStream: Manages message queue for streaming input
 // Allows external code to add messages to the agent session dynamically
@@ -278,7 +214,7 @@ export async function* processAgentRequest(
     path.join(agentEnv.USERS_BASE_PATH, 'me', '.claude');
   fs.mkdirSync(localClaudeConfigPath, { recursive: true });
 
-  const spAccessToken = await getOidcAccessToken();
+  const spAccessToken = await getServicePrincipalAccessToken();
 
   // Create or use provided MessageStream
   const stream = messageStream ?? new MessageStream(message, waitForReady);
@@ -350,7 +286,7 @@ export async function* startAgent(
     userPersonalAccessToken ?? (await getUserPersonalAccessToken(userId));
 
   // Get service principal token
-  const spAccessToken = await getOidcAccessToken();
+  const spAccessToken = await getServicePrincipalAccessToken();
 
   // Create MessageStream if not provided
   const stream =

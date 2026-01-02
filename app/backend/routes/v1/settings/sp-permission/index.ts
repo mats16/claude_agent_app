@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { getAccessToken } from '../../../../agent/index.js';
+import { getAccessToken } from '../../../../utils/auth.js';
 import { databricks } from '../../../../config/index.js';
 
 const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {

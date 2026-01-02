@@ -1,7 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { getAccessTokenForUser } from '../../../utils/auth.js';
-import { getAccessToken } from '../../../agent/index.js';
+import { getAccessTokenForUser, getAccessToken } from '../../../utils/auth.js';
 import { databricks } from '../../../config/index.js';
 
 // List jobs (wrapper for /api/2.2/jobs/list)

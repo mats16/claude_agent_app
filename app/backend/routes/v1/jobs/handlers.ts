@@ -1,9 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import {
-  getAccessTokenForUser,
-  getServicePrincipalAccessToken,
-} from '../../../utils/auth.js';
+import { getServicePrincipalAccessToken } from '../../../utils/auth.js';
+import { getPersonalAccessToken } from '../../../services/user.service.js';
 import { databricks } from '../../../config/index.js';
 
 // List jobs (wrapper for /api/2.2/jobs/list)
@@ -23,7 +21,7 @@ export async function listJobsHandler(
   }
 
   const accessToken = userId
-    ? await getAccessTokenForUser(userId)
+    ? await getPersonalAccessToken(userId)
     : await getServicePrincipalAccessToken().then((token) => {
         if (!token) {
           throw new Error(
@@ -66,7 +64,7 @@ export async function listJobRunsHandler(
   }
 
   const accessToken = userId
-    ? await getAccessTokenForUser(userId)
+    ? await getPersonalAccessToken(userId)
     : await getServicePrincipalAccessToken().then((token) => {
         if (!token) {
           throw new Error(

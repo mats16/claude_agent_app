@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { getAccessTokenForUser } from '../../../utils/auth.js';
+import { getPersonalAccessToken } from '../../../services/user.service.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 
 // List root workspace (returns Users and Shared)
@@ -39,7 +39,7 @@ export async function listUserWorkspaceHandler(
 
   try {
     const accessToken = userId
-      ? await getAccessTokenForUser(userId)
+      ? await getPersonalAccessToken(userId)
       : undefined;
     const result = await workspaceService.listUserWorkspace(email, accessToken);
     return result;
@@ -112,7 +112,7 @@ export async function listWorkspacePathHandler(
 
   try {
     const accessToken = userId
-      ? await getAccessTokenForUser(userId)
+      ? await getPersonalAccessToken(userId)
       : undefined;
     // Fetch list and status in parallel to get browse_url
     const [listResult, statusResult] = await Promise.all([
@@ -166,7 +166,7 @@ export async function getStatusHandler(
 
   try {
     const accessToken = userId
-      ? await getAccessTokenForUser(userId)
+      ? await getPersonalAccessToken(userId)
       : undefined;
     const result = await workspaceService.getStatus(workspacePath, accessToken);
     return result;
@@ -223,7 +223,7 @@ export async function createDirectoryHandler(
 
   try {
     const accessToken = userId
-      ? await getAccessTokenForUser(userId)
+      ? await getPersonalAccessToken(userId)
       : undefined;
     const result = await workspaceService.createDirectory(
       workspacePath,
@@ -285,7 +285,7 @@ export async function getWorkspaceObjectHandler(
     }
   }
 
-  const accessToken = userId ? await getAccessTokenForUser(userId) : undefined;
+  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
   const result = await workspaceService.getStatusRaw(
     workspacePath,
     accessToken
@@ -335,7 +335,7 @@ export async function listWorkspaceHandler(
     }
   }
 
-  const accessToken = userId ? await getAccessTokenForUser(userId) : undefined;
+  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
   const result = await workspaceService.listWorkspaceRaw(
     workspacePath,
     accessToken
@@ -384,7 +384,7 @@ export async function mkdirsHandler(
     }
   }
 
-  const accessToken = userId ? await getAccessTokenForUser(userId) : undefined;
+  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
   const result = await workspaceService.mkdirsRaw(workspacePath, accessToken);
   return reply.status(result.status).send(result.body);
 }

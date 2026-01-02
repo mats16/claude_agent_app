@@ -1,5 +1,4 @@
 import { databricks } from '../config/index.js';
-import { getUserPersonalAccessToken } from '../services/user.service.js';
 
 // Token cache for service principal
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -60,27 +59,4 @@ export async function getServicePrincipalAccessToken(): Promise<
   };
 
   return data.access_token;
-}
-
-/**
- * Get access token for Databricks API calls.
- * Uses PAT if available for the user, otherwise falls back to Service Principal.
- *
- * @param userId - User ID to check for PAT
- * @returns Access token (PAT or Service Principal)
- * @throws Error if no PAT and SP credentials not configured
- */
-export async function getAccessTokenForUser(userId: string): Promise<string> {
-  const userPat = await getUserPersonalAccessToken(userId);
-  if (userPat) {
-    return userPat;
-  }
-
-  const spToken = await getServicePrincipalAccessToken();
-  if (!spToken) {
-    throw new Error(
-      'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-    );
-  }
-  return spToken;
 }

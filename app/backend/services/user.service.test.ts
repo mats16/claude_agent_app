@@ -168,7 +168,9 @@ describe('user.service', () => {
   describe('checkWorkspacePermission', () => {
     it('should return true when workspace directory creation succeeds', async () => {
       // Arrange
-      vi.mocked(authUtil.getAccessToken).mockResolvedValue('mock-token');
+      vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue(
+        'mock-token'
+      );
 
       mockFetch.mockResolvedValue({
         json: async () => ({}),
@@ -193,7 +195,9 @@ describe('user.service', () => {
 
     it('should return false when workspace directory creation fails with error_code', async () => {
       // Arrange
-      vi.mocked(authUtil.getAccessToken).mockResolvedValue('mock-token');
+      vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue(
+        'mock-token'
+      );
 
       mockFetch.mockResolvedValue({
         json: async () => ({
@@ -211,7 +215,9 @@ describe('user.service', () => {
 
     it('should return false when API call throws error', async () => {
       // Arrange
-      vi.mocked(authUtil.getAccessToken).mockResolvedValue('mock-token');
+      vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue(
+        'mock-token'
+      );
 
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockFetch.mockRejectedValue(new Error('Network error'));
@@ -238,7 +244,9 @@ describe('user.service', () => {
       };
 
       vi.mocked(usersRepo.getUserById).mockResolvedValue(mockUser);
-      vi.mocked(authUtil.getAccessToken).mockResolvedValue('mock-token');
+      vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue(
+        'mock-token'
+      );
 
       mockFetch.mockResolvedValue({
         json: async () => ({}),
@@ -267,7 +275,9 @@ describe('user.service', () => {
       };
 
       vi.mocked(usersRepo.getUserById).mockResolvedValue(mockUser);
-      vi.mocked(authUtil.getAccessToken).mockResolvedValue('mock-token');
+      vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue(
+        'mock-token'
+      );
 
       mockFetch.mockResolvedValue({
         json: async () => ({}),
@@ -297,7 +307,9 @@ describe('user.service', () => {
       };
 
       vi.mocked(usersRepo.getUserById).mockResolvedValue(mockUser);
-      vi.mocked(authUtil.getAccessToken).mockResolvedValue('mock-token');
+      vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue(
+        'mock-token'
+      );
 
       mockFetch.mockResolvedValue({
         json: async () => ({

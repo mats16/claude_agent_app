@@ -63,13 +63,19 @@ export async function getServicePrincipalAccessToken(): Promise<
 }
 
 /**
- * Get service principal access token, throwing error if unavailable.
- * Use this when SP token is required (not optional).
+ * Get access token for Databricks API calls.
+ * Uses PAT if available for the user, otherwise falls back to Service Principal.
  *
- * @throws Error if DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET not set
- * @returns Access token
+ * @param userId - User ID to check for PAT
+ * @returns Access token (PAT or Service Principal)
+ * @throws Error if no PAT and SP credentials not configured
  */
-export async function getAccessToken(): Promise<string> {
+export async function getAccessTokenForUser(userId: string): Promise<string> {
+  const userPat = await getUserPersonalAccessToken(userId);
+  if (userPat) {
+    return userPat;
+  }
+
   const spToken = await getServicePrincipalAccessToken();
   if (!spToken) {
     throw new Error(
@@ -77,19 +83,4 @@ export async function getAccessToken(): Promise<string> {
     );
   }
   return spToken;
-}
-
-/**
- * Get access token for Databricks API calls.
- * Uses PAT if available for the user, otherwise falls back to Service Principal.
- *
- * @param userId - User ID to check for PAT
- * @returns Access token (PAT or Service Principal)
- */
-export async function getAccessTokenForUser(userId: string): Promise<string> {
-  const userPat = await getUserPersonalAccessToken(userId);
-  if (userPat) {
-    return userPat;
-  }
-  return getAccessToken();
 }

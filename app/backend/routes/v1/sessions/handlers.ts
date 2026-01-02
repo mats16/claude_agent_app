@@ -6,7 +6,7 @@ import {
   startAgent,
   MessageStream,
 } from '../../../services/agent.service.js';
-import { getAccessToken } from '../../../utils/auth.js';
+import { getServicePrincipalAccessToken } from '../../../utils/auth.js';
 import { databricks, paths } from '../../../config/index.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 import * as eventService from '../../../services/event.service.js';
@@ -486,7 +486,13 @@ export async function getAppLiveStatusHandler(
   let accessToken: string;
   try {
     const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    const spToken = await getServicePrincipalAccessToken();
+    if (!userPat && !spToken) {
+      throw new Error(
+        'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
+      );
+    }
+    accessToken = userPat ?? spToken!;
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -579,7 +585,13 @@ export async function getAppHandler(
   let accessToken: string;
   try {
     const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    const spToken = await getServicePrincipalAccessToken();
+    if (!userPat && !spToken) {
+      throw new Error(
+        'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
+      );
+    }
+    accessToken = userPat ?? spToken!;
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -631,7 +643,13 @@ export async function listAppDeploymentsHandler(
   let accessToken: string;
   try {
     const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    const spToken = await getServicePrincipalAccessToken();
+    if (!userPat && !spToken) {
+      throw new Error(
+        'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
+      );
+    }
+    accessToken = userPat ?? spToken!;
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -683,7 +701,13 @@ export async function createAppDeploymentHandler(
   let accessToken: string;
   try {
     const userPat = await getUserPersonalAccessToken(userId);
-    accessToken = userPat ?? (await getAccessToken());
+    const spToken = await getServicePrincipalAccessToken();
+    if (!userPat && !spToken) {
+      throw new Error(
+        'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
+      );
+    }
+    accessToken = userPat ?? spToken!;
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });

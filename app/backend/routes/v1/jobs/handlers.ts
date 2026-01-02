@@ -1,6 +1,9 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { getAccessTokenForUser, getAccessToken } from '../../../utils/auth.js';
+import {
+  getAccessTokenForUser,
+  getServicePrincipalAccessToken,
+} from '../../../utils/auth.js';
 import { databricks } from '../../../config/index.js';
 
 // List jobs (wrapper for /api/2.2/jobs/list)
@@ -21,7 +24,14 @@ export async function listJobsHandler(
 
   const accessToken = userId
     ? await getAccessTokenForUser(userId)
-    : await getAccessToken();
+    : await getServicePrincipalAccessToken().then((token) => {
+        if (!token) {
+          throw new Error(
+            'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
+          );
+        }
+        return token;
+      });
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')
@@ -57,7 +67,14 @@ export async function listJobRunsHandler(
 
   const accessToken = userId
     ? await getAccessTokenForUser(userId)
-    : await getAccessToken();
+    : await getServicePrincipalAccessToken().then((token) => {
+        if (!token) {
+          throw new Error(
+            'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
+          );
+        }
+        return token;
+      });
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')

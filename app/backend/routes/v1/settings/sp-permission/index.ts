@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { getAccessToken } from '../../../../utils/auth.js';
+import { getServicePrincipalAccessToken } from '../../../../utils/auth.js';
 import { databricks } from '../../../../config/index.js';
 
 const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {
@@ -7,13 +7,19 @@ const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/v1/settings/sp-permission
   fastify.get('/', async (_request, reply) => {
     try {
-      const token = await getAccessToken();
+      const spToken = await getServicePrincipalAccessToken();
+      if (!spToken) {
+        return reply.status(500).send({
+          error:
+            'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.',
+        });
+      }
 
       // Fetch SP info from Databricks SCIM API
       const response = await fetch(
         `${databricks.hostUrl}/api/2.0/preview/scim/v2/Me`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${spToken}` },
         }
       );
 

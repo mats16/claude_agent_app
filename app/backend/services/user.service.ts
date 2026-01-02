@@ -1,4 +1,4 @@
-import { getAccessToken } from '../utils/auth.js';
+import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import { databricks } from '../config/index.js';
 import {
   getDatabricksPat,
@@ -83,13 +83,18 @@ export async function checkWorkspacePermission(
   const claudeConfigPath = user.remote.claudeConfigDir;
 
   try {
-    const token = await getAccessToken();
+    const spToken = await getServicePrincipalAccessToken();
+    if (!spToken) {
+      throw new Error(
+        'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
+      );
+    }
     const response = await fetch(
       `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${spToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: claudeConfigPath }),

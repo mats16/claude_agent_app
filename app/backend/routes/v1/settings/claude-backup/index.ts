@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { extractRequestContext } from '../../../../utils/headers.js';
-import * as userService from '../../../../services/user.service.js';
+import { userService } from '../../../../services/user.service.js';
+import * as settingsService from '../../../../services/user-settings.service.js';
 import * as claudeBackupService from '../../../../services/claude-config-backup.service.js';
 
 const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
@@ -15,7 +16,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const settings = await userService.getUserSettings(context.user.sub);
+      const settings = await settingsService.getUserSettings(context.user.sub);
       return { claudeConfigAutoPush: settings.claudeConfigAutoPush };
     } catch (error: any) {
       console.error('Failed to get backup settings:', error);
@@ -44,7 +45,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        await userService.updateUserSettings(context.user, {
+        await settingsService.updateUserSettings(context.user.sub, {
           claudeConfigAutoPush,
         });
         return { success: true, claudeConfigAutoPush };

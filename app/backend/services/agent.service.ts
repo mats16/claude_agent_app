@@ -13,7 +13,7 @@ import {
   buildSDKQueryOptions,
   type ProcessAgentRequestOptions,
 } from '../agent/index.js';
-import { getUserPersonalAccessToken } from './user.service.js';
+import { userService } from './user.service.js';
 import { getServicePrincipalAccessToken } from '../utils/auth.js';
 
 export type { SDKMessage };
@@ -185,7 +185,7 @@ function buildPrompt(
  * @example
  * ```typescript
  * // Deprecated: Low-level API
- * const pat = await getUserPersonalAccessToken(userId);
+ * const pat = await userService.getUserPersonalAccessToken(userId);
  * for await (const msg of processAgentRequest(session, content, user, options, stream, pat)) {
  *   // ...
  * }
@@ -283,7 +283,7 @@ export async function* startAgent(
 
   // Get user PAT if not provided
   const pat =
-    userPersonalAccessToken ?? (await getUserPersonalAccessToken(userId));
+    userPersonalAccessToken ?? (await userService.getUserPersonalAccessToken(userId));
 
   // Get service principal token
   const spAccessToken = await getServicePrincipalAccessToken();

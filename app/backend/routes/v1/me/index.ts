@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import * as userService from '../../../services/user.service.js';
+import { userService } from '../../../services/user.service.js';
 
 const meRoutes: FastifyPluginAsync = async (fastify) => {
   // Get current user info (includes workspace permission check)

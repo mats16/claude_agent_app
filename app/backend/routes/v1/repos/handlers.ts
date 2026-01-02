@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { getPersonalAccessToken } from '../../../services/user.service.js';
+import { userService } from '../../../services/user.service.js';
 import { databricks } from '../../../config/index.js';
 
 interface CreateRepoBody {
@@ -95,7 +95,7 @@ export async function createRepoHandler(
 
   try {
     // Get access token (PAT if available, falls back to Service Principal)
-    const accessToken = await getPersonalAccessToken(userId);
+    const accessToken = await userService.getPersonalAccessToken(userId);
 
     // Build request body
     const requestBody: Record<string, unknown> = {

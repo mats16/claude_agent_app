@@ -1,15 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  ensureUserWithDefaults,
-  ensureUser,
-  checkWorkspacePermission,
-  getUserInfo,
-  hasDatabricksPat,
-  getUserPersonalAccessToken,
-  getPersonalAccessToken,
-  setDatabricksPat,
-  clearDatabricksPat,
-} from './user.service.js';
+import { userService } from './user.service.js';
 import type { RequestUser } from '../models/RequestUser.js';
 import type { SelectUser } from '../db/schema.js';
 import * as usersRepo from '../db/users.js';
@@ -75,7 +65,7 @@ describe('user.service', () => {
       vi.mocked(usersRepo.getUserById).mockResolvedValue(existingUser);
 
       // Act
-      const result = await ensureUserWithDefaults(mockUserId, mockEmail);
+      const result = await userService.ensureUserWithDefaults(mockUserId, mockEmail);
 
       // Assert
       expect(result).toEqual(existingUser);
@@ -100,7 +90,7 @@ describe('user.service', () => {
       vi.mocked(usersRepo.updateUserEmail).mockResolvedValue(undefined);
 
       // Act
-      const result = await ensureUserWithDefaults(mockUserId, newEmail);
+      const result = await userService.ensureUserWithDefaults(mockUserId, newEmail);
 
       // Assert
       expect(result.email).toBe(newEmail);
@@ -121,7 +111,7 @@ describe('user.service', () => {
       vi.mocked(usersRepo.createUserWithDefaultSettings).mockResolvedValue(newUser);
 
       // Act
-      const result = await ensureUserWithDefaults(mockUserId, mockEmail);
+      const result = await userService.ensureUserWithDefaults(mockUserId, mockEmail);
 
       // Assert
       expect(result).toEqual(newUser);
@@ -141,7 +131,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        ensureUserWithDefaults(mockUserId, mockEmail)
+        userService.ensureUserWithDefaults(mockUserId, mockEmail)
       ).rejects.toThrow('Transaction failed');
     });
   });
@@ -159,7 +149,7 @@ describe('user.service', () => {
       vi.mocked(usersRepo.getUserById).mockResolvedValue(mockUser);
 
       // Act
-      await ensureUser(mockRequestUser);
+      await userService.ensureUser(mockRequestUser);
 
       // Assert
       expect(usersRepo.getUserById).toHaveBeenCalledWith(mockUserId);
@@ -178,7 +168,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await userService.checkWorkspacePermission(mockRequestUser);
 
       // Assert
       expect(result).toBe(true);
@@ -208,7 +198,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await userService.checkWorkspacePermission(mockRequestUser);
 
       // Assert
       expect(result).toBe(false);
@@ -224,7 +214,7 @@ describe('user.service', () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await userService.checkWorkspacePermission(mockRequestUser);
 
       // Assert
       expect(result).toBe(false);
@@ -254,7 +244,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await userService.getUserInfo(mockRequestUser);
 
       // Assert
       expect(result).toEqual({
@@ -289,7 +279,7 @@ describe('user.service', () => {
       (databricks as any).appName = null;
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await userService.getUserInfo(mockRequestUser);
 
       // Assert
       expect(result.databricksAppUrl).toBe(null);
@@ -319,7 +309,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await userService.getUserInfo(mockRequestUser);
 
       // Assert
       expect(result.hasWorkspacePermission).toBe(false);
@@ -332,7 +322,7 @@ describe('user.service', () => {
       vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
 
       // Act
-      const result = await hasDatabricksPat(mockUserId);
+      const result = await userService.hasDatabricksPat(mockUserId);
 
       // Assert
       expect(result).toBe(false);
@@ -345,7 +335,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.hasDatabricksPat).mockResolvedValue(true);
 
       // Act
-      const result = await hasDatabricksPat(mockUserId);
+      const result = await userService.hasDatabricksPat(mockUserId);
 
       // Assert
       expect(result).toBe(true);
@@ -358,7 +348,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.hasDatabricksPat).mockResolvedValue(false);
 
       // Act
-      const result = await hasDatabricksPat(mockUserId);
+      const result = await userService.hasDatabricksPat(mockUserId);
 
       // Assert
       expect(result).toBe(false);
@@ -371,7 +361,7 @@ describe('user.service', () => {
       vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
 
       // Act
-      const result = await getUserPersonalAccessToken(mockUserId);
+      const result = await userService.getUserPersonalAccessToken(mockUserId);
 
       // Assert
       expect(result).toBe(undefined);
@@ -384,7 +374,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(mockPat);
 
       // Act
-      const result = await getUserPersonalAccessToken(mockUserId);
+      const result = await userService.getUserPersonalAccessToken(mockUserId);
 
       // Assert
       expect(result).toBe(mockPat);
@@ -397,7 +387,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(null);
 
       // Act
-      const result = await getUserPersonalAccessToken(mockUserId);
+      const result = await userService.getUserPersonalAccessToken(mockUserId);
 
       // Assert
       expect(result).toBe(undefined);
@@ -413,7 +403,7 @@ describe('user.service', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       // Act
-      const result = await getUserPersonalAccessToken(mockUserId);
+      const result = await userService.getUserPersonalAccessToken(mockUserId);
 
       // Assert
       expect(result).toBe(undefined);
@@ -433,7 +423,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(mockPat);
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await userService.getPersonalAccessToken(mockUserId);
 
       // Assert
       expect(result).toBe(mockPat);
@@ -448,7 +438,7 @@ describe('user.service', () => {
       vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue('sp-token-123');
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await userService.getPersonalAccessToken(mockUserId);
 
       // Assert
       expect(result).toBe('sp-token-123');
@@ -462,7 +452,7 @@ describe('user.service', () => {
       vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue('sp-token-123');
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await userService.getPersonalAccessToken(mockUserId);
 
       // Assert
       expect(result).toBe('sp-token-123');
@@ -480,7 +470,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        getPersonalAccessToken(mockUserId)
+        userService.getPersonalAccessToken(mockUserId)
       ).rejects.toThrow('Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.');
     });
 
@@ -498,7 +488,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        getPersonalAccessToken(mockUserId)
+        userService.getPersonalAccessToken(mockUserId)
       ).rejects.toThrow('Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.');
 
       consoleWarnSpy.mockRestore();
@@ -512,7 +502,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        setDatabricksPat(mockRequestUser, mockPat)
+        userService.setDatabricksPat(mockRequestUser, mockPat)
       ).rejects.toThrow('Encryption not available. Cannot store PAT.');
 
       expect(oauthTokensRepo.setDatabricksPat).not.toHaveBeenCalled();
@@ -550,7 +540,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await userService.setDatabricksPat(mockRequestUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toEqual(new Date(expiryTime));
@@ -593,7 +583,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await userService.setDatabricksPat(mockRequestUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toBe(null);
@@ -629,7 +619,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await userService.setDatabricksPat(mockRequestUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toBe(null);
@@ -666,7 +656,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      await setDatabricksPat(mockRequestUser, mockPat);
+      await userService.setDatabricksPat(mockRequestUser, mockPat);
 
       // Assert - User should be created
       expect(usersRepo.createUserWithDefaultSettings).toHaveBeenCalled();
@@ -679,7 +669,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.deleteDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      await clearDatabricksPat(mockUserId);
+      await userService.clearDatabricksPat(mockUserId);
 
       // Assert
       expect(oauthTokensRepo.deleteDatabricksPat).toHaveBeenCalledWith(mockUserId);
@@ -691,7 +681,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.deleteDatabricksPat).mockRejectedValue(dbError);
 
       // Act & Assert
-      await expect(clearDatabricksPat(mockUserId)).rejects.toThrow('Database delete failed');
+      await expect(userService.clearDatabricksPat(mockUserId)).rejects.toThrow('Database delete failed');
     });
   });
 });

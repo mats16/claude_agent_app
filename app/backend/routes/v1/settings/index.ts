@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import * as userService from '../../../services/user.service.js';
+import * as settingsService from '../../../services/user-settings.service.js';
 
 const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // Get current user settings
@@ -14,7 +14,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const settings = await userService.getUserSettings(context.user.sub);
+      const settings = await settingsService.getUserSettings(context.user.sub);
       return settings;
     } catch (error: any) {
       console.error('Failed to get user settings:', error);
@@ -43,7 +43,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        await userService.updateUserSettings(context.user, {
+        await settingsService.updateUserSettings(context.user.sub, {
           claudeConfigAutoPush,
         });
         return { success: true };

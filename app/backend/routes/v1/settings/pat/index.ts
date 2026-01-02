@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { extractRequestContext } from '../../../../utils/headers.js';
-import * as userService from '../../../../services/user.service.js';
+import { userService } from '../../../../services/user.service.js';
 import { isEncryptionAvailable } from '../../../../utils/encryption.js';
 
 const patRoutes: FastifyPluginAsync = async (fastify) => {

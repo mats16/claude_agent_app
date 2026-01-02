@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { getPersonalAccessToken } from '../../../services/user.service.js';
+import { userService } from '../../../services/user.service.js';
 import { databricks } from '../../../config/index.js';
 
 // List jobs (wrapper for /api/2.2/jobs/list)
@@ -14,7 +14,7 @@ export async function listJobsHandler(
   const context = extractRequestContext(request);
   const userId = context.user.sub;
 
-  const accessToken = await getPersonalAccessToken(userId);
+  const accessToken = await userService.getPersonalAccessToken(userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')
@@ -42,7 +42,7 @@ export async function listJobRunsHandler(
   const context = extractRequestContext(request);
   const userId = context.user.sub;
 
-  const accessToken = await getPersonalAccessToken(userId);
+  const accessToken = await userService.getPersonalAccessToken(userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')

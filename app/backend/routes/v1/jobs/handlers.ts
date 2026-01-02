@@ -1,6 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
-import { getServicePrincipalAccessToken } from '../../../utils/auth.js';
 import { getPersonalAccessToken } from '../../../services/user.service.js';
 import { databricks } from '../../../config/index.js';
 
@@ -11,25 +10,11 @@ export async function listJobsHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  let userId: string | undefined;
 
-  try {
-    const context = extractRequestContext(request);
-    userId = context.user.sub;
-  } catch {
-    // Ignore - will use SP token
-  }
+  const context = extractRequestContext(request);
+  const userId = context.user.sub;
 
-  const accessToken = userId
-    ? await getPersonalAccessToken(userId)
-    : await getServicePrincipalAccessToken().then((token) => {
-        if (!token) {
-          throw new Error(
-            'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-          );
-        }
-        return token;
-      });
+  const accessToken = await getPersonalAccessToken(userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')
@@ -54,25 +39,10 @@ export async function listJobRunsHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  let userId: string | undefined;
+  const context = extractRequestContext(request);
+  const userId = context.user.sub;
 
-  try {
-    const context = extractRequestContext(request);
-    userId = context.user.sub;
-  } catch {
-    // Ignore - will use SP token
-  }
-
-  const accessToken = userId
-    ? await getPersonalAccessToken(userId)
-    : await getServicePrincipalAccessToken().then((token) => {
-        if (!token) {
-          throw new Error(
-            'No access token available. Set DATABRICKS_CLIENT_ID/DATABRICKS_CLIENT_SECRET.'
-          );
-        }
-        return token;
-      });
+  const accessToken = await getPersonalAccessToken(userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')

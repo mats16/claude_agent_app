@@ -41,10 +41,10 @@ export async function buildApp() {
   });
 
   // Register plugins via autoload (websocket, static)
-  // Note: auth and session-state plugins are excluded for Phase 1
+  // Note: session-state plugin is excluded for Phase 1
   await fastify.register(autoload, {
     dir: path.join(__dirname, 'plugins'),
-    ignorePattern: /^(auth|session-state)\./,
+    ignorePattern: /^session-state\./,
   });
 
   // Register multipart plugin for file uploads

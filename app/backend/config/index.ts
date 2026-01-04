@@ -4,8 +4,20 @@
  */
 import path from 'path';
 
+/**
+ * Helper function to require an environment variable
+ * Throws an error if the variable is not set
+ */
+function requireEnv(name: string): string {
+	const value = process.env[name];
+	if (!value) {
+		throw new Error(`${name} environment variable is required`);
+	}
+	return value;
+}
+
 const databricksHost =
-  process.env.DATABRICKS_HOST?.replace(/^https?:\/\//, '') ?? '';
+	process.env.DATABRICKS_HOST?.replace(/^https?:\/\//, '') ?? '';
 
 // Databricks configuration
 export const databricks = {
@@ -31,7 +43,7 @@ export const server = {
 
 // Database configuration
 export const database = {
-  url: process.env.DB_URL,
+	url: requireEnv('DATABASE_URL'),
 };
 
 // Encryption configuration

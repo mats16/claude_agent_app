@@ -48,7 +48,10 @@ let encryptionAvailable = false;
  * Initialize the encryption module with the provided encryption key.
  * Must be called at server startup before any encrypt/decrypt operations.
  *
- * @param encryptionKeyHex - The encryption key as a 64-character hex string (32 bytes)
+ * Note: ENCRYPTION_KEY is validated by the config plugin (plugins/config.ts).
+ * This function only handles initialization with the validated key.
+ *
+ * @param encryptionKeyHex - The encryption key as a 64-character hex string (32 bytes), or empty to disable
  * @returns true if encryption is available, false otherwise
  *
  * @example
@@ -60,9 +63,8 @@ let encryptionAvailable = false;
  * }
  */
 export function initializeEncryption(encryptionKeyHex: string): boolean {
-  const keyHex = encryptionKeyHex;
-
-  if (!keyHex) {
+  // If key is empty/not provided, disable encryption (PAT storage disabled)
+  if (!encryptionKeyHex) {
     encryptionKey = null;
     encryptionAvailable = false;
     console.warn(
@@ -71,27 +73,10 @@ export function initializeEncryption(encryptionKeyHex: string): boolean {
     return false;
   }
 
-  if (keyHex.length !== KEY_HEX_LENGTH) {
-    encryptionKey = null;
-    encryptionAvailable = false;
-    console.error(
-      `[Encryption] ENCRYPTION_KEY must be ${KEY_HEX_LENGTH} hex characters (32 bytes). PAT storage feature disabled.`
-    );
-    return false;
-  }
-
-  // Validate hex format
-  if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
-    encryptionKey = null;
-    encryptionAvailable = false;
-    console.error(
-      '[Encryption] ENCRYPTION_KEY must contain only hex characters (0-9, a-f). PAT storage feature disabled.'
-    );
-    return false;
-  }
-
+  // Key is provided and already validated by config plugin
+  // Just initialize the Buffer
   try {
-    encryptionKey = Buffer.from(keyHex, 'hex');
+    encryptionKey = Buffer.from(encryptionKeyHex, 'hex');
     encryptionAvailable = true;
     console.log('[Encryption] Initialized successfully.');
     return true;

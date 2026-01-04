@@ -322,26 +322,9 @@ describe('encryption', () => {
   });
 });
 
-describe('encryption with invalid key', () => {
-  it('should handle key too short', () => {
-    const result = initializeEncryption('tooshort');
-
-    expect(result).toBe(false);
-    expect(isEncryptionAvailable()).toBe(false);
-  });
-
-  it('should handle missing key', () => {
+describe('encryption without valid key', () => {
+  it('should handle empty key (PAT feature disabled)', () => {
     const result = initializeEncryption('');
-
-    expect(result).toBe(false);
-    expect(isEncryptionAvailable()).toBe(false);
-  });
-
-  it('should handle non-hex key', () => {
-    // 64 chars but not hex (contains 'g')
-    const invalidKey =
-      'gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg';
-    const result = initializeEncryption(invalidKey);
 
     expect(result).toBe(false);
     expect(isEncryptionAvailable()).toBe(false);

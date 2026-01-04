@@ -39,9 +39,9 @@ export async function listUserWorkspaceHandler(
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
-    const result = await workspaceService.listUserWorkspace(email, accessToken);
+    const result = await workspaceService.listUserWorkspace(request.server, email, accessToken);
     return result;
   } catch (error: any) {
     if (error instanceof workspaceService.WorkspaceError) {
@@ -112,13 +112,13 @@ export async function listWorkspacePathHandler(
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
     // Fetch list and status in parallel to get browse_url
     const [listResult, statusResult] = await Promise.all([
-      workspaceService.listWorkspacePath(workspacePath, accessToken),
+      workspaceService.listWorkspacePath(request.server, workspacePath, accessToken),
       workspaceService
-        .getStatus(fullWorkspacePath, accessToken)
+        .getStatus(request.server, fullWorkspacePath, accessToken)
         .catch(() => null),
     ]);
 
@@ -166,9 +166,9 @@ export async function getStatusHandler(
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
-    const result = await workspaceService.getStatus(workspacePath, accessToken);
+    const result = await workspaceService.getStatus(request.server, workspacePath, accessToken);
     return result;
   } catch (error: any) {
     if (error instanceof workspaceService.WorkspaceError) {
@@ -223,9 +223,10 @@ export async function createDirectoryHandler(
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
     const result = await workspaceService.createDirectory(
+      request.server,
       workspacePath,
       accessToken
     );
@@ -285,8 +286,9 @@ export async function getWorkspaceObjectHandler(
     }
   }
 
-  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
+  const accessToken = userId ? await getPersonalAccessToken(request.server, userId) : undefined;
   const result = await workspaceService.getStatusRaw(
+    request.server,
     workspacePath,
     accessToken
   );
@@ -335,8 +337,9 @@ export async function listWorkspaceHandler(
     }
   }
 
-  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
+  const accessToken = userId ? await getPersonalAccessToken(request.server, userId) : undefined;
   const result = await workspaceService.listWorkspaceRaw(
+    request.server,
     workspacePath,
     accessToken
   );
@@ -384,7 +387,7 @@ export async function mkdirsHandler(
     }
   }
 
-  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
-  const result = await workspaceService.mkdirsRaw(workspacePath, accessToken);
+  const accessToken = userId ? await getPersonalAccessToken(request.server, userId) : undefined;
+  const result = await workspaceService.mkdirsRaw(request.server, workspacePath, accessToken);
   return reply.status(result.status).send(result.body);
 }

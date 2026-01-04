@@ -1,7 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { getPersonalAccessToken } from '../../../services/user.service.js';
-import { databricks } from '../../../config/index.js';
 
 // List jobs (wrapper for /api/2.2/jobs/list)
 // GET /api/v1/jobs/list
@@ -14,15 +13,16 @@ export async function listJobsHandler(
   const context = extractRequestContext(request);
   const userId = context.user.sub;
 
-  const accessToken = await getPersonalAccessToken(userId);
+  const accessToken = await getPersonalAccessToken(request.server, userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')
     ? request.url.substring(request.url.indexOf('?'))
     : '';
 
+  const databricksHostUrl = `https://${request.server.config.DATABRICKS_HOST}`;
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.2/jobs/list${queryString}`,
+    `${databricksHostUrl}/api/2.2/jobs/list${queryString}`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
     }
@@ -42,15 +42,16 @@ export async function listJobRunsHandler(
   const context = extractRequestContext(request);
   const userId = context.user.sub;
 
-  const accessToken = await getPersonalAccessToken(userId);
+  const accessToken = await getPersonalAccessToken(request.server, userId);
 
   // Forward query parameters to Databricks API
   const queryString = request.url.includes('?')
     ? request.url.substring(request.url.indexOf('?'))
     : '';
 
+  const databricksHostUrl = `https://${request.server.config.DATABRICKS_HOST}`;
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.2/jobs/runs/list${queryString}`,
+    `${databricksHostUrl}/api/2.2/jobs/runs/list${queryString}`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
     }

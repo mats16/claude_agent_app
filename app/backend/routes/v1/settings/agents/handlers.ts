@@ -103,6 +103,7 @@ export async function createSubagentHandler(
 
   try {
     const subagent = await subagentService.createSubagent(
+      request.server,
       context.user,
       name,
       description,
@@ -163,6 +164,7 @@ export async function updateSubagentHandler(
 
   try {
     const subagent = await subagentService.updateSubagent(
+      request.server,
       context.user,
       subagentName,
       description,
@@ -200,7 +202,7 @@ export async function deleteSubagentHandler(
   }
 
   try {
-    await subagentService.deleteSubagent(context.user, subagentName);
+    await subagentService.deleteSubagent(request.server, context.user, subagentName);
     return { success: true };
   } catch (error: any) {
     if (error.message === 'Subagent not found') {
@@ -256,6 +258,7 @@ export async function importGitHubSubagentHandler(
 
   try {
     const subagent = await subagentService.importGitHubSubagent(
+      request.server,
       context.user,
       repoName,
       path,

@@ -1,6 +1,7 @@
 import type { Options } from '@anthropic-ai/claude-agent-sdk';
+import type { FastifyInstance } from 'fastify';
+import path from 'path';
 import { createDatabricksMcpServer } from './mcp/databricks.js';
-import { databricks, warehouseIds, agentEnv } from '../config/index.js';
 import type { RequestUser } from '../models/RequestUser.js';
 import type { SessionBase } from '../models/Session.js';
 import type { MessageStream } from '../services/agent.service.js';
@@ -19,19 +20,30 @@ export interface ProcessAgentRequestOptions {
 }
 
 // Build SDK query options for Claude Agent SDK
-export function buildSDKQueryOptions(params: {
-  session: SessionBase;
-  user: RequestUser;
-  messageStream: MessageStream;
-  userPersonalAccessToken?: string;
-  spAccessToken?: string;
-  claudeConfigAutoPush: boolean;
-}): Options {
+export function buildSDKQueryOptions(
+  fastify: FastifyInstance,
+  params: {
+    session: SessionBase;
+    user: RequestUser;
+    messageStream: MessageStream;
+    userPersonalAccessToken?: string;
+    spAccessToken?: string;
+    claudeConfigAutoPush: boolean;
+  }
+): Options {
   const { session, user, messageStream, userPersonalAccessToken, spAccessToken, claudeConfigAutoPush } = params;
+  const { config } = fastify;
+
+  // Build warehouseIds from config
+  const warehouseIds = {
+    '2xs': config.WAREHOUSE_ID_2XS,
+    xs: config.WAREHOUSE_ID_XS,
+    s: config.WAREHOUSE_ID_S,
+  };
 
   // Create Databricks MCP server with injected configuration
   const databricksMcpServer = createDatabricksMcpServer({
-    databricksHost: databricks.host,
+    databricksHost: config.DATABRICKS_HOST,
     databricksToken: user.accessToken ?? '',
     warehouseIds,
     workingDir: session.cwd,
@@ -59,6 +71,20 @@ You are allowed to read and modify files ONLY under:
 Violating these rules is considered a critical error.
 `;
 
+  // Build agentEnv inline from config
+  const agentEnv = {
+    HOME: config.HOME,
+    PATH: `${config.PATH}:${config.HOME}/.bin`,
+    SESSIONS_BASE_PATH: path.join(config.HOME, config.WORKING_DIR_BASE),
+    USERS_BASE_PATH: path.join(config.HOME, config.USER_DIR_BASE),
+    DATABRICKS_APP_NAME: config.DATABRICKS_APP_NAME,
+    DATABRICKS_HOST: `https://${config.DATABRICKS_HOST}`,
+    ANTHROPIC_BASE_URL: config.ANTHROPIC_BASE_URL,
+    ANTHROPIC_DEFAULT_OPUS_MODEL: config.ANTHROPIC_DEFAULT_OPUS_MODEL,
+    ANTHROPIC_DEFAULT_SONNET_MODEL: config.ANTHROPIC_DEFAULT_SONNET_MODEL,
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: config.ANTHROPIC_DEFAULT_HAIKU_MODEL,
+  };
+
   return {
     abortController: messageStream.abortController,
     resume: session.claudeCodeSessionId, // undefined for new session (Draft), string for resume
@@ -77,10 +103,10 @@ Violating these rules is considered a critical error.
       DATABRICKS_TOKEN: userPersonalAccessToken,
       DATABRICKS_CLIENT_ID: userPersonalAccessToken
         ? undefined
-        : databricks.clientId,
+        : config.DATABRICKS_CLIENT_ID,
       DATABRICKS_CLIENT_SECRET: userPersonalAccessToken
         ? undefined
-        : databricks.clientSecret,
+        : config.DATABRICKS_CLIENT_SECRET,
       DATABRICKS_AUTH_TYPE: userPersonalAccessToken ? 'pat' : 'oauth-m2m',
       // Used by hooks in settings.json
       WORKSPACE_DIR: session.databricksWorkspacePath ?? undefined,

@@ -3,13 +3,13 @@ import { runMigrations } from './db/migrate.js';
 import { drainQueue } from './services/workspace-queue.service.js';
 import { initializeEncryption } from './utils/encryption.js';
 
-// Initialize encryption for PAT storage
-initializeEncryption();
-
 // Run database migrations before starting the server
 await runMigrations();
 
 const app = await buildApp();
+
+// Initialize encryption for PAT storage (after config plugin is loaded)
+initializeEncryption(app.config.ENCRYPTION_KEY);
 
 const host = '0.0.0.0';
 const port = app.config.DATABRICKS_APP_PORT;

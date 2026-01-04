@@ -1,7 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { extractRequestContext } from '../../../utils/headers.js';
 import { getPersonalAccessToken } from '../../../services/user.service.js';
-import { databricks } from '../../../config/index.js';
 
 interface CreateRepoBody {
   url: string;
@@ -95,7 +94,7 @@ export async function createRepoHandler(
 
   try {
     // Get access token (PAT if available, falls back to Service Principal)
-    const accessToken = await getPersonalAccessToken(userId);
+    const accessToken = await getPersonalAccessToken(request.server, userId);
 
     // Build request body
     const requestBody: Record<string, unknown> = {
@@ -110,7 +109,8 @@ export async function createRepoHandler(
     }
 
     // Call Databricks Repos API
-    const response = await fetch(`${databricks.hostUrl}/api/2.0/repos`, {
+    const databricksHostUrl = `https://${request.server.config.DATABRICKS_HOST}`;
+    const response = await fetch(`${databricksHostUrl}/api/2.0/repos`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,

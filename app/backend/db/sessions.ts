@@ -20,10 +20,11 @@ export async function createSession(
 export async function createSessionFromDraft(
   draft: SessionDraft,
   claudeCodeSessionId: string,
+  sessionsBase: string,
   userId: string
 ): Promise<Session> {
   // Convert draft to session with SDK session ID
-  const session = Session.fromSessionDraft(draft, claudeCodeSessionId);
+  const session = Session.fromSessionDraft(draft, claudeCodeSessionId, sessionsBase);
 
   // Persist to database
   await withUserContext(userId, async () => {

@@ -3,10 +3,10 @@ import type {
   SDKMessage,
   SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk';
+import type { FastifyInstance } from 'fastify';
 import fs from 'fs';
 import path from 'path';
 import type { MessageContent } from '@app/shared';
-import { databricks, agentEnv } from '../config/index.js';
 import type { RequestUser } from '../models/RequestUser.js';
 import type { SessionBase } from '../models/Session.js';
 import {
@@ -197,6 +197,7 @@ function buildPrompt(
  * ```
  */
 export async function* processAgentRequest(
+  fastify: FastifyInstance,
   session: SessionBase,
   message: MessageContent[],
   user: RequestUser,
@@ -209,18 +210,19 @@ export async function* processAgentRequest(
   const waitForReady = options?.waitForReady;
 
   // Local Claude config directory from User object, fallback to default
+  const usersBasePath = path.join(fastify.config.HOME, fastify.config.USER_DIR_BASE);
   const localClaudeConfigPath =
     user.local.claudeConfigDir ??
-    path.join(agentEnv.USERS_BASE_PATH, 'me', '.claude');
+    path.join(usersBasePath, 'me', '.claude');
   fs.mkdirSync(localClaudeConfigPath, { recursive: true });
 
-  const spAccessToken = await getServicePrincipalAccessToken();
+  const spAccessToken = await getServicePrincipalAccessToken(fastify);
 
   // Create or use provided MessageStream
   const stream = messageStream ?? new MessageStream(message, waitForReady);
 
   // Build SDK query options using agent/index.ts helper
-  const sdkOptions = buildSDKQueryOptions({
+  const sdkOptions = buildSDKQueryOptions(fastify, {
     session,
     user,
     messageStream: stream,
@@ -260,6 +262,7 @@ export interface StartAgentParams {
 // Start agent session (unified function for new and continuing sessions)
 // Automatically handles PAT retrieval and MessageStream creation
 export async function* startAgent(
+  fastify: FastifyInstance,
   params: StartAgentParams
 ): AsyncGenerator<SDKMessage> {
   const {
@@ -276,9 +279,10 @@ export async function* startAgent(
   const userId = user.sub;
 
   // Local Claude config directory from User object, fallback to default
+  const usersBasePath = path.join(fastify.config.HOME, fastify.config.USER_DIR_BASE);
   const localClaudeConfigPath =
     user.local.claudeConfigDir ??
-    path.join(agentEnv.USERS_BASE_PATH, 'me', '.claude');
+    path.join(usersBasePath, 'me', '.claude');
   fs.mkdirSync(localClaudeConfigPath, { recursive: true });
 
   // Get user PAT if not provided
@@ -286,14 +290,14 @@ export async function* startAgent(
     userPersonalAccessToken ?? (await getUserPersonalAccessToken(userId));
 
   // Get service principal token
-  const spAccessToken = await getServicePrincipalAccessToken();
+  const spAccessToken = await getServicePrincipalAccessToken(fastify);
 
   // Create MessageStream if not provided
   const stream =
     messageStream ?? new MessageStream(messageContent, waitForReady);
 
   // Build SDK query options using agent/index.ts helper
-  const sdkOptions = buildSDKQueryOptions({
+  const sdkOptions = buildSDKQueryOptions(fastify, {
     session,
     user,
     messageStream: stream,

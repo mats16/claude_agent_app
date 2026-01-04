@@ -13,7 +13,6 @@
  */
 
 import crypto from 'crypto';
-import { encryptionKey as encryptionKeyHex } from '../config/index.js';
 
 // ============================================================================
 // Constants
@@ -46,20 +45,21 @@ let encryptionAvailable = false;
 // ============================================================================
 
 /**
- * Initialize the encryption module with the key from environment/config.
+ * Initialize the encryption module with the provided encryption key.
  * Must be called at server startup before any encrypt/decrypt operations.
  *
+ * @param encryptionKeyHex - The encryption key as a 64-character hex string (32 bytes)
  * @returns true if encryption is available, false otherwise
  *
  * @example
- * // At server startup
- * if (initializeEncryption()) {
+ * // At server startup (after Fastify app is built)
+ * if (initializeEncryption(app.config.ENCRYPTION_KEY)) {
  *   console.log('Encryption ready');
  * } else {
  *   console.warn('PAT storage disabled');
  * }
  */
-export function initializeEncryption(): boolean {
+export function initializeEncryption(encryptionKeyHex: string): boolean {
   const keyHex = encryptionKeyHex;
 
   if (!keyHex) {

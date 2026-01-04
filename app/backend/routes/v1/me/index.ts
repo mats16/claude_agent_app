@@ -14,7 +14,7 @@ const meRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const userInfo = await userService.getUserInfo(context.user);
+      const userInfo = await userService.getUserInfo(fastify, context.user);
       return userInfo;
     } catch (error: any) {
       console.error('Failed to get user info:', error);

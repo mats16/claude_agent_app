@@ -1,13 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import crypto from 'crypto';
-
-// Mock the config module before importing encryption
-vi.mock('../../config/index.js', () => ({
-  encryptionKey:
-    'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe',
-}));
-
-// Import after mocking
 import {
   initializeEncryption,
   isEncryptionAvailable,
@@ -18,10 +10,13 @@ import {
   isEncryptedFormat,
 } from '../encryption.js';
 
+// Test encryption key (valid 64-char hex string)
+const testEncryptionKey = 'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe';
+
 describe('encryption', () => {
   describe('initializeEncryption', () => {
     it('should initialize successfully with valid key', () => {
-      const result = initializeEncryption();
+      const result = initializeEncryption(testEncryptionKey);
       expect(result).toBe(true);
       expect(isEncryptionAvailable()).toBe(true);
     });
@@ -29,7 +24,7 @@ describe('encryption', () => {
 
   describe('encrypt and decrypt', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should encrypt and decrypt a simple string', () => {
@@ -116,7 +111,7 @@ describe('encryption', () => {
 
   describe('decrypt error handling', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should throw on invalid ciphertext format (missing parts)', () => {
@@ -179,7 +174,7 @@ describe('encryption', () => {
 
   describe('encryptSafe', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should encrypt and return ciphertext when available', () => {
@@ -192,7 +187,7 @@ describe('encryption', () => {
 
   describe('decryptSafe', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should decrypt valid ciphertext', () => {
@@ -217,7 +212,7 @@ describe('encryption', () => {
 
   describe('isEncryptedFormat', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should return true for valid encrypted format', () => {
@@ -269,7 +264,7 @@ describe('encryption', () => {
 
   describe('AES-256-GCM properties', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should use 16-byte IV (128 bits)', () => {
@@ -298,7 +293,7 @@ describe('encryption', () => {
 
   describe('PAT-like tokens', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should handle Databricks PAT format', () => {
@@ -336,7 +331,7 @@ describe('encryption with invalid key', () => {
     }));
 
     const mod = await import('../encryption.js');
-    const result = mod.initializeEncryption();
+    const result = mod.initializeEncryption(testEncryptionKey);
 
     expect(result).toBe(false);
     expect(mod.isEncryptionAvailable()).toBe(false);
@@ -349,7 +344,7 @@ describe('encryption with invalid key', () => {
     }));
 
     const mod = await import('../encryption.js');
-    const result = mod.initializeEncryption();
+    const result = mod.initializeEncryption(testEncryptionKey);
 
     expect(result).toBe(false);
     expect(mod.isEncryptionAvailable()).toBe(false);
@@ -364,7 +359,7 @@ describe('encryption with invalid key', () => {
     }));
 
     const mod = await import('../encryption.js');
-    const result = mod.initializeEncryption();
+    const result = mod.initializeEncryption(testEncryptionKey);
 
     expect(result).toBe(false);
     expect(mod.isEncryptionAvailable()).toBe(false);
@@ -377,7 +372,7 @@ describe('encryption with invalid key', () => {
     }));
 
     const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
+    mod.initializeEncryption(testEncryptionKey); // Returns false
 
     expect(() => mod.encrypt('test')).toThrow('Encryption not initialized');
   });
@@ -389,7 +384,7 @@ describe('encryption with invalid key', () => {
     }));
 
     const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
+    mod.initializeEncryption(testEncryptionKey); // Returns false
 
     expect(() => mod.decrypt('test:test:test')).toThrow(
       'Encryption not initialized'
@@ -403,7 +398,7 @@ describe('encryption with invalid key', () => {
     }));
 
     const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
+    mod.initializeEncryption(testEncryptionKey); // Returns false
 
     expect(mod.encryptSafe('test')).toBeNull();
   });
@@ -415,7 +410,7 @@ describe('encryption with invalid key', () => {
     }));
 
     const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
+    mod.initializeEncryption(testEncryptionKey); // Returns false
 
     expect(mod.decryptSafe('test:test:test')).toBeNull();
   });

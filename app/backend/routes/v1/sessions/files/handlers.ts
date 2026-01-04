@@ -121,7 +121,7 @@ export async function getFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get working directory
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -190,7 +190,7 @@ export async function uploadFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get working directory
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -266,7 +266,7 @@ export async function deleteFileHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get working directory
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -321,7 +321,7 @@ export async function listFilesHandler(
   const userId = context.user.sub;
 
   // Verify session ownership and get working directory
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }

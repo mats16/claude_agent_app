@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import {
   saveSessionMessage,
   getSessionMessages,
@@ -18,6 +19,17 @@ vi.mock('../db/index.js', () => ({
 // Mock dependencies
 vi.mock('../db/events.js');
 vi.mock('./session.service.js');
+
+// Test data
+const testSessionsBase = '/test/sessions';
+
+// Mock Fastify instance
+const mockFastify = {
+  config: {
+    HOME: '/test/home',
+    WORKING_DIR_BASE: 'sessions',
+  },
+} as unknown as FastifyInstance;
 
 describe('event.service', () => {
   const mockSessionId = 'session_01h455vb4pex5vsknk084sn02q';
@@ -155,7 +167,7 @@ describe('event.service', () => {
 
     it('should return messages when session exists and user has access', async () => {
       // Arrange
-      const mockSession = Session.fromSelectSession(mockSelectSession);
+      const mockSession = Session.fromSelectSession(mockSelectSession, testSessionsBase);
 
       const mockMessages = [
         {
@@ -182,7 +194,7 @@ describe('event.service', () => {
       vi.mocked(eventRepo.getMessagesBySessionId).mockResolvedValue(mockMessages);
 
       // Act
-      const result = await getSessionMessages(mockSessionId, mockUserId);
+      const result = await getSessionMessages(mockFastify, mockSessionId, mockUserId);
 
       // Assert
       expect(result.messages).toHaveLength(2);
@@ -197,13 +209,13 @@ describe('event.service', () => {
 
     it('should return empty array when no messages exist', async () => {
       // Arrange
-      const mockSession = Session.fromSelectSession(mockSelectSession);
+      const mockSession = Session.fromSelectSession(mockSelectSession, testSessionsBase);
 
       vi.mocked(sessionService.getSession).mockResolvedValue(mockSession);
       vi.mocked(eventRepo.getMessagesBySessionId).mockResolvedValue([]);
 
       // Act
-      const result = await getSessionMessages(mockSessionId, mockUserId);
+      const result = await getSessionMessages(mockFastify, mockSessionId, mockUserId);
 
       // Assert
       expect(result.messages).toEqual([]);
@@ -217,10 +229,10 @@ describe('event.service', () => {
 
       // Act & Assert
       await expect(
-        getSessionMessages(mockSessionId, mockUserId)
+        getSessionMessages(mockFastify, mockSessionId, mockUserId)
       ).rejects.toThrow(SessionNotFoundError);
       await expect(
-        getSessionMessages(mockSessionId, mockUserId)
+        getSessionMessages(mockFastify, mockSessionId, mockUserId)
       ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');
 
       // Should not attempt to fetch messages
@@ -236,16 +248,16 @@ describe('event.service', () => {
 
       // Act & Assert
       await expect(
-        getSessionMessages(mockSessionId, differentUserId)
+        getSessionMessages(mockFastify, mockSessionId, differentUserId)
       ).rejects.toThrow(SessionNotFoundError);
       await expect(
-        getSessionMessages(mockSessionId, differentUserId)
+        getSessionMessages(mockFastify, mockSessionId, differentUserId)
       ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');
     });
 
     it('should extract messages from repository response correctly', async () => {
       // Arrange
-      const mockSession = Session.fromSelectSession(mockSelectSession);
+      const mockSession = Session.fromSelectSession(mockSelectSession, testSessionsBase);
 
       const mockSdkMessage1 = {
         session_id: mockSessionId,
@@ -278,7 +290,7 @@ describe('event.service', () => {
       vi.mocked(eventRepo.getMessagesBySessionId).mockResolvedValue(mockMessages);
 
       // Act
-      const result = await getSessionMessages(mockSessionId, mockUserId);
+      const result = await getSessionMessages(mockFastify, mockSessionId, mockUserId);
 
       // Assert
       expect(result.messages).toHaveLength(2);

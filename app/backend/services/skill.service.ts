@@ -1,3 +1,4 @@
+import type { FastifyInstance } from 'fastify';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -64,6 +65,7 @@ function copyDirectoryRecursiveExcludeGit(src: string, dest: string): void {
 
 // Sync a single skill to workspace (fire-and-forget)
 async function syncSkillToWorkspace(
+  fastify: FastifyInstance,
   user: RequestUser,
   skillName: string
 ): Promise<void> {
@@ -76,7 +78,7 @@ async function syncSkillToWorkspace(
     return;
   }
 
-  const spToken = await getServicePrincipalAccessToken();
+  const spToken = await getServicePrincipalAccessToken(fastify);
   if (!spToken) {
     console.error('[Skills] Workspace sync skipped (no SP token available)');
     return;
@@ -86,7 +88,7 @@ async function syncSkillToWorkspace(
   const workspaceSkillPath = path.join(user.remoteSkillsPath, skillName);
 
   const client = new WorkspaceClient({
-    host: process.env.DATABRICKS_HOST!,
+    host: fastify.config.DATABRICKS_HOST,
     getToken: async () => spToken,
   });
 
@@ -105,6 +107,7 @@ async function syncSkillToWorkspace(
 
 // Delete a skill from workspace (fire-and-forget)
 async function deleteSkillFromWorkspace(
+  fastify: FastifyInstance,
   user: RequestUser,
   skillName: string
 ): Promise<void> {
@@ -117,7 +120,7 @@ async function deleteSkillFromWorkspace(
     return;
   }
 
-  const spToken = await getServicePrincipalAccessToken();
+  const spToken = await getServicePrincipalAccessToken(fastify);
   if (!spToken) {
     console.error('[Skills] Workspace delete skipped (no SP token available)');
     return;
@@ -126,7 +129,7 @@ async function deleteSkillFromWorkspace(
   const workspaceSkillPath = path.join(user.remoteSkillsPath, skillName);
 
   const client = new WorkspaceClient({
-    host: process.env.DATABRICKS_HOST!,
+    host: fastify.config.DATABRICKS_HOST,
     getToken: async () => spToken,
   });
 
@@ -197,6 +200,7 @@ export async function getSkill(
 
 // Create a new skill
 export async function createSkill(
+  fastify: FastifyInstance,
   user: RequestUser,
   name: string,
   description: string,
@@ -220,7 +224,7 @@ export async function createSkill(
   fs.writeFileSync(skillPath, fileContent, 'utf-8');
 
   // Sync to workspace (fire-and-forget)
-  syncSkillToWorkspace(user, name).catch((err: Error) => {
+  syncSkillToWorkspace(fastify, user, name).catch((err: Error) => {
     console.error(`[Skills] Failed to sync after create: ${err.message}`);
   });
 
@@ -229,6 +233,7 @@ export async function createSkill(
 
 // Update an existing skill
 export async function updateSkill(
+  fastify: FastifyInstance,
   user: RequestUser,
   skillName: string,
   description: string,
@@ -254,7 +259,7 @@ export async function updateSkill(
   fs.writeFileSync(skillPath, fileContent, 'utf-8');
 
   // Sync to workspace (fire-and-forget)
-  syncSkillToWorkspace(user, skillName).catch((err: Error) => {
+  syncSkillToWorkspace(fastify, user, skillName).catch((err: Error) => {
     console.error(`[Skills] Failed to sync after update: ${err.message}`);
   });
 
@@ -263,6 +268,7 @@ export async function updateSkill(
 
 // Delete a skill
 export async function deleteSkill(
+  fastify: FastifyInstance,
   user: RequestUser,
   skillName: string
 ): Promise<void> {
@@ -278,7 +284,7 @@ export async function deleteSkill(
   fs.rmSync(skillDirPath, { recursive: true, force: true });
 
   // Delete from workspace (fire-and-forget)
-  deleteSkillFromWorkspace(user, skillName).catch((err: Error) => {
+  deleteSkillFromWorkspace(fastify, user, skillName).catch((err: Error) => {
     console.error(`[Skills] Failed to delete from workspace: ${err.message}`);
   });
 }
@@ -354,11 +360,13 @@ export async function listPresetSkills(): Promise<PresetListResult> {
 
 // Import a preset skill to user's skills (from GitHub)
 export async function importPresetSkill(
+  fastify: FastifyInstance,
   user: RequestUser,
   presetName: string
 ): Promise<Skill> {
   // Use importGitHubSkill with this repository's skills path
   return importGitHubSkill(
+    fastify,
     user,
     PRESET_REPO,
     `${PRESET_SKILLS_PATH}/${presetName}`
@@ -389,6 +397,7 @@ async function getDefaultBranch(repoName: string): Promise<string> {
 // skillPath: path to skill directory (e.g., "skills/skill-creator"), empty for repo root
 // branch: branch name (optional, defaults to repository's default branch)
 export async function importGitHubSkill(
+  fastify: FastifyInstance,
   user: RequestUser,
   repoName: string,
   skillPath: string,
@@ -461,7 +470,7 @@ export async function importGitHubSkill(
     const finalSkillName = parsed.name || skillName;
 
     // Sync to workspace (fire-and-forget)
-    syncSkillToWorkspace(user, finalSkillName).catch((err: Error) => {
+    syncSkillToWorkspace(fastify, user, finalSkillName).catch((err: Error) => {
       console.error(
         `[GitHub Skills] Failed to sync after import: ${err.message}`
       );

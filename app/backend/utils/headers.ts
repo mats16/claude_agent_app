@@ -1,4 +1,5 @@
 import type { FastifyRequest } from 'fastify';
+import path from 'path';
 import { RequestUser } from '../models/RequestUser.js';
 
 export { RequestUser };
@@ -20,7 +21,9 @@ export interface RequestContext {
  * @throws Error if required headers are missing
  */
 export function extractRequestContext(request: FastifyRequest): RequestContext {
-  const user = RequestUser.fromHeaders(request.headers);
+  const { config } = request.server;
+  const usersBase = path.join(config.HOME, config.USER_DIR_BASE);
+  const user = RequestUser.fromHeaders(request.headers, usersBase);
   const requestId = request.headers['x-request-id'] as string | undefined;
 
   return {
@@ -33,13 +36,17 @@ export function extractRequestContext(request: FastifyRequest): RequestContext {
  * Extract user context from WebSocket request
  * WebSocket requests use the same header format as HTTP requests
  * @param headers - WebSocket request headers
+ * @param usersBase - Base directory for user files (from config)
  * @returns RequestContext with user object and optional requestId
  * @throws Error if required headers are missing
  */
-export function extractRequestContextFromHeaders(headers: {
-  [key: string]: string | string[] | undefined;
-}): RequestContext {
-  const user = RequestUser.fromHeaders(headers);
+export function extractRequestContextFromHeaders(
+  headers: {
+    [key: string]: string | string[] | undefined;
+  },
+  usersBase: string
+): RequestContext {
+  const user = RequestUser.fromHeaders(headers, usersBase);
   const requestId = headers['x-request-id'] as string | undefined;
 
   return {

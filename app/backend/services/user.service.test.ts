@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import {
   ensureUserWithDefaults,
   ensureUser,
@@ -16,7 +17,6 @@ import * as usersRepo from '../db/users.js';
 import * as oauthTokensRepo from '../db/oauthTokens.js';
 import * as authUtil from '../utils/auth.js';
 import * as encryptionUtil from '../utils/encryption.js';
-import { databricks } from '../config/index.js';
 
 // Mock database to avoid DATABASE_URL requirement
 vi.mock('../db/index.js', () => ({
@@ -28,22 +28,27 @@ vi.mock('../db/users.js');
 vi.mock('../db/oauthTokens.js');
 vi.mock('../utils/auth.js');
 vi.mock('../utils/encryption.js');
-vi.mock('../config/index.js', () => ({
-  databricks: {
-    hostUrl: 'https://test.databricks.com',
-    host: 'test.databricks.com',
-    appName: 'claude-agent-test',
-  },
-}));
 
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+// Mock Fastify instance with config
+const createMockFastify = (config?: Partial<Record<string, string>>): FastifyInstance => {
+  return {
+    config: {
+      DATABRICKS_HOST: 'test.databricks.com',
+      DATABRICKS_APP_NAME: 'claude-agent-test',
+      ...config,
+    },
+  } as unknown as FastifyInstance;
+};
+
 describe('user.service', () => {
   const mockUserId = 'user-123';
   const mockEmail = 'test@example.com';
   const mockPat = 'dapi1234567890abcdef';
+  let mockFastify: FastifyInstance;
 
   const mockRequestUser: RequestUser = {
     sub: mockUserId,
@@ -56,6 +61,7 @@ describe('user.service', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFastify = createMockFastify();
   });
 
   afterEach(() => {
@@ -178,7 +184,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockRequestUser);
 
       // Assert
       expect(result).toBe(true);
@@ -208,7 +214,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockRequestUser);
 
       // Assert
       expect(result).toBe(false);
@@ -224,7 +230,7 @@ describe('user.service', () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockRequestUser);
 
       // Assert
       expect(result).toBe(false);
@@ -254,7 +260,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await getUserInfo(mockFastify, mockRequestUser);
 
       // Assert
       expect(result).toEqual({
@@ -284,18 +290,14 @@ describe('user.service', () => {
         json: async () => ({}),
       });
 
-      // Temporarily override config
-      const originalAppName = databricks.appName;
-      (databricks as any).appName = null;
+      // Create Fastify instance with null app name
+      const fastifyWithoutAppName = createMockFastify({ DATABRICKS_APP_NAME: undefined });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await getUserInfo(fastifyWithoutAppName, mockRequestUser);
 
       // Assert
       expect(result.databricksAppUrl).toBe(null);
-
-      // Restore
-      (databricks as any).appName = originalAppName;
     });
 
     it('should return hasWorkspacePermission false when permission check fails', async () => {
@@ -319,7 +321,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await getUserInfo(mockFastify, mockRequestUser);
 
       // Assert
       expect(result.hasWorkspacePermission).toBe(false);
@@ -433,7 +435,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(mockPat);
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await getPersonalAccessToken(mockFastify, mockUserId);
 
       // Assert
       expect(result).toBe(mockPat);
@@ -448,7 +450,7 @@ describe('user.service', () => {
       vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue('sp-token-123');
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await getPersonalAccessToken(mockFastify, mockUserId);
 
       // Assert
       expect(result).toBe('sp-token-123');
@@ -462,7 +464,7 @@ describe('user.service', () => {
       vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue('sp-token-123');
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await getPersonalAccessToken(mockFastify, mockUserId);
 
       // Assert
       expect(result).toBe('sp-token-123');
@@ -480,7 +482,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        getPersonalAccessToken(mockUserId)
+        getPersonalAccessToken(mockFastify, mockUserId)
       ).rejects.toThrow('Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.');
     });
 
@@ -498,7 +500,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        getPersonalAccessToken(mockUserId)
+        getPersonalAccessToken(mockFastify, mockUserId)
       ).rejects.toThrow('Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.');
 
       consoleWarnSpy.mockRestore();
@@ -512,7 +514,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        setDatabricksPat(mockRequestUser, mockPat)
+        setDatabricksPat(mockFastify, mockRequestUser, mockPat)
       ).rejects.toThrow('Encryption not available. Cannot store PAT.');
 
       expect(oauthTokensRepo.setDatabricksPat).not.toHaveBeenCalled();
@@ -550,7 +552,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await setDatabricksPat(mockFastify, mockRequestUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toEqual(new Date(expiryTime));
@@ -593,7 +595,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await setDatabricksPat(mockFastify, mockRequestUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toBe(null);
@@ -629,7 +631,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await setDatabricksPat(mockFastify, mockRequestUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toBe(null);
@@ -666,7 +668,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      await setDatabricksPat(mockRequestUser, mockPat);
+      await setDatabricksPat(mockFastify, mockRequestUser, mockPat);
 
       // Assert - User should be created
       expect(usersRepo.createUserWithDefaultSettings).toHaveBeenCalled();

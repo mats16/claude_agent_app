@@ -51,6 +51,7 @@ const patRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const result = await userService.setDatabricksPat(
+        fastify,
         context.user,
         pat.trim()
       );

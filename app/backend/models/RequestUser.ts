@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { paths } from '../config/index.js';
 
 /**
  * User paths (shared interface for local and remote)
@@ -59,10 +58,11 @@ export class RequestUser {
   /**
    * Create User instance from request headers
    * @param headers - Request headers containing X-Forwarded-* values
+   * @param usersBase - Base directory for user files (from config)
    * @returns User instance
    * @throws Error if required headers are missing
    */
-  static fromHeaders(headers: HeadersLike): RequestUser {
+  static fromHeaders(headers: HeadersLike, usersBase: string): RequestUser {
     const sub = headers['x-forwarded-user'] as string | undefined;
     const preferredUsername = headers['x-forwarded-preferred-username'] as
       | string
@@ -85,8 +85,8 @@ export class RequestUser {
       name: username,
       accessToken: oboAccessToken,
       local: {
-        homeDir: path.join(paths.usersBase, username),
-        claudeConfigDir: path.join(paths.usersBase, username, '.claude'),
+        homeDir: path.join(usersBase, username),
+        claudeConfigDir: path.join(usersBase, username, '.claude'),
       },
       remote: {
         homeDir: path.join('/Workspace/Users', email),

@@ -69,7 +69,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
     await userService.ensureUser(user);
 
     try {
-      const taskId = await claudeBackupService.pullClaudeConfig(user);
+      const taskId = await claudeBackupService.pullClaudeConfig(fastify, user);
       return { success: true, taskId };
     } catch (error: any) {
       console.error(
@@ -95,7 +95,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
     await userService.ensureUser(user);
 
     try {
-      const taskId = await claudeBackupService.pushClaudeConfig(user);
+      const taskId = await claudeBackupService.pushClaudeConfig(fastify, user);
       return { success: true, taskId };
     } catch (error: any) {
       console.error(

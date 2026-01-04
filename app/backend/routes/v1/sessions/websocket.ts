@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import path from 'path';
 import type { MessageContent, IncomingWSMessage } from '@app/shared';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { startAgent, MessageStream } from '../../../services/agent.service.js';
@@ -18,11 +19,14 @@ import {
 } from '../../../services/session-state.service.js';
 
 const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
+  // Compute usersBase once for all handlers
+  const usersBase = path.join(fastify.config.HOME, fastify.config.USER_DIR_BASE);
+
   // WebSocket endpoint for session list updates
   fastify.get('/ws', { websocket: true }, (socket, req) => {
     let context;
     try {
-      context = extractRequestContextFromHeaders(req.headers);
+      context = extractRequestContextFromHeaders(req.headers, usersBase);
     } catch (error: any) {
       socket.send(JSON.stringify({ error: error.message }));
       socket.close();
@@ -85,7 +89,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
       // Get user info from request headers
       let context;
       try {
-        context = extractRequestContextFromHeaders(req.headers);
+        context = extractRequestContextFromHeaders(req.headers, usersBase);
       } catch (error: any) {
         socket.send(JSON.stringify({ error: error.message }));
         socket.close();
@@ -170,18 +174,22 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               );
 
               // Fetch session to get databricksWorkspacePath, databricksWorkspaceAutoPush, agentLocalPath, and model for resume
-              let session = await sessionService.getSession(sessionId, userId);
+              let session = await sessionService.getSession(fastify, sessionId, userId);
               if (!session) {
                 throw new Error('Session not found. Cannot resume session.');
               }
 
               // Update session model in DB if different from saved model
               if (messageModel && messageModel !== session.model) {
-                await sessionService.updateSessionSettings(sessionId, userId, {
-                  model: messageModel
-                });
+                await sessionService.updateSessionSettings(
+                  fastify,
+                  sessionId,
+                  userId,
+                  { model: messageModel }
+                );
                 // Re-fetch session to get updated model
                 const updatedSession = await sessionService.getSession(
+                  fastify,
                   sessionId,
                   userId
                 );
@@ -208,7 +216,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               // Process agent request and stream responses
               // Pass session object - agent extracts all needed properties
               try {
-                for await (const sdkMessage of startAgent({
+                for await (const sdkMessage of startAgent(fastify, {
                   session, // Pass Session object - claudeCodeSessionId is defined, so resume mode
                   user,
                   messageContent: userMessageContent,

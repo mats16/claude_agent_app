@@ -271,3 +271,106 @@ npm run test:watch          # Watch mode
 fastify.log.info('Session created', { sessionId });
 fastify.log.error(error, 'Failed to create session');
 ```
+
+## Testing
+
+### Test Organization
+
+**Unit Tests (collocated)**:
+```
+models/Session.test.ts
+services/user.service.test.ts
+utils/encryption.test.ts
+```
+- Located next to source files
+- Fast execution (mocked dependencies)
+- Test individual functions/classes in isolation
+
+**Integration Tests (in `__tests__/` subdirectories)**:
+```
+routes/v1/sessions/__tests__/sessions.integration.test.ts
+services/__tests__/agent.service.integration.test.ts
+```
+- Located in `__tests__/` within each module
+- Test multiple components together (DB, API, Agent SDK)
+- Require real dependencies or test containers
+
+### Running Tests
+
+```bash
+npm test                 # Run all tests
+npm run test:watch       # Watch mode
+npm run test:unit        # Unit tests only (fast)
+npm run test:integration # Integration tests only
+npm run test:coverage    # Generate coverage report
+```
+
+### Writing Tests
+
+**Unit test example**:
+```typescript
+// services/parser.service.test.ts
+import { describe, it, expect, vi } from 'vitest';
+import { parseData } from './parser.service.js';
+
+vi.mock('../db/index.js'); // Mock dependencies
+
+describe('parseData', () => {
+  it('should parse valid input', () => {
+    expect(parseData('test')).toBe('PARSED:test');
+  });
+});
+```
+
+**Integration test example**:
+```typescript
+// routes/v1/sessions/__tests__/sessions.integration.test.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { build } from '../../../app.js';
+import type { FastifyInstance } from 'fastify';
+
+describe('Sessions API Integration', () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await build();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('should create session and return 201', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/sessions',
+      payload: { workspace_path: '/Workspace/test', model: 'claude-sonnet-4-5' },
+      headers: {
+        'X-Forwarded-User-Id': 'test-user',
+        'X-Forwarded-Email': 'test@example.com',
+        'X-Forwarded-Access-Token': 'test-token',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toHaveProperty('session');
+  });
+});
+```
+
+### Test Naming Conventions
+
+| Pattern | Usage |
+|---------|-------|
+| `*.test.ts` | Unit tests (mocked dependencies) |
+| `*.integration.test.ts` | Integration tests (real dependencies) |
+
+### Coverage
+
+Generate HTML coverage report:
+```bash
+npm run test:coverage
+open coverage/index.html
+```
+
+**Coverage targets**: 70% statements, 60% branches, 70% functions

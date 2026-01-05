@@ -140,11 +140,17 @@ export async function createSessionHandler(
     // Get user's PAT (used for: 1) startAgent to avoid re-fetching, 2) title generation)
     const userPersonalAccessToken = await getUserPersonalAccessToken(userId);
 
+    // Get OBO access token from request context
+    if (!request.ctx?.user?.accessToken) {
+      throw new Error('Access token not found in request context');
+    }
+    const userAccessToken = request.ctx.user.accessToken;
+
     // Start processing in background
     const agentIterator = startAgent(request.server, {
       session: sessionDraft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
       user,
-      userAccessToken: request.ctx.user.accessToken, // OBO access token from headers
+      userAccessToken, // OBO access token from headers
       messageContent,
       claudeConfigAutoPush,
       messageStream: stream,

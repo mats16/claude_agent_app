@@ -8,7 +8,7 @@ import type {
   FileListResponse,
   FileDeleteResponse,
 } from '@app/shared';
-import { extractRequestContext } from '../../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../../utils/headers.js';
 import * as sessionService from '../../../../services/session.service.js';
 
 // Size limits
@@ -113,12 +113,12 @@ export async function getFileHandler(
   // Extract user context
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   // Verify session ownership and get working directory
   const session = await sessionService.getSession(request.server, sessionId, userId);
@@ -182,12 +182,12 @@ export async function uploadFileHandler(
   // Extract user context
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   // Verify session ownership and get working directory
   const session = await sessionService.getSession(request.server, sessionId, userId);
@@ -258,12 +258,12 @@ export async function deleteFileHandler(
   // Extract user context
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   // Verify session ownership and get working directory
   const session = await sessionService.getSession(request.server, sessionId, userId);
@@ -313,12 +313,12 @@ export async function listFilesHandler(
   // Extract user context
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   // Verify session ownership and get working directory
   const session = await sessionService.getSession(request.server, sessionId, userId);

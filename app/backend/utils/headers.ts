@@ -76,13 +76,33 @@ export function extractRequestContext(request: FastifyRequest): RequestContext {
 }
 
 /**
+ * Extract user request context from headers (new User interface).
+ * Used for WebSocket connections where full request object is not available.
+ *
+ * @param headers - Request headers
+ * @returns UserRequestContext with User object and optional requestId
+ * @throws Error if required headers are missing
+ */
+export function extractUserRequestContextFromHeaders(headers: {
+  [key: string]: string | string[] | undefined;
+}): UserRequestContext {
+  const user = createUserFromHeaders(headers);
+  const requestId = headers['x-request-id'] as string | undefined;
+
+  return {
+    user,
+    requestId,
+  };
+}
+
+/**
  * Extract user context from WebSocket request
  * WebSocket requests use the same header format as HTTP requests
  * @param headers - WebSocket request headers
  * @param usersBase - Base directory for user files (from config)
  * @returns RequestContext with user object and optional requestId
  * @throws Error if required headers are missing
- * @deprecated Use extractUser instead
+ * @deprecated Use extractUserRequestContextFromHeaders instead
  */
 export function extractRequestContextFromHeaders(
   headers: {

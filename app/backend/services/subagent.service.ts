@@ -10,7 +10,11 @@ import {
 } from '../utils/subagents.js';
 import { WorkspaceClient } from '../utils/workspaceClient.js';
 import { getSettingsDirect } from '../db/settings.js';
-import type { RequestUser } from '../models/RequestUser.js';
+import type { User } from '../models/User.js';
+import {
+  getLocalAgentsPath,
+  getRemoteAgentsPath,
+} from '../utils/userPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,12 +50,12 @@ async function getDefaultBranch(repoName: string): Promise<string> {
 // Put a single agent to workspace (fire-and-forget)
 async function putAgentToWorkspace(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   agentName: string,
   content: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Subagents] Workspace sync skipped (claudeConfigAutoPush disabled)'
@@ -66,7 +70,7 @@ async function putAgentToWorkspace(
   }
 
   const workspaceAgentPath = path.join(
-    user.remoteAgentsPath,
+    getRemoteAgentsPath(user),
     `${agentName}.md`
   );
 
@@ -82,11 +86,11 @@ async function putAgentToWorkspace(
 // Delete an agent from workspace (fire-and-forget)
 async function deleteAgentFromWorkspace(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   agentName: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Subagents] Workspace delete skipped (claudeConfigAutoPush disabled)'
@@ -103,7 +107,7 @@ async function deleteAgentFromWorkspace(
   }
 
   const workspaceAgentPath = path.join(
-    user.remoteAgentsPath,
+    getRemoteAgentsPath(user),
     `${agentName}.md`
   );
 
@@ -125,9 +129,10 @@ async function deleteAgentFromWorkspace(
 
 // List all subagents for a user
 export async function listSubagents(
-  user: RequestUser
+  fastify: FastifyInstance,
+  user: User
 ): Promise<SubagentListResult> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.HOME, fastify.config.USER_DIR_BASE);
 
   // Ensure agents directory exists
   if (!fs.existsSync(agentsPath)) {
@@ -160,10 +165,11 @@ export async function listSubagents(
 
 // Get a single subagent by name
 export async function getSubagent(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   subagentName: string
 ): Promise<Subagent | null> {
-  const subagentPath = path.join(user.agentsPath, `${subagentName}.md`);
+  const subagentPath = path.join(getLocalAgentsPath(user, fastify.config.HOME, fastify.config.USER_DIR_BASE), `${subagentName}.md`);
 
   if (!fs.existsSync(subagentPath)) {
     return null;
@@ -183,14 +189,14 @@ export async function getSubagent(
 // Create a new subagent
 export async function createSubagent(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   name: string,
   description: string,
   content: string,
   tools?: string,
   model?: 'sonnet' | 'opus'
 ): Promise<Subagent> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.HOME, fastify.config.USER_DIR_BASE);
   const subagentPath = path.join(agentsPath, `${name}.md`);
 
   // Ensure agents directory exists
@@ -224,14 +230,14 @@ export async function createSubagent(
 // Update an existing subagent
 export async function updateSubagent(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   subagentName: string,
   description: string,
   content: string,
   tools?: string,
   model?: 'sonnet' | 'opus'
 ): Promise<Subagent> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.HOME, fastify.config.USER_DIR_BASE);
   const subagentPath = path.join(agentsPath, `${subagentName}.md`);
 
   // Check if subagent exists
@@ -260,10 +266,10 @@ export async function updateSubagent(
 // Delete a subagent
 export async function deleteSubagent(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   subagentName: string
 ): Promise<void> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.HOME, fastify.config.USER_DIR_BASE);
   const subagentPath = path.join(agentsPath, `${subagentName}.md`);
 
   // Check if subagent exists
@@ -338,7 +344,7 @@ export async function listPresetSubagents(): Promise<PresetSubagentListResult> {
 // Import a preset subagent to user's subagents (from GitHub)
 export async function importPresetSubagent(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   presetName: string
 ): Promise<Subagent> {
   const branch = await getDefaultBranch(PRESET_REPO);
@@ -355,7 +361,7 @@ export async function importPresetSubagent(
   const presetContent = await response.text();
   const parsed = parseSubagentContent(presetContent);
 
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.HOME, fastify.config.USER_DIR_BASE);
   const subagentPath = path.join(agentsPath, `${parsed.name}.md`);
 
   // Ensure agents directory exists
@@ -405,7 +411,7 @@ export function isValidSubagentName(name: string): boolean {
 // branch: branch name (optional, defaults to repository's default branch)
 export async function importGitHubSubagent(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   repoName: string,
   agentPath: string,
   branch?: string
@@ -439,7 +445,7 @@ export async function importGitHubSubagent(
     throw new Error('Could not determine agent name');
   }
 
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.HOME, fastify.config.USER_DIR_BASE);
   const subagentPath = path.join(agentsPath, `${agentName}.md`);
 
   // Ensure agents directory exists

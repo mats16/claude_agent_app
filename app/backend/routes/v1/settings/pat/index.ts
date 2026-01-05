@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { extractRequestContext } from '../../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../../utils/headers.js';
 import * as userService from '../../../../services/user.service.js';
 import { isEncryptionAvailable } from '../../../../utils/encryption.js';
 
@@ -9,13 +9,13 @@ const patRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request, reply) => {
     let context;
     try {
-      context = extractRequestContext(request);
+      context = extractUserRequestContext(request);
     } catch (error: any) {
       return reply.status(400).send({ error: error.message });
     }
 
     try {
-      const hasPat = await userService.hasDatabricksPat(context.user.sub);
+      const hasPat = await userService.hasDatabricksPat(context.user.id);
       const encryptionAvailable = isEncryptionAvailable();
       return {
         hasPat,
@@ -36,7 +36,7 @@ const patRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: { pat: string } }>('/', async (request, reply) => {
     let context;
     try {
-      context = extractRequestContext(request);
+      context = extractUserRequestContext(request);
     } catch (error: any) {
       return reply.status(400).send({ error: error.message });
     }
@@ -73,13 +73,13 @@ const patRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/', async (request, reply) => {
     let context;
     try {
-      context = extractRequestContext(request);
+      context = extractUserRequestContext(request);
     } catch (error: any) {
       return reply.status(400).send({ error: error.message });
     }
 
     try {
-      await userService.clearDatabricksPat(context.user.sub);
+      await userService.clearDatabricksPat(context.user.id);
       return { success: true };
     } catch (error: any) {
       console.error('Failed to clear PAT:', error);

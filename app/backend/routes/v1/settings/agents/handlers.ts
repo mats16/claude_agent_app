@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../../utils/headers.js';
 import * as subagentService from '../../../../services/subagent.service.js';
 import { parseGitHubRepo } from '../../../../services/github-client.service.js';
+import { ensureUserLocalDirectories } from '../../../../utils/userPaths.js';
 
 // List all subagents
 export async function listSubagentsHandler(
@@ -10,16 +11,20 @@ export async function listSubagentsHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
   // Ensure user's directory structure exists
-  context.user.ensureLocalDirs();
+  ensureUserLocalDirectories(
+    context.user,
+    request.server.config.HOME,
+    request.server.config.USER_DIR_BASE
+  );
 
   try {
-    const result = await subagentService.listSubagents(context.user);
+    const result = await subagentService.listSubagents(request.server, context.user);
     return result;
   } catch (error: any) {
     console.error('Failed to list subagents:', error);
@@ -34,7 +39,7 @@ export async function getSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -76,7 +81,7 @@ export async function createSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -136,7 +141,7 @@ export async function updateSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -189,7 +194,7 @@ export async function deleteSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -236,7 +241,7 @@ export async function importGitHubSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }

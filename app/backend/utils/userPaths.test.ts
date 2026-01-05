@@ -21,7 +21,6 @@ describe('userPaths', () => {
     id: 'user123',
     name: 'Test User',
     email: 'test@example.com',
-    accessToken: 'token123',
   };
 
   const home = '/home/app';

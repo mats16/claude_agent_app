@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../../utils/headers.js';
 import * as skillService from '../../../../services/skill.service.js';
 import { parseGitHubRepo } from '../../../../services/github-client.service.js';
+import { ensureUserLocalDirectories } from '../../../../utils/userPaths.js';
 
 // List all skills
 export async function listSkillsHandler(
@@ -10,16 +11,20 @@ export async function listSkillsHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
   // Ensure user's directory structure exists
-  context.user.ensureLocalDirs();
+  ensureUserLocalDirectories(
+    context.user,
+    request.server.config.HOME,
+    request.server.config.USER_DIR_BASE
+  );
 
   try {
-    const result = await skillService.listSkills(context.user);
+    const result = await skillService.listSkills(request.server, context.user);
     return result;
   } catch (error: any) {
     console.error('Failed to list skills:', error);
@@ -34,7 +39,7 @@ export async function getSkillHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -47,7 +52,7 @@ export async function getSkillHandler(
   }
 
   try {
-    const skill = await skillService.getSkill(context.user, skillName);
+    const skill = await skillService.getSkill(request.server, context.user, skillName);
     if (!skill) {
       return reply.status(404).send({ error: 'Skill not found' });
     }
@@ -72,7 +77,7 @@ export async function createSkillHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -119,7 +124,7 @@ export async function updateSkillHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -164,7 +169,7 @@ export async function deleteSkillHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -209,7 +214,7 @@ export async function importPresetSkillHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -246,7 +251,7 @@ export async function importGitHubSkillHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }

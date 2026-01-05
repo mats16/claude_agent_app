@@ -12,7 +12,11 @@ import {
 } from '../utils/skills.js';
 import { WorkspaceClient } from '../utils/workspaceClient.js';
 import { getSettingsDirect } from '../db/settings.js';
-import type { RequestUser } from '../models/RequestUser.js';
+import type { User } from '../models/User.js';
+import {
+  getLocalSkillsPath,
+  getRemoteSkillsPath,
+} from '../utils/userPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,11 +70,11 @@ function copyDirectoryRecursiveExcludeGit(src: string, dest: string): void {
 // Sync a single skill to workspace (fire-and-forget)
 async function syncSkillToWorkspace(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   skillName: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Skills] Workspace sync skipped (claudeConfigAutoPush disabled)'
@@ -84,8 +88,11 @@ async function syncSkillToWorkspace(
     return;
   }
 
-  const localSkillPath = path.join(user.skillsPath, skillName);
-  const workspaceSkillPath = path.join(user.remoteSkillsPath, skillName);
+  const { config } = fastify;
+  const localSkillsPath = getLocalSkillsPath(user, config.HOME, config.USER_DIR_BASE);
+  const remoteSkillsPath = getRemoteSkillsPath(user);
+  const localSkillPath = path.join(localSkillsPath, skillName);
+  const workspaceSkillPath = path.join(remoteSkillsPath, skillName);
 
   const client = new WorkspaceClient({
     host: fastify.config.DATABRICKS_HOST,
@@ -108,11 +115,11 @@ async function syncSkillToWorkspace(
 // Delete a skill from workspace (fire-and-forget)
 async function deleteSkillFromWorkspace(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   skillName: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Skills] Workspace delete skipped (claudeConfigAutoPush disabled)'
@@ -126,7 +133,8 @@ async function deleteSkillFromWorkspace(
     return;
   }
 
-  const workspaceSkillPath = path.join(user.remoteSkillsPath, skillName);
+  const remoteSkillsPath = getRemoteSkillsPath(user);
+  const workspaceSkillPath = path.join(remoteSkillsPath, skillName);
 
   const client = new WorkspaceClient({
     host: fastify.config.DATABRICKS_HOST,
@@ -145,8 +153,12 @@ async function deleteSkillFromWorkspace(
 }
 
 // List all skills for a user
-export async function listSkills(user: RequestUser): Promise<SkillListResult> {
-  const skillsPath = user.skillsPath;
+export async function listSkills(
+  fastify: FastifyInstance,
+  user: User
+): Promise<SkillListResult> {
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.HOME, config.USER_DIR_BASE);
 
   // Ensure skills directory exists
   if (!fs.existsSync(skillsPath)) {
@@ -179,10 +191,13 @@ export async function listSkills(user: RequestUser): Promise<SkillListResult> {
 
 // Get a single skill by name
 export async function getSkill(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   skillName: string
 ): Promise<Skill | null> {
-  const skillPath = path.join(user.skillsPath, skillName, 'SKILL.md');
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.HOME, config.USER_DIR_BASE);
+  const skillPath = path.join(skillsPath, skillName, 'SKILL.md');
 
   if (!fs.existsSync(skillPath)) {
     return null;
@@ -201,13 +216,14 @@ export async function getSkill(
 // Create a new skill
 export async function createSkill(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   name: string,
   description: string,
   version: string,
   content: string
 ): Promise<Skill> {
-  const skillsPath = user.skillsPath;
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.HOME, config.USER_DIR_BASE);
   const skillDirPath = path.join(skillsPath, name);
   const skillPath = path.join(skillDirPath, 'SKILL.md');
 
@@ -234,13 +250,14 @@ export async function createSkill(
 // Update an existing skill
 export async function updateSkill(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   skillName: string,
   description: string,
   version: string,
   content: string
 ): Promise<Skill> {
-  const skillsPath = user.skillsPath;
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.HOME, config.USER_DIR_BASE);
   const skillDirPath = path.join(skillsPath, skillName);
   const skillPath = path.join(skillDirPath, 'SKILL.md');
 
@@ -269,10 +286,11 @@ export async function updateSkill(
 // Delete a skill
 export async function deleteSkill(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   skillName: string
 ): Promise<void> {
-  const skillsPath = user.skillsPath;
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.HOME, config.USER_DIR_BASE);
   const skillDirPath = path.join(skillsPath, skillName);
 
   // Check if skill exists
@@ -361,7 +379,7 @@ export async function listPresetSkills(): Promise<PresetListResult> {
 // Import a preset skill to user's skills (from GitHub)
 export async function importPresetSkill(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   presetName: string
 ): Promise<Skill> {
   // Use importGitHubSkill with this repository's skills path
@@ -398,7 +416,7 @@ async function getDefaultBranch(repoName: string): Promise<string> {
 // branch: branch name (optional, defaults to repository's default branch)
 export async function importGitHubSkill(
   fastify: FastifyInstance,
-  user: RequestUser,
+  user: User,
   repoName: string,
   skillPath: string,
   branch?: string
@@ -452,7 +470,8 @@ export async function importGitHubSkill(
     const skillMdContent = fs.readFileSync(skillMdPath, 'utf-8');
     const parsed = parseSkillContent(skillMdContent);
 
-    const skillsPath = user.skillsPath;
+    const { config } = fastify;
+    const skillsPath = getLocalSkillsPath(user, config.HOME, config.USER_DIR_BASE);
     const skillDirPath = path.join(skillsPath, parsed.name || skillName);
 
     // If skill already exists, remove it first (overwrite)

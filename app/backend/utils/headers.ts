@@ -1,20 +1,5 @@
 import type { FastifyRequest } from 'fastify';
-import path from 'path';
-import { RequestUser } from '../models/RequestUser.js';
 import { createUserFromHeaders, type User } from '../models/User.js';
-
-export { RequestUser };
-
-/**
- * Extracted request context from Databricks Apps headers
- * @deprecated Use UserRequestContext instead
- */
-export interface RequestContext {
-  /** User object with sub, email, preferredUsername, name, accessToken */
-  user: RequestUser;
-  /** UUID of the request (X-Request-Id) */
-  requestId?: string;
-}
 
 /**
  * New request context using lightweight User interface
@@ -57,25 +42,6 @@ export function extractUserRequestContext(request: FastifyRequest): UserRequestC
 }
 
 /**
- * Extract user context from Databricks Apps forwarded headers
- * @param request - Fastify request object
- * @returns RequestContext with user object and optional requestId
- * @throws Error if required headers are missing
- * @deprecated Use extractUserRequestContext instead
- */
-export function extractRequestContext(request: FastifyRequest): RequestContext {
-  const { config } = request.server;
-  const usersBase = config.USER_BASE_DIR;
-  const user = RequestUser.fromHeaders(request.headers, usersBase);
-  const requestId = request.headers['x-request-id'] as string | undefined;
-
-  return {
-    user,
-    requestId,
-  };
-}
-
-/**
  * Extract user request context from headers (new User interface).
  * Used for WebSocket connections where full request object is not available.
  *
@@ -87,30 +53,6 @@ export function extractUserRequestContextFromHeaders(headers: {
   [key: string]: string | string[] | undefined;
 }): UserRequestContext {
   const user = createUserFromHeaders(headers);
-  const requestId = headers['x-request-id'] as string | undefined;
-
-  return {
-    user,
-    requestId,
-  };
-}
-
-/**
- * Extract user context from WebSocket request
- * WebSocket requests use the same header format as HTTP requests
- * @param headers - WebSocket request headers
- * @param usersBase - Base directory for user files (from config)
- * @returns RequestContext with user object and optional requestId
- * @throws Error if required headers are missing
- * @deprecated Use extractUserRequestContextFromHeaders instead
- */
-export function extractRequestContextFromHeaders(
-  headers: {
-    [key: string]: string | string[] | undefined;
-  },
-  usersBase: string
-): RequestContext {
-  const user = RequestUser.fromHeaders(headers, usersBase);
   const requestId = headers['x-request-id'] as string | undefined;
 
   return {

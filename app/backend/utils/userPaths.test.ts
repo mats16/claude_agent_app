@@ -3,7 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import type { User } from '../models/User.js';
-import { RequestUser } from '../models/RequestUser.js';
 import {
   getLocalHomeDir,
   getLocalClaudeConfigDir,
@@ -23,12 +22,11 @@ describe('userPaths', () => {
     email: 'test@example.com',
   };
 
-  const home = '/home/app';
-  const userDirBase = 'users';
+  const userBaseDir = '/home/app/users';
 
   describe('getLocalHomeDir', () => {
     it('should return correct local home directory', () => {
-      const result = getLocalHomeDir(testUser, home, userDirBase);
+      const result = getLocalHomeDir(testUser, userBaseDir);
       expect(result).toBe('/home/app/users/test');
     });
 
@@ -37,7 +35,7 @@ describe('userPaths', () => {
         ...testUser,
         email: 'john.doe@example.com',
       };
-      const result = getLocalHomeDir(user, home, userDirBase);
+      const result = getLocalHomeDir(user, userBaseDir);
       expect(result).toBe('/home/app/users/john.doe');
     });
 
@@ -46,28 +44,28 @@ describe('userPaths', () => {
         ...testUser,
         email: 'user+tag@example.com',
       };
-      const result = getLocalHomeDir(user, home, userDirBase);
+      const result = getLocalHomeDir(user, userBaseDir);
       expect(result).toBe('/home/app/users/user+tag');
     });
   });
 
   describe('getLocalClaudeConfigDir', () => {
     it('should return correct Claude config directory', () => {
-      const result = getLocalClaudeConfigDir(testUser, home, userDirBase);
+      const result = getLocalClaudeConfigDir(testUser, userBaseDir);
       expect(result).toBe('/home/app/users/test/.claude');
     });
   });
 
   describe('getLocalSkillsPath', () => {
     it('should return correct skills directory', () => {
-      const result = getLocalSkillsPath(testUser, home, userDirBase);
+      const result = getLocalSkillsPath(testUser, userBaseDir);
       expect(result).toBe('/home/app/users/test/.claude/skills');
     });
   });
 
   describe('getLocalAgentsPath', () => {
     it('should return correct agents directory', () => {
-      const result = getLocalAgentsPath(testUser, home, userDirBase);
+      const result = getLocalAgentsPath(testUser, userBaseDir);
       expect(result).toBe('/home/app/users/test/.claude/agents');
     });
   });
@@ -116,10 +114,10 @@ describe('userPaths', () => {
     });
 
     it('should create skills and agents directories', () => {
-      ensureUserLocalDirectories(testUser, tempDir, userDirBase);
+      ensureUserLocalDirectories(testUser, tempDir);
 
-      const skillsPath = getLocalSkillsPath(testUser, tempDir, userDirBase);
-      const agentsPath = getLocalAgentsPath(testUser, tempDir, userDirBase);
+      const skillsPath = getLocalSkillsPath(testUser, tempDir);
+      const agentsPath = getLocalAgentsPath(testUser, tempDir);
 
       expect(fs.existsSync(skillsPath)).toBe(true);
       expect(fs.existsSync(agentsPath)).toBe(true);
@@ -129,78 +127,12 @@ describe('userPaths', () => {
 
     it('should not fail if directories already exist', () => {
       // Create directories first time
-      ensureUserLocalDirectories(testUser, tempDir, userDirBase);
+      ensureUserLocalDirectories(testUser, tempDir);
 
       // Should not throw when called again
       expect(() => {
-        ensureUserLocalDirectories(testUser, tempDir, userDirBase);
+        ensureUserLocalDirectories(testUser, tempDir);
       }).not.toThrow();
-    });
-  });
-
-  describe('Migration validation: compare with RequestUser', () => {
-    const headers = {
-      'x-forwarded-user': 'user123',
-      'x-forwarded-email': 'test@example.com',
-      'x-forwarded-preferred-username': 'Test User',
-      'x-forwarded-access-token': 'token123',
-    };
-    const usersBase = '/home/app/users';
-
-    it('should produce same local home directory as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newLocalHome = getLocalHomeDir(testUser, '/home/app', 'users');
-
-      expect(newLocalHome).toBe(requestUser.local.homeDir);
-    });
-
-    it('should produce same local Claude config directory as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newLocalClaudeConfig = getLocalClaudeConfigDir(testUser, '/home/app', 'users');
-
-      expect(newLocalClaudeConfig).toBe(requestUser.local.claudeConfigDir);
-    });
-
-    it('should produce same local skills path as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newSkillsPath = getLocalSkillsPath(testUser, '/home/app', 'users');
-
-      expect(newSkillsPath).toBe(requestUser.skillsPath);
-    });
-
-    it('should produce same local agents path as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newAgentsPath = getLocalAgentsPath(testUser, '/home/app', 'users');
-
-      expect(newAgentsPath).toBe(requestUser.agentsPath);
-    });
-
-    it('should produce same remote home directory as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newRemoteHome = getRemoteHomeDir(testUser);
-
-      expect(newRemoteHome).toBe(requestUser.remote.homeDir);
-    });
-
-    it('should produce same remote Claude config directory as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newRemoteClaudeConfig = getRemoteClaudeConfigDir(testUser);
-
-      expect(newRemoteClaudeConfig).toBe(requestUser.remote.claudeConfigDir);
-    });
-
-    it('should produce same remote skills path as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newRemoteSkillsPath = getRemoteSkillsPath(testUser);
-
-      expect(newRemoteSkillsPath).toBe(requestUser.remoteSkillsPath);
-    });
-
-    it('should produce same remote agents path as RequestUser', () => {
-      const requestUser = RequestUser.fromHeaders(headers, usersBase);
-      const newRemoteAgentsPath = getRemoteAgentsPath(testUser);
-
-      expect(newRemoteAgentsPath).toBe(requestUser.remoteAgentsPath);
     });
   });
 });

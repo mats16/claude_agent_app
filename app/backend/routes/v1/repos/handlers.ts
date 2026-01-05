@@ -1,5 +1,4 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../utils/headers.js';
 import { getPersonalAccessToken } from '../../../services/user.service.js';
 
 interface CreateRepoBody {
@@ -73,18 +72,15 @@ export async function createRepoHandler(
   }
 
   // Extract user context for 'me' resolution and PAT auth
-  let userEmail: string;
-  let userId: string;
-  try {
-    const context = extractRequestContext(request);
-    userEmail = context.user.email;
-    userId = context.user.sub;
-  } catch (error: any) {
+  if (!request.ctx?.user) {
     return reply.status(401).send({
       error_code: 'UNAUTHENTICATED',
-      message: error.message,
+      message: 'User authentication required',
     });
   }
+  const { user } = request.ctx;
+  const userId = user.id;
+  const userEmail = user.email;
 
   // Resolve 'me' in path
   const path = resolveUserPath(rawPath, userEmail);

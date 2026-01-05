@@ -12,7 +12,6 @@ import {
   createUserWithDefaultSettings,
 } from '../db/users.js';
 import { isEncryptionAvailable } from '../utils/encryption.js';
-import type { RequestUser } from '../models/RequestUser.js';
 import type { User } from '../models/User.js';
 import {
   getRemoteClaudeConfigDir,
@@ -81,16 +80,6 @@ export async function ensureUser(user: User): Promise<void> {
   await ensureUserWithDefaults(user.id, user.email);
 }
 
-/**
- * Ensure user exists in database (convenience wrapper, legacy).
- *
- * @param user - Request user object
- * @deprecated Use ensureUser(user: User) instead
- */
-export async function ensureUserLegacy(user: RequestUser): Promise<void> {
-  await ensureUserWithDefaults(user.sub, user.email);
-}
-
 // Check if user has workspace permission by attempting to create .claude directory (new User interface)
 export async function checkWorkspacePermission(
   fastify: FastifyInstance,
@@ -125,21 +114,6 @@ export async function checkWorkspacePermission(
   }
 }
 
-/**
- * Check workspace permission (legacy RequestUser).
- * @deprecated Use checkWorkspacePermission(fastify, user: User) instead
- */
-export async function checkWorkspacePermissionLegacy(
-  fastify: FastifyInstance,
-  user: RequestUser
-): Promise<boolean> {
-  return checkWorkspacePermission(fastify, {
-    id: user.sub,
-    name: user.preferredUsername,
-    email: user.email,
-  });
-}
-
 // Get user info including workspace permission check (new User interface)
 export async function getUserInfo(fastify: FastifyInstance, user: User): Promise<UserInfo> {
   // Ensure user exists
@@ -168,18 +142,6 @@ export async function getUserInfo(fastify: FastifyInstance, user: User): Promise
 }
 
 /**
- * Get user info (legacy RequestUser).
- * @deprecated Use getUserInfo(fastify, user: User) instead
- */
-export async function getUserInfoLegacy(fastify: FastifyInstance, user: RequestUser): Promise<UserInfo> {
-  return getUserInfo(fastify, {
-    id: user.sub,
-    name: user.preferredUsername,
-    email: user.email,
-  });
-}
-
-/**
  * Get user settings (delegates to settings.service).
  * @deprecated Use settingsService.getUserSettings() directly
  */
@@ -197,18 +159,6 @@ export async function updateUserSettings(
 ): Promise<void> {
   await ensureUser(user);
   await settingsService.updateUserSettings(user.id, settings);
-}
-
-/**
- * Update user settings (legacy RequestUser, delegates to settings.service).
- * @deprecated Use settingsService.updateUserSettings() directly
- */
-export async function updateUserSettingsLegacy(
-  user: RequestUser,
-  settings: { claudeConfigAutoPush?: boolean }
-): Promise<void> {
-  await ensureUserLegacy(user);
-  await settingsService.updateUserSettings(user.sub, settings);
 }
 
 // Check if PAT is configured for user
@@ -333,22 +283,6 @@ export async function setDatabricksPat(
   await setPatInDb(user.id, pat, expiresAt);
 
   return { expiresAt, comment };
-}
-
-/**
- * Set PAT (legacy RequestUser, fetches expiry from Databricks API, stores encrypted).
- * @deprecated Use setDatabricksPat(fastify, user: User, pat) instead
- */
-export async function setDatabricksPatLegacy(
-  fastify: FastifyInstance,
-  user: RequestUser,
-  pat: string
-): Promise<{ expiresAt: Date | null; comment: string | null }> {
-  return setDatabricksPat(fastify, {
-    id: user.sub,
-    name: user.preferredUsername,
-    email: user.email,
-  }, pat);
 }
 
 // Clear PAT

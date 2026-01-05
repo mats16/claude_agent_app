@@ -1,5 +1,4 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../utils/headers.js';
 import { getPersonalAccessToken } from '../../../services/user.service.js';
 
 // List jobs (wrapper for /api/2.2/jobs/list)
@@ -10,8 +9,7 @@ export async function listJobsHandler(
   reply: FastifyReply
 ) {
 
-  const context = extractRequestContext(request);
-  const userId = context.user.sub;
+  const userId = request.ctx!.user.id;
 
   const accessToken = await getPersonalAccessToken(request.server, userId);
 
@@ -39,8 +37,7 @@ export async function listJobRunsHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  const context = extractRequestContext(request);
-  const userId = context.user.sub;
+  const userId = request.ctx!.user.id;
 
   const accessToken = await getPersonalAccessToken(request.server, userId);
 

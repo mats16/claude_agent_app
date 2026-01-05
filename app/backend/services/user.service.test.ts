@@ -11,7 +11,6 @@ import {
   setDatabricksPat,
   clearDatabricksPat,
 } from './user.service.js';
-import type { RequestUser } from '../models/RequestUser.js';
 import type { User } from '../models/User.js';
 import type { SelectUser } from '../db/schema.js';
 import * as usersRepo from '../db/users.js';
@@ -50,15 +49,6 @@ describe('user.service', () => {
   const mockEmail = 'test@example.com';
   const mockPat = 'dapi1234567890abcdef';
   let mockFastify: FastifyInstance;
-
-  const mockRequestUser: RequestUser = {
-    sub: mockUserId,
-    email: mockEmail,
-    remote: {
-      homeDir: '/Workspace/Users/test@example.com',
-      claudeConfigDir: '/Workspace/Users/test@example.com/.claude',
-    },
-  } as RequestUser;
 
   const mockUser: User = {
     id: mockUserId,
@@ -191,7 +181,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockFastify, mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockUser);
 
       // Assert
       expect(result).toBe(true);
@@ -221,7 +211,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockFastify, mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockUser);
 
       // Assert
       expect(result).toBe(false);
@@ -237,7 +227,7 @@ describe('user.service', () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
       // Act
-      const result = await checkWorkspacePermission(mockFastify, mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockUser);
 
       // Assert
       expect(result).toBe(false);
@@ -301,7 +291,7 @@ describe('user.service', () => {
       const fastifyWithoutAppName = createMockFastify({ DATABRICKS_APP_NAME: undefined });
 
       // Act
-      const result = await getUserInfo(fastifyWithoutAppName, mockRequestUser);
+      const result = await getUserInfo(fastifyWithoutAppName, mockUser);
 
       // Assert
       expect(result.databricksAppUrl).toBe(null);

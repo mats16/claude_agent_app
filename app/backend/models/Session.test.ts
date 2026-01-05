@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { SelectSession } from '../../db/schema.js';
+import type { SelectSession } from '../db/schema.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -9,7 +9,7 @@ const testSessionsBase = path.join(os.tmpdir(), 'claude-test-sessions');
 const testUsersBase = path.join(os.tmpdir(), 'claude-test-users');
 
 // Import Session classes
-const { SessionDraft, Session } = await import('../Session.js');
+const { SessionDraft, Session } = await import('./Session.js');
 
 describe('SessionDraft', () => {
   describe('constructor', () => {

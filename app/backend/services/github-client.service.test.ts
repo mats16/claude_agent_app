@@ -4,7 +4,7 @@ import {
   parseFrontmatter,
   parseSkillFrontmatter,
   parseAgentFrontmatter,
-} from '../github-client.service.js';
+} from './github-client.service.js';
 
 describe('parseGitHubRepo', () => {
   describe('valid inputs', () => {

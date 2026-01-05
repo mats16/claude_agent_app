@@ -8,7 +8,7 @@ import {
   encryptSafe,
   decryptSafe,
   isEncryptedFormat,
-} from '../encryption.js';
+} from './encryption.js';
 
 // Test encryption key (valid 64-char hex string)
 const testEncryptionKey = 'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe';

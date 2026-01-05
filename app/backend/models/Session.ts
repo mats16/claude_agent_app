@@ -2,7 +2,6 @@ import { typeid, TypeID } from 'typeid-js';
 import path from 'path';
 import fs from 'fs';
 import type { SelectSession } from '../db/schema.js';
-import { paths } from '../config/index.js';
 
 /**
  * SessionBase - Abstract base class consolidating TypeID operations and common session fields
@@ -10,6 +9,7 @@ import { paths } from '../config/index.js';
  */
 export abstract class SessionBase {
   private readonly _typeId: TypeID<'session'>;
+  private readonly _sessionsBase: string;
 
   // TypeID string representation (e.g., "session_01h455...")
   readonly id: string;
@@ -30,8 +30,10 @@ export abstract class SessionBase {
     model: string;
     databricksWorkspacePath: string | null;
     databricksWorkspaceAutoPush: boolean;
+    sessionsBase: string;
   }) {
     this._typeId = params.typeId;
+    this._sessionsBase = params.sessionsBase;
     this.id = params.typeId.toString();
     this.userId = params.userId;
     this.model = params.model;
@@ -81,7 +83,7 @@ export abstract class SessionBase {
    * Example: /home/app/session/01h455vb4pex5vsknk084sn02q
    */
   get cwd(): string {
-    return path.join(paths.sessionsBase, this.getIdSuffix());
+    return path.join(this._sessionsBase, this.getIdSuffix());
   }
 
   /**
@@ -151,6 +153,7 @@ export class SessionDraft extends SessionBase {
     title?: string | null;
     databricksWorkspacePath?: string | null;
     databricksWorkspaceAutoPush?: boolean;
+    sessionsBase: string;
   }) {
     // Auto-generate TypeID
     super({
@@ -159,6 +162,7 @@ export class SessionDraft extends SessionBase {
       model: params.model,
       databricksWorkspacePath: params.databricksWorkspacePath ?? null,
       databricksWorkspaceAutoPush: params.databricksWorkspaceAutoPush ?? false,
+      sessionsBase: params.sessionsBase,
     });
 
     this.claudeCodeSessionId = undefined;
@@ -191,6 +195,7 @@ export class Session extends SessionBase {
     isArchived: boolean;
     createdAt: Date;
     updatedAt: Date;
+    sessionsBase: string;
   }) {
     super({
       typeId: data.typeId,
@@ -198,6 +203,7 @@ export class Session extends SessionBase {
       model: data.model,
       databricksWorkspacePath: data.databricksWorkspacePath,
       databricksWorkspaceAutoPush: data.databricksWorkspaceAutoPush,
+      sessionsBase: data.sessionsBase,
     });
 
     this.claudeCodeSessionId = data.claudeCodeSessionId;
@@ -210,8 +216,10 @@ export class Session extends SessionBase {
 
   /**
    * Factory: Create Session from DB query result
+   * @param selectSession - Database query result
+   * @param sessionsBase - Base directory for session files (from config)
    */
-  static fromSelectSession(selectSession: SelectSession): Session {
+  static fromSelectSession(selectSession: SelectSession, sessionsBase: string): Session {
     return new Session({
       typeId: SessionBase.typeIdFromString(selectSession.id),
       claudeCodeSessionId: selectSession.claudeCodeSessionId,
@@ -224,15 +232,22 @@ export class Session extends SessionBase {
       isArchived: selectSession.isArchived,
       createdAt: selectSession.createdAt,
       updatedAt: selectSession.updatedAt,
+      sessionsBase,
     });
   }
 
   /**
    * Factory: Create Session from SessionDraft after receiving SDK session ID
+   * @param draft - The session draft to convert
+   * @param claudeCodeSessionId - SDK session ID
+   * @param sessionsBase - Base directory for session files (from config)
+   * @param createdAt - Creation timestamp
+   * @param updatedAt - Update timestamp
    */
   static fromSessionDraft(
     draft: SessionDraft,
     claudeCodeSessionId: string,
+    sessionsBase: string,
     createdAt: Date = new Date(),
     updatedAt: Date = new Date()
   ): Session {
@@ -248,6 +263,7 @@ export class Session extends SessionBase {
       isArchived: false,
       createdAt,
       updatedAt,
+      sessionsBase,
     });
   }
 }

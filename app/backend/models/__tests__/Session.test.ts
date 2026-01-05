@@ -4,18 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Mock config to use temp directory for tests
+// Test data
 const testSessionsBase = path.join(os.tmpdir(), 'claude-test-sessions');
 const testUsersBase = path.join(os.tmpdir(), 'claude-test-users');
 
-vi.mock('../../config/index.js', () => ({
-  paths: {
-    sessionsBase: testSessionsBase,
-    usersBase: testUsersBase,
-  },
-}));
-
-// Import Session classes after mocking config
+// Import Session classes
 const { SessionDraft, Session } = await import('../Session.js');
 
 describe('SessionDraft', () => {
@@ -24,6 +17,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       expect(draft.id).toMatch(/^session_[a-z0-9]{26}$/);
       expect(draft.toString()).toMatch(/^session_[a-z0-9]{26}$/);
@@ -33,10 +27,12 @@ describe('SessionDraft', () => {
       const draft1 = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       const draft2 = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       expect(draft1.id).not.toBe(draft2.id);
       expect(draft1.toString()).not.toBe(draft2.toString());
@@ -46,6 +42,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       expect(draft.claudeCodeSessionId).toBeUndefined();
     });
@@ -57,6 +54,7 @@ describe('SessionDraft', () => {
         title: 'Test Draft',
         databricksWorkspacePath: '/Workspace/test',
         databricksWorkspaceAutoPush: true,
+        sessionsBase: testSessionsBase,
       });
 
       expect(draft.userId).toBe('user123');
@@ -70,6 +68,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
 
       expect(draft.title).toBeNull();
@@ -83,6 +82,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       const cwdPath = draft.cwd;
       expect(cwdPath).toContain(testSessionsBase);
@@ -93,6 +93,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       const appName = draft.appName;
       expect(appName).toMatch(/^app-[a-z0-9]{26}$/);
@@ -103,6 +104,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       const branchName = draft.branchName;
       expect(branchName).toMatch(/^claude\/session_[a-z0-9]{26}$/);
@@ -126,6 +128,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       const workDir = draft.createWorkingDirectory();
 
@@ -137,6 +140,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       const workDir = draft.createWorkingDirectory();
       const claudeDir = path.join(workDir, '.claude');
@@ -149,6 +153,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       const workDir = draft.createWorkingDirectory();
 
@@ -162,6 +167,7 @@ describe('SessionDraft', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
       expect(draft.isDraft()).toBe(true);
     });
@@ -185,7 +191,7 @@ describe('Session', () => {
         updatedAt: new Date('2024-01-02T00:00:00Z'),
       };
 
-      const session = Session.fromSelectSession(dbSession);
+      const session = Session.fromSelectSession(dbSession, testSessionsBase);
 
       // All properties should match DB session
       expect(session.id).toBe(dbSession.id);
@@ -225,7 +231,7 @@ describe('Session', () => {
         updatedAt: new Date(),
       };
 
-      const session = Session.fromSelectSession(dbSession);
+      const session = Session.fromSelectSession(dbSession, testSessionsBase);
 
       expect(session.title).toBeNull();
       expect(session.summary).toBeNull();
@@ -247,7 +253,7 @@ describe('Session', () => {
         updatedAt: new Date(),
       };
 
-      expect(() => Session.fromSelectSession(invalidSession)).toThrow(
+      expect(() => Session.fromSelectSession(invalidSession, testSessionsBase)).toThrow(
         "Invalid session ID type: expected 'session', got 'user'"
       );
     });
@@ -261,9 +267,10 @@ describe('Session', () => {
         title: 'Test Draft',
         databricksWorkspacePath: '/Workspace/test',
         databricksWorkspaceAutoPush: true,
+        sessionsBase: testSessionsBase,
       });
 
-      const session = Session.fromSessionDraft(draft, 'sdk-session-456');
+      const session = Session.fromSessionDraft(draft, 'sdk-session-456', testSessionsBase);
 
       // TypeID should be preserved
       expect(session.id).toBe(draft.id);
@@ -295,10 +302,11 @@ describe('Session', () => {
       const draft = new SessionDraft({
         userId: 'user123',
         model: 'claude-sonnet-4-5',
+        sessionsBase: testSessionsBase,
       });
 
       const draftCwd = draft.cwd;
-      const session = Session.fromSessionDraft(draft, 'sdk-123');
+      const session = Session.fromSessionDraft(draft, 'sdk-123', testSessionsBase);
 
       expect(session.cwd).toBe(draftCwd);
     });
@@ -320,7 +328,7 @@ describe('Session', () => {
         updatedAt: new Date(),
       };
 
-      const session = Session.fromSelectSession(dbSession);
+      const session = Session.fromSelectSession(dbSession, testSessionsBase);
 
       expect(session.appName).toBe('app-01h455vb4pex5vsknk084sn02q');
       expect(session.branchName).toBe(
@@ -348,7 +356,7 @@ describe('Session', () => {
         updatedAt: new Date(),
       };
 
-      const session = Session.fromSelectSession(dbSession);
+      const session = Session.fromSelectSession(dbSession, testSessionsBase);
 
       expect(session.isDraft()).toBe(false);
     });

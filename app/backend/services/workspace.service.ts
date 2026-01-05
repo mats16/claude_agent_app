@@ -1,5 +1,5 @@
+import type { FastifyInstance } from 'fastify';
 import { getServicePrincipalAccessToken } from '../utils/auth.js';
-import { databricks } from '../config/index.js';
 
 export interface WorkspaceObject {
   path: string;
@@ -40,12 +40,14 @@ export function getRootWorkspace(): WorkspaceListResult {
 
 // List workspace directory contents
 export async function listWorkspace(
+  fastify: FastifyInstance,
   workspacePath: string,
   accessToken?: string
 ): Promise<WorkspaceListResult> {
-  const token = accessToken ?? await getServicePrincipalAccessToken();
+  const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
+  const token = accessToken ?? await getServicePrincipalAccessToken(fastify);
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
+    `${databricksHostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
     {
       headers: { Authorization: `Bearer ${token}` },
     }
@@ -72,30 +74,34 @@ export async function listWorkspace(
 
 // List user's workspace directory
 export async function listUserWorkspace(
+  fastify: FastifyInstance,
   email: string,
   accessToken?: string
 ): Promise<WorkspaceListResult> {
   const workspacePath = `/Workspace/Users/${email}`;
-  return listWorkspace(workspacePath, accessToken);
+  return listWorkspace(fastify, workspacePath, accessToken);
 }
 
 // List any workspace path (Shared, Repos, etc.)
 export async function listWorkspacePath(
+  fastify: FastifyInstance,
   subpath: string,
   accessToken?: string
 ): Promise<WorkspaceListResult> {
   const wsPath = `/Workspace/${subpath}`;
-  return listWorkspace(wsPath, accessToken);
+  return listWorkspace(fastify, wsPath, accessToken);
 }
 
 // Create a directory in workspace
 export async function createDirectory(
+  fastify: FastifyInstance,
   workspacePath: string,
   accessToken?: string
 ): Promise<{ path: string }> {
-  const token = accessToken ?? await getServicePrincipalAccessToken();
+  const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
+  const token = accessToken ?? await getServicePrincipalAccessToken(fastify);
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
+    `${databricksHostUrl}/api/2.0/workspace/mkdirs`,
     {
       method: 'POST',
       headers: {
@@ -124,12 +130,14 @@ export async function createDirectory(
 
 // Get workspace object status (including object_id and browse_url)
 export async function getStatus(
+  fastify: FastifyInstance,
   workspacePath: string,
   accessToken?: string
 ): Promise<WorkspaceStatus> {
-  const token = accessToken ?? await getServicePrincipalAccessToken();
+  const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
+  const token = accessToken ?? await getServicePrincipalAccessToken(fastify);
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
+    `${databricksHostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
     {
       headers: { Authorization: `Bearer ${token}` },
     }
@@ -155,10 +163,10 @@ export async function getStatus(
     throw new WorkspaceError(data.message || 'API error', 'API_ERROR');
   }
 
-  // Build browse_url from databricks.hostUrl and object_id
+  // Build browse_url from databricksHostUrl and object_id
   const browseUrl =
     data.object_id != null
-      ? `${databricks.hostUrl}/browse/folders/${data.object_id}`
+      ? `${databricksHostUrl}/browse/folders/${data.object_id}`
       : null;
 
   return {
@@ -178,12 +186,14 @@ export interface RawApiResponse {
 // Raw wrapper for /api/2.0/workspace/get-status
 // Returns the original response status and body from Databricks API
 export async function getStatusRaw(
+  fastify: FastifyInstance,
   workspacePath: string,
   accessToken?: string
 ): Promise<RawApiResponse> {
-  const token = accessToken ?? await getServicePrincipalAccessToken();
+  const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
+  const token = accessToken ?? await getServicePrincipalAccessToken(fastify);
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
+    `${databricksHostUrl}/api/2.0/workspace/get-status?path=${encodeURIComponent(workspacePath)}`,
     {
       headers: { Authorization: `Bearer ${token}` },
     }
@@ -196,12 +206,14 @@ export async function getStatusRaw(
 // Raw wrapper for /api/2.0/workspace/list
 // Returns the original response status and body from Databricks API
 export async function listWorkspaceRaw(
+  fastify: FastifyInstance,
   workspacePath: string,
   accessToken?: string
 ): Promise<RawApiResponse> {
-  const token = accessToken ?? await getServicePrincipalAccessToken();
+  const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
+  const token = accessToken ?? await getServicePrincipalAccessToken(fastify);
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
+    `${databricksHostUrl}/api/2.0/workspace/list?path=${encodeURIComponent(workspacePath)}`,
     {
       headers: { Authorization: `Bearer ${token}` },
     }
@@ -214,12 +226,14 @@ export async function listWorkspaceRaw(
 // Raw wrapper for /api/2.0/workspace/mkdirs
 // Returns the original response status and body from Databricks API
 export async function mkdirsRaw(
+  fastify: FastifyInstance,
   workspacePath: string,
   accessToken?: string
 ): Promise<RawApiResponse> {
-  const token = accessToken ?? await getServicePrincipalAccessToken();
+  const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
+  const token = accessToken ?? await getServicePrincipalAccessToken(fastify);
   const response = await fetch(
-    `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
+    `${databricksHostUrl}/api/2.0/workspace/mkdirs`,
     {
       method: 'POST',
       headers: {

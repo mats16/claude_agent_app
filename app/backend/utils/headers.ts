@@ -1,26 +1,38 @@
 import type { FastifyRequest } from 'fastify';
-import { RequestUser } from '../models/RequestUser.js';
-
-export { RequestUser };
+import { createUserFromHeaders, type User } from '../models/User.js';
 
 /**
- * Extracted request context from Databricks Apps headers
+ * New request context using lightweight User interface
  */
-export interface RequestContext {
-  /** User object with sub, email, preferredUsername, name, accessToken */
-  user: RequestUser;
+export interface UserRequestContext {
+  /** User object with id, name, email (no access token) */
+  user: User;
   /** UUID of the request (X-Request-Id) */
   requestId?: string;
 }
 
 /**
- * Extract user context from Databricks Apps forwarded headers
- * @param request - Fastify request object
- * @returns RequestContext with user object and optional requestId
+ * Extract user from request headers (new User interface).
+ *
+ * @param headers - Request headers
+ * @returns User object
  * @throws Error if required headers are missing
  */
-export function extractRequestContext(request: FastifyRequest): RequestContext {
-  const user = RequestUser.fromHeaders(request.headers);
+export function extractUser(headers: {
+  [key: string]: string | string[] | undefined;
+}): User {
+  return createUserFromHeaders(headers);
+}
+
+/**
+ * Extract user request context (new User interface).
+ *
+ * @param request - Fastify request object
+ * @returns UserRequestContext with User object and optional requestId
+ * @throws Error if required headers are missing
+ */
+export function extractUserRequestContext(request: FastifyRequest): UserRequestContext {
+  const user = createUserFromHeaders(request.headers);
   const requestId = request.headers['x-request-id'] as string | undefined;
 
   return {
@@ -30,16 +42,17 @@ export function extractRequestContext(request: FastifyRequest): RequestContext {
 }
 
 /**
- * Extract user context from WebSocket request
- * WebSocket requests use the same header format as HTTP requests
- * @param headers - WebSocket request headers
- * @returns RequestContext with user object and optional requestId
+ * Extract user request context from headers (new User interface).
+ * Used for WebSocket connections where full request object is not available.
+ *
+ * @param headers - Request headers
+ * @returns UserRequestContext with User object and optional requestId
  * @throws Error if required headers are missing
  */
-export function extractRequestContextFromHeaders(headers: {
+export function extractUserRequestContextFromHeaders(headers: {
   [key: string]: string | string[] | undefined;
-}): RequestContext {
-  const user = RequestUser.fromHeaders(headers);
+}): UserRequestContext {
+  const user = createUserFromHeaders(headers);
   const requestId = headers['x-request-id'] as string | undefined;
 
   return {

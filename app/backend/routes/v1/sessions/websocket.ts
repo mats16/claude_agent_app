@@ -1,11 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
+import path from 'path';
 import type { MessageContent, IncomingWSMessage } from '@app/shared';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { startAgent, MessageStream } from '../../../services/agent.service.js';
 import * as eventService from '../../../services/event.service.js';
 import * as sessionService from '../../../services/session.service.js';
 import * as userSettingsService from '../../../services/user-settings.service.js';
-import { extractRequestContextFromHeaders } from '../../../utils/headers.js';
+import { extractUserRequestContextFromHeaders } from '../../../utils/headers.js';
+import { ensureUserLocalDirectories } from '../../../utils/userPaths.js';
 import {
   sessionQueues,
   sessionMessageStreams,
@@ -22,14 +24,14 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/ws', { websocket: true }, (socket, req) => {
     let context;
     try {
-      context = extractRequestContextFromHeaders(req.headers);
+      context = extractUserRequestContextFromHeaders(req.headers);
     } catch (error: any) {
       socket.send(JSON.stringify({ error: error.message }));
       socket.close();
       return;
     }
 
-    const userId = context.user.sub;
+    const userId = context.user.id;
 
     console.log(
       `Client connected to session list WebSocket for user: ${userId}`
@@ -85,7 +87,7 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
       // Get user info from request headers
       let context;
       try {
-        context = extractRequestContextFromHeaders(req.headers);
+        context = extractUserRequestContextFromHeaders(req.headers);
       } catch (error: any) {
         socket.send(JSON.stringify({ error: error.message }));
         socket.close();
@@ -93,7 +95,8 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const { user } = context;
-      const userId = user.sub;
+      const userId = user.id;
+      const userAccessToken = req.headers['x-forwarded-access-token'] as string;
 
       // Add this socket to the set of active connections for this session
       let sockets = sessionWebSockets.get(sessionId);
@@ -170,18 +173,22 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               );
 
               // Fetch session to get databricksWorkspacePath, databricksWorkspaceAutoPush, agentLocalPath, and model for resume
-              let session = await sessionService.getSession(sessionId, userId);
+              let session = await sessionService.getSession(fastify, sessionId, userId);
               if (!session) {
                 throw new Error('Session not found. Cannot resume session.');
               }
 
               // Update session model in DB if different from saved model
               if (messageModel && messageModel !== session.model) {
-                await sessionService.updateSessionSettings(sessionId, userId, {
-                  model: messageModel
-                });
+                await sessionService.updateSessionSettings(
+                  fastify,
+                  sessionId,
+                  userId,
+                  { model: messageModel }
+                );
                 // Re-fetch session to get updated model
                 const updatedSession = await sessionService.getSession(
+                  fastify,
                   sessionId,
                   userId
                 );
@@ -195,7 +202,10 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               const claudeConfigAutoPush = userSettings.claudeConfigAutoPush;
 
               // Ensure user's local directory structure exists
-              user.ensureLocalDirs();
+              ensureUserLocalDirectories(
+                user,
+                fastify.config.USER_BASE_DIR
+              );
 
               // Create MessageStream for this session
               const stream = new MessageStream(userMessageContent);
@@ -208,9 +218,10 @@ const sessionWebSocketRoutes: FastifyPluginAsync = async (fastify) => {
               // Process agent request and stream responses
               // Pass session object - agent extracts all needed properties
               try {
-                for await (const sdkMessage of startAgent({
+                for await (const sdkMessage of startAgent(fastify, {
                   session, // Pass Session object - claudeCodeSessionId is defined, so resume mode
                   user,
+                  userAccessToken,
                   messageContent: userMessageContent,
                   claudeConfigAutoPush,
                   messageStream: stream,

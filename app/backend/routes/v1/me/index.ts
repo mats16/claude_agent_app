@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { extractRequestContext } from '../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../utils/headers.js';
 import * as userService from '../../../services/user.service.js';
 
 const meRoutes: FastifyPluginAsync = async (fastify) => {
@@ -8,13 +8,13 @@ const meRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request, reply) => {
     let context;
     try {
-      context = extractRequestContext(request);
+      context = extractUserRequestContext(request);
     } catch (error: any) {
       return reply.status(400).send({ error: error.message });
     }
 
     try {
-      const userInfo = await userService.getUserInfo(context.user);
+      const userInfo = await userService.getUserInfo(fastify, context.user);
       return userInfo;
     } catch (error: any) {
       console.error('Failed to get user info:', error);

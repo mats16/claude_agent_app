@@ -3,7 +3,6 @@ import autoload from '@fastify/autoload';
 import multipart from '@fastify/multipart';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 
 // Route imports
 import healthRoutes from './routes/health/index.js';
@@ -31,9 +30,6 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from parent directory (.env or ../.env)
-dotenv.config({ path: path.join(__dirname, '../.env') });
-
 // Build and configure Fastify application
 export async function buildApp() {
   const fastify = Fastify({
@@ -41,10 +37,10 @@ export async function buildApp() {
   });
 
   // Register plugins via autoload (websocket, static)
-  // Note: auth and session-state plugins are excluded for Phase 1
+  // Note: session-state plugin is excluded for Phase 1
   await fastify.register(autoload, {
     dir: path.join(__dirname, 'plugins'),
-    ignorePattern: /^(auth|session-state)\./,
+    ignorePattern: /^session-state\./,
   });
 
   // Register multipart plugin for file uploads

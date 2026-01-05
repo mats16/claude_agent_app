@@ -1,3 +1,4 @@
+import type { FastifyInstance } from 'fastify';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,7 +12,11 @@ import {
 } from '../utils/skills.js';
 import { WorkspaceClient } from '../utils/workspaceClient.js';
 import { getSettingsDirect } from '../db/settings.js';
-import type { RequestUser } from '../models/RequestUser.js';
+import type { User } from '../models/User.js';
+import {
+  getLocalSkillsPath,
+  getRemoteSkillsPath,
+} from '../utils/userPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,11 +69,12 @@ function copyDirectoryRecursiveExcludeGit(src: string, dest: string): void {
 
 // Sync a single skill to workspace (fire-and-forget)
 async function syncSkillToWorkspace(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   skillName: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Skills] Workspace sync skipped (claudeConfigAutoPush disabled)'
@@ -76,17 +82,20 @@ async function syncSkillToWorkspace(
     return;
   }
 
-  const spToken = await getServicePrincipalAccessToken();
+  const spToken = await getServicePrincipalAccessToken(fastify);
   if (!spToken) {
     console.error('[Skills] Workspace sync skipped (no SP token available)');
     return;
   }
 
-  const localSkillPath = path.join(user.skillsPath, skillName);
-  const workspaceSkillPath = path.join(user.remoteSkillsPath, skillName);
+  const { config } = fastify;
+  const localSkillsPath = getLocalSkillsPath(user, config.USER_BASE_DIR);
+  const remoteSkillsPath = getRemoteSkillsPath(user);
+  const localSkillPath = path.join(localSkillsPath, skillName);
+  const workspaceSkillPath = path.join(remoteSkillsPath, skillName);
 
   const client = new WorkspaceClient({
-    host: process.env.DATABRICKS_HOST!,
+    host: fastify.config.DATABRICKS_HOST,
     getToken: async () => spToken,
   });
 
@@ -105,11 +114,12 @@ async function syncSkillToWorkspace(
 
 // Delete a skill from workspace (fire-and-forget)
 async function deleteSkillFromWorkspace(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   skillName: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Skills] Workspace delete skipped (claudeConfigAutoPush disabled)'
@@ -117,16 +127,17 @@ async function deleteSkillFromWorkspace(
     return;
   }
 
-  const spToken = await getServicePrincipalAccessToken();
+  const spToken = await getServicePrincipalAccessToken(fastify);
   if (!spToken) {
     console.error('[Skills] Workspace delete skipped (no SP token available)');
     return;
   }
 
-  const workspaceSkillPath = path.join(user.remoteSkillsPath, skillName);
+  const remoteSkillsPath = getRemoteSkillsPath(user);
+  const workspaceSkillPath = path.join(remoteSkillsPath, skillName);
 
   const client = new WorkspaceClient({
-    host: process.env.DATABRICKS_HOST!,
+    host: fastify.config.DATABRICKS_HOST,
     getToken: async () => spToken,
   });
 
@@ -142,8 +153,12 @@ async function deleteSkillFromWorkspace(
 }
 
 // List all skills for a user
-export async function listSkills(user: RequestUser): Promise<SkillListResult> {
-  const skillsPath = user.skillsPath;
+export async function listSkills(
+  fastify: FastifyInstance,
+  user: User
+): Promise<SkillListResult> {
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.USER_BASE_DIR);
 
   // Ensure skills directory exists
   if (!fs.existsSync(skillsPath)) {
@@ -176,10 +191,13 @@ export async function listSkills(user: RequestUser): Promise<SkillListResult> {
 
 // Get a single skill by name
 export async function getSkill(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   skillName: string
 ): Promise<Skill | null> {
-  const skillPath = path.join(user.skillsPath, skillName, 'SKILL.md');
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.USER_BASE_DIR);
+  const skillPath = path.join(skillsPath, skillName, 'SKILL.md');
 
   if (!fs.existsSync(skillPath)) {
     return null;
@@ -197,13 +215,15 @@ export async function getSkill(
 
 // Create a new skill
 export async function createSkill(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   name: string,
   description: string,
   version: string,
   content: string
 ): Promise<Skill> {
-  const skillsPath = user.skillsPath;
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.USER_BASE_DIR);
   const skillDirPath = path.join(skillsPath, name);
   const skillPath = path.join(skillDirPath, 'SKILL.md');
 
@@ -220,7 +240,7 @@ export async function createSkill(
   fs.writeFileSync(skillPath, fileContent, 'utf-8');
 
   // Sync to workspace (fire-and-forget)
-  syncSkillToWorkspace(user, name).catch((err: Error) => {
+  syncSkillToWorkspace(fastify, user, name).catch((err: Error) => {
     console.error(`[Skills] Failed to sync after create: ${err.message}`);
   });
 
@@ -229,13 +249,15 @@ export async function createSkill(
 
 // Update an existing skill
 export async function updateSkill(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   skillName: string,
   description: string,
   version: string,
   content: string
 ): Promise<Skill> {
-  const skillsPath = user.skillsPath;
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.USER_BASE_DIR);
   const skillDirPath = path.join(skillsPath, skillName);
   const skillPath = path.join(skillDirPath, 'SKILL.md');
 
@@ -254,7 +276,7 @@ export async function updateSkill(
   fs.writeFileSync(skillPath, fileContent, 'utf-8');
 
   // Sync to workspace (fire-and-forget)
-  syncSkillToWorkspace(user, skillName).catch((err: Error) => {
+  syncSkillToWorkspace(fastify, user, skillName).catch((err: Error) => {
     console.error(`[Skills] Failed to sync after update: ${err.message}`);
   });
 
@@ -263,10 +285,12 @@ export async function updateSkill(
 
 // Delete a skill
 export async function deleteSkill(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   skillName: string
 ): Promise<void> {
-  const skillsPath = user.skillsPath;
+  const { config } = fastify;
+  const skillsPath = getLocalSkillsPath(user, config.USER_BASE_DIR);
   const skillDirPath = path.join(skillsPath, skillName);
 
   // Check if skill exists
@@ -278,7 +302,7 @@ export async function deleteSkill(
   fs.rmSync(skillDirPath, { recursive: true, force: true });
 
   // Delete from workspace (fire-and-forget)
-  deleteSkillFromWorkspace(user, skillName).catch((err: Error) => {
+  deleteSkillFromWorkspace(fastify, user, skillName).catch((err: Error) => {
     console.error(`[Skills] Failed to delete from workspace: ${err.message}`);
   });
 }
@@ -354,11 +378,13 @@ export async function listPresetSkills(): Promise<PresetListResult> {
 
 // Import a preset skill to user's skills (from GitHub)
 export async function importPresetSkill(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   presetName: string
 ): Promise<Skill> {
   // Use importGitHubSkill with this repository's skills path
   return importGitHubSkill(
+    fastify,
     user,
     PRESET_REPO,
     `${PRESET_SKILLS_PATH}/${presetName}`
@@ -389,7 +415,8 @@ async function getDefaultBranch(repoName: string): Promise<string> {
 // skillPath: path to skill directory (e.g., "skills/skill-creator"), empty for repo root
 // branch: branch name (optional, defaults to repository's default branch)
 export async function importGitHubSkill(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   repoName: string,
   skillPath: string,
   branch?: string
@@ -443,7 +470,8 @@ export async function importGitHubSkill(
     const skillMdContent = fs.readFileSync(skillMdPath, 'utf-8');
     const parsed = parseSkillContent(skillMdContent);
 
-    const skillsPath = user.skillsPath;
+    const { config } = fastify;
+    const skillsPath = getLocalSkillsPath(user, config.USER_BASE_DIR);
     const skillDirPath = path.join(skillsPath, parsed.name || skillName);
 
     // If skill already exists, remove it first (overwrite)
@@ -461,7 +489,7 @@ export async function importGitHubSkill(
     const finalSkillName = parsed.name || skillName;
 
     // Sync to workspace (fire-and-forget)
-    syncSkillToWorkspace(user, finalSkillName).catch((err: Error) => {
+    syncSkillToWorkspace(fastify, user, finalSkillName).catch((err: Error) => {
       console.error(
         `[GitHub Skills] Failed to sync after import: ${err.message}`
       );

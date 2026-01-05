@@ -1,10 +1,9 @@
+import type { FastifyInstance } from 'fastify';
 import type { MessageContent } from '@app/shared';
-import { databricks, agentEnv } from '../config/index.js';
 import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import { updateSessionTitle } from '../db/sessions.js';
 import { notifySessionUpdated } from './session-state.service.js';
 
-const HAIKU_MODEL = agentEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL;
 const MAX_TITLE_LENGTH = 50;
 
 interface GenerateTitleOptions {
@@ -19,12 +18,13 @@ interface GenerateTitleOptions {
  * Fire-and-forget: errors are logged but don't affect session processing.
  */
 export async function generateTitleAsync(
+  fastify: FastifyInstance,
   options: GenerateTitleOptions
 ): Promise<void> {
   const { sessionId, messageContent, userId, userAccessToken } = options;
 
   try {
-    const title = await callHaikuForTitle(messageContent, userAccessToken);
+    const title = await callHaikuForTitle(fastify, messageContent, userAccessToken);
     if (title) {
       // Update session title in database (only if currently null)
       const updated = await updateSessionTitle(sessionId, title, userId);
@@ -45,10 +45,11 @@ export async function generateTitleAsync(
  * Call Haiku API to generate a title from message content.
  */
 async function callHaikuForTitle(
+  fastify: FastifyInstance,
   messageContent: MessageContent[],
   userAccessToken?: string
 ): Promise<string | null> {
-  const accessToken = userAccessToken ?? (await getServicePrincipalAccessToken());
+  const accessToken = userAccessToken ?? (await getServicePrincipalAccessToken(fastify));
   if (!accessToken) {
     console.warn('[TitleService] No access token available');
     return null;
@@ -77,7 +78,10 @@ Rules:
 - Use sentence case without trailing punctuation
 - Summarize the overall goal or theme`;
 
-  const url = `${databricks.hostUrl}/serving-endpoints/${HAIKU_MODEL}/invocations`;
+  const { config } = fastify;
+  const databricksHostUrl = `https://${config.DATABRICKS_HOST}`;
+  const haikuModel = config.ANTHROPIC_DEFAULT_HAIKU_MODEL;
+  const url = `${databricksHostUrl}/serving-endpoints/${haikuModel}/invocations`;
 
   const response = await fetch(url, {
     method: 'POST',

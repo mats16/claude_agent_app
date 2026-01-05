@@ -1,5 +1,4 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../utils/headers.js';
 import { getPersonalAccessToken } from '../../../services/user.service.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 
@@ -20,17 +19,13 @@ export async function listUserWorkspaceHandler(
   let userId: string | undefined;
 
   // Extract context for userId and 'me' resolution
-  try {
-    const context = extractRequestContext(request);
-    userId = context.user.sub;
+  if (request.ctx?.user) {
+    userId = request.ctx.user.id;
     if (email === 'me') {
-      email = context.user.email;
+      email = request.ctx.user.email;
     }
-  } catch (error: any) {
-    if (email === 'me') {
-      return reply.status(400).send({ error: error.message });
-    }
-    // For non-'me' paths, continue without userId (will use SP)
+  } else if (email === 'me') {
+    return reply.status(400).send({ error: 'User authentication required for "me" path' });
   }
 
   if (!email) {
@@ -39,9 +34,9 @@ export async function listUserWorkspaceHandler(
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
-    const result = await workspaceService.listUserWorkspace(email, accessToken);
+    const result = await workspaceService.listUserWorkspace(request.server, email, accessToken);
     return result;
   } catch (error: any) {
     if (error instanceof workspaceService.WorkspaceError) {
@@ -96,15 +91,8 @@ export async function listWorkspacePathHandler(
   const subpath = request.params['*'];
 
   // Get user context for 'me' resolution and PAT auth
-  let userEmail: string | undefined;
-  let userId: string | undefined;
-  try {
-    const context = extractRequestContext(request);
-    userEmail = context.user.email;
-    userId = context.user.sub;
-  } catch {
-    // Ignore - will use SP token
-  }
+  const userId = request.ctx?.user?.id;
+  const userEmail = request.ctx?.user?.email;
 
   // Convert lowercase API path to Databricks workspace path
   const workspacePath = convertToWorkspacePath(subpath, userEmail);
@@ -112,13 +100,13 @@ export async function listWorkspacePathHandler(
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
     // Fetch list and status in parallel to get browse_url
     const [listResult, statusResult] = await Promise.all([
-      workspaceService.listWorkspacePath(workspacePath, accessToken),
+      workspaceService.listWorkspacePath(request.server, workspacePath, accessToken),
       workspaceService
-        .getStatus(fullWorkspacePath, accessToken)
+        .getStatus(request.server, fullWorkspacePath, accessToken)
         .catch(() => null),
     ]);
 
@@ -151,24 +139,17 @@ export async function getStatusHandler(
   }
 
   // Get user context for 'me' resolution and PAT auth
-  let userEmail: string | undefined;
-  let userId: string | undefined;
-  try {
-    const context = extractRequestContext(request);
-    userEmail = context.user.email;
-    userId = context.user.sub;
-  } catch {
-    // Ignore - will use SP token
-  }
+  const userId = request.ctx?.user?.id;
+  const userEmail = request.ctx?.user?.email;
 
   // Convert lowercase API path to Databricks workspace path
   const workspacePath = `/Workspace/${convertToWorkspacePath(subpath, userEmail)}`;
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
-    const result = await workspaceService.getStatus(workspacePath, accessToken);
+    const result = await workspaceService.getStatus(request.server, workspacePath, accessToken);
     return result;
   } catch (error: any) {
     if (error instanceof workspaceService.WorkspaceError) {
@@ -208,24 +189,18 @@ export async function createDirectoryHandler(
   }
 
   // Get user context for 'me' resolution and PAT auth
-  let userEmail: string | undefined;
-  let userId: string | undefined;
-  try {
-    const context = extractRequestContext(request);
-    userEmail = context.user.email;
-    userId = context.user.sub;
-  } catch {
-    // Ignore - will use SP token
-  }
+  const userId = request.ctx?.user?.id;
+  const userEmail = request.ctx?.user?.email;
 
   // Convert lowercase API path to Databricks workspace path
   const workspacePath = `/Workspace/${convertToWorkspacePath(subpath, userEmail)}`;
 
   try {
     const accessToken = userId
-      ? await getPersonalAccessToken(userId)
+      ? await getPersonalAccessToken(request.server, userId)
       : undefined;
     const result = await workspaceService.createDirectory(
+      request.server,
       workspacePath,
       accessToken
     );
@@ -265,28 +240,21 @@ export async function getWorkspaceObjectHandler(
 
   // Resolve 'me' in path to actual user email and get userId for PAT auth
   if (workspacePath.includes('/me')) {
-    try {
-      const context = extractRequestContext(request);
-      userId = context.user.sub;
+    if (request.ctx?.user) {
+      userId = request.ctx.user.id;
       workspacePath = workspacePath.replace(
         /\/Users\/me(\/|$)/,
-        `/Users/${context.user.email}$1`
+        `/Users/${request.ctx.user.email}$1`
       );
-    } catch {
-      // Ignore - keep original path
     }
+    // If no user context, keep original path (SP will handle)
   } else {
-    // Try to get userId for PAT auth even if path doesn't contain 'me'
-    try {
-      const context = extractRequestContext(request);
-      userId = context.user.sub;
-    } catch {
-      // Ignore - will use SP token
-    }
+    userId = request.ctx?.user?.id;
   }
 
-  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
+  const accessToken = userId ? await getPersonalAccessToken(request.server, userId) : undefined;
   const result = await workspaceService.getStatusRaw(
+    request.server,
     workspacePath,
     accessToken
   );
@@ -315,28 +283,21 @@ export async function listWorkspaceHandler(
 
   // Resolve 'me' in path to actual user email and get userId for PAT auth
   if (workspacePath.includes('/me')) {
-    try {
-      const context = extractRequestContext(request);
-      userId = context.user.sub;
+    if (request.ctx?.user) {
+      userId = request.ctx.user.id;
       workspacePath = workspacePath.replace(
         /\/Users\/me(\/|$)/,
-        `/Users/${context.user.email}$1`
+        `/Users/${request.ctx.user.email}$1`
       );
-    } catch {
-      // Ignore - keep original path
     }
+    // If no user context, keep original path (SP will handle)
   } else {
-    // Try to get userId for PAT auth even if path doesn't contain 'me'
-    try {
-      const context = extractRequestContext(request);
-      userId = context.user.sub;
-    } catch {
-      // Ignore - will use SP token
-    }
+    userId = request.ctx?.user?.id;
   }
 
-  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
+  const accessToken = userId ? await getPersonalAccessToken(request.server, userId) : undefined;
   const result = await workspaceService.listWorkspaceRaw(
+    request.server,
     workspacePath,
     accessToken
   );
@@ -364,27 +325,19 @@ export async function mkdirsHandler(
   let workspacePath = rawPath;
   let userId: string | undefined;
   if (workspacePath.includes('/me')) {
-    try {
-      const context = extractRequestContext(request);
-      userId = context.user.sub;
+    if (request.ctx?.user) {
+      userId = request.ctx.user.id;
       workspacePath = workspacePath.replace(
         /\/Users\/me(\/|$)/,
-        `/Users/${context.user.email}$1`
+        `/Users/${request.ctx.user.email}$1`
       );
-    } catch {
-      // Ignore - keep original path
     }
+    // If no user context, keep original path (SP will handle)
   } else {
-    // Try to get userId for PAT auth even if path doesn't contain 'me'
-    try {
-      const context = extractRequestContext(request);
-      userId = context.user.sub;
-    } catch {
-      // Ignore - will use SP token
-    }
+    userId = request.ctx?.user?.id;
   }
 
-  const accessToken = userId ? await getPersonalAccessToken(userId) : undefined;
-  const result = await workspaceService.mkdirsRaw(workspacePath, accessToken);
+  const accessToken = userId ? await getPersonalAccessToken(request.server, userId) : undefined;
+  const result = await workspaceService.mkdirsRaw(request.server, workspacePath, accessToken);
   return reply.status(result.status).send(result.body);
 }

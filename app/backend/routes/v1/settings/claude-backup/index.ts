@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { extractRequestContext } from '../../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../../utils/headers.js';
 import * as userService from '../../../../services/user.service.js';
 import * as claudeBackupService from '../../../../services/claude-config-backup.service.js';
 
@@ -9,13 +9,13 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request, reply) => {
     let context;
     try {
-      context = extractRequestContext(request);
+      context = extractUserRequestContext(request);
     } catch (error: any) {
       return reply.status(400).send({ error: error.message });
     }
 
     try {
-      const settings = await userService.getUserSettings(context.user.sub);
+      const settings = await userService.getUserSettings(context.user.id);
       return { claudeConfigAutoPush: settings.claudeConfigAutoPush };
     } catch (error: any) {
       console.error('Failed to get backup settings:', error);
@@ -30,7 +30,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       let context;
       try {
-        context = extractRequestContext(request);
+        context = extractUserRequestContext(request);
       } catch (error: any) {
         return reply.status(400).send({ error: error.message });
       }
@@ -60,7 +60,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/pull', async (request, reply) => {
     let context;
     try {
-      context = extractRequestContext(request);
+      context = extractUserRequestContext(request);
     } catch (error: any) {
       return reply.status(401).send({ error: error.message });
     }
@@ -69,7 +69,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
     await userService.ensureUser(user);
 
     try {
-      const taskId = await claudeBackupService.pullClaudeConfig(user);
+      const taskId = await claudeBackupService.pullClaudeConfig(fastify, user);
       return { success: true, taskId };
     } catch (error: any) {
       console.error(
@@ -86,7 +86,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/push', async (request, reply) => {
     let context;
     try {
-      context = extractRequestContext(request);
+      context = extractUserRequestContext(request);
     } catch (error: any) {
       return reply.status(401).send({ error: error.message });
     }
@@ -95,7 +95,7 @@ const claudeBackupRoutes: FastifyPluginAsync = async (fastify) => {
     await userService.ensureUser(user);
 
     try {
-      const taskId = await claudeBackupService.pushClaudeConfig(user);
+      const taskId = await claudeBackupService.pushClaudeConfig(fastify, user);
       return { success: true, taskId };
     } catch (error: any) {
       console.error(

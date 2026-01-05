@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import {
   ensureUserWithDefaults,
   ensureUser,
@@ -10,13 +11,12 @@ import {
   setDatabricksPat,
   clearDatabricksPat,
 } from './user.service.js';
-import type { RequestUser } from '../models/RequestUser.js';
+import type { User } from '../models/User.js';
 import type { SelectUser } from '../db/schema.js';
 import * as usersRepo from '../db/users.js';
 import * as oauthTokensRepo from '../db/oauthTokens.js';
 import * as authUtil from '../utils/auth.js';
 import * as encryptionUtil from '../utils/encryption.js';
-import { databricks } from '../config/index.js';
 
 // Mock database to avoid DATABASE_URL requirement
 vi.mock('../db/index.js', () => ({
@@ -28,34 +28,37 @@ vi.mock('../db/users.js');
 vi.mock('../db/oauthTokens.js');
 vi.mock('../utils/auth.js');
 vi.mock('../utils/encryption.js');
-vi.mock('../config/index.js', () => ({
-  databricks: {
-    hostUrl: 'https://test.databricks.com',
-    host: 'test.databricks.com',
-    appName: 'claude-agent-test',
-  },
-}));
 
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+// Mock Fastify instance with config
+const createMockFastify = (config?: Partial<Record<string, string>>): FastifyInstance => {
+  return {
+    config: {
+      DATABRICKS_HOST: 'test.databricks.com',
+      DATABRICKS_APP_NAME: 'claude-agent-test',
+      ...config,
+    },
+  } as unknown as FastifyInstance;
+};
+
 describe('user.service', () => {
   const mockUserId = 'user-123';
   const mockEmail = 'test@example.com';
   const mockPat = 'dapi1234567890abcdef';
+  let mockFastify: FastifyInstance;
 
-  const mockRequestUser: RequestUser = {
-    sub: mockUserId,
+  const mockUser: User = {
+    id: mockUserId,
+    name: 'Test User',
     email: mockEmail,
-    remote: {
-      homeDir: '/Workspace/Users/test@example.com',
-      claudeConfigDir: '/Workspace/Users/test@example.com/.claude',
-    },
-  } as RequestUser;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFastify = createMockFastify();
   });
 
   afterEach(() => {
@@ -149,17 +152,17 @@ describe('user.service', () => {
   describe('ensureUser', () => {
     it('should call ensureUserWithDefaults with user info', async () => {
       // Arrange
-      const mockUser: SelectUser = {
+      const mockDbUser: SelectUser = {
         id: mockUserId,
         email: mockEmail,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      vi.mocked(usersRepo.getUserById).mockResolvedValue(mockUser);
+      vi.mocked(usersRepo.getUserById).mockResolvedValue(mockDbUser);
 
       // Act
-      await ensureUser(mockRequestUser);
+      await ensureUser(mockUser);
 
       // Assert
       expect(usersRepo.getUserById).toHaveBeenCalledWith(mockUserId);
@@ -178,7 +181,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockUser);
 
       // Assert
       expect(result).toBe(true);
@@ -208,7 +211,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockUser);
 
       // Assert
       expect(result).toBe(false);
@@ -224,7 +227,7 @@ describe('user.service', () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
       // Act
-      const result = await checkWorkspacePermission(mockRequestUser);
+      const result = await checkWorkspacePermission(mockFastify, mockUser);
 
       // Assert
       expect(result).toBe(false);
@@ -237,14 +240,14 @@ describe('user.service', () => {
   describe('getUserInfo', () => {
     it('should return complete user info when all checks pass', async () => {
       // Arrange
-      const mockUser: SelectUser = {
+      const mockDbUser: SelectUser = {
         id: mockUserId,
         email: mockEmail,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      vi.mocked(usersRepo.getUserById).mockResolvedValue(mockUser);
+      vi.mocked(usersRepo.getUserById).mockResolvedValue(mockDbUser);
       vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue(
         'mock-token'
       );
@@ -254,7 +257,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await getUserInfo(mockFastify, mockUser);
 
       // Assert
       expect(result).toEqual({
@@ -284,18 +287,14 @@ describe('user.service', () => {
         json: async () => ({}),
       });
 
-      // Temporarily override config
-      const originalAppName = databricks.appName;
-      (databricks as any).appName = null;
+      // Create Fastify instance with null app name
+      const fastifyWithoutAppName = createMockFastify({ DATABRICKS_APP_NAME: undefined });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await getUserInfo(fastifyWithoutAppName, mockUser);
 
       // Assert
       expect(result.databricksAppUrl).toBe(null);
-
-      // Restore
-      (databricks as any).appName = originalAppName;
     });
 
     it('should return hasWorkspacePermission false when permission check fails', async () => {
@@ -319,7 +318,7 @@ describe('user.service', () => {
       });
 
       // Act
-      const result = await getUserInfo(mockRequestUser);
+      const result = await getUserInfo(mockFastify, mockUser);
 
       // Assert
       expect(result.hasWorkspacePermission).toBe(false);
@@ -327,19 +326,7 @@ describe('user.service', () => {
   });
 
   describe('hasDatabricksPat', () => {
-    it('should return false when encryption not available', async () => {
-      // Arrange
-      vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
-
-      // Act
-      const result = await hasDatabricksPat(mockUserId);
-
-      // Assert
-      expect(result).toBe(false);
-      expect(oauthTokensRepo.hasDatabricksPat).not.toHaveBeenCalled();
-    });
-
-    it('should return true when encryption available and PAT exists', async () => {
+    it('should return true when PAT exists (encryption enabled)', async () => {
       // Arrange
       vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(true);
       vi.mocked(oauthTokensRepo.hasDatabricksPat).mockResolvedValue(true);
@@ -352,7 +339,20 @@ describe('user.service', () => {
       expect(oauthTokensRepo.hasDatabricksPat).toHaveBeenCalledWith(mockUserId);
     });
 
-    it('should return false when encryption available but PAT does not exist', async () => {
+    it('should return true when PAT exists (plaintext mode)', async () => {
+      // Arrange
+      vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
+      vi.mocked(oauthTokensRepo.hasDatabricksPat).mockResolvedValue(true);
+
+      // Act
+      const result = await hasDatabricksPat(mockUserId);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(oauthTokensRepo.hasDatabricksPat).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('should return false when PAT does not exist', async () => {
       // Arrange
       vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(true);
       vi.mocked(oauthTokensRepo.hasDatabricksPat).mockResolvedValue(false);
@@ -366,19 +366,7 @@ describe('user.service', () => {
   });
 
   describe('getUserPersonalAccessToken', () => {
-    it('should return undefined when encryption not available', async () => {
-      // Arrange
-      vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
-
-      // Act
-      const result = await getUserPersonalAccessToken(mockUserId);
-
-      // Assert
-      expect(result).toBe(undefined);
-      expect(oauthTokensRepo.getDatabricksPat).not.toHaveBeenCalled();
-    });
-
-    it('should return PAT when encryption available and PAT exists', async () => {
+    it('should return PAT when PAT exists (encryption enabled)', async () => {
       // Arrange
       vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(true);
       vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(mockPat);
@@ -418,7 +406,7 @@ describe('user.service', () => {
       // Assert
       expect(result).toBe(undefined);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[PAT] Failed to decrypt PAT'),
+        expect.stringContaining('[PAT] Failed to retrieve PAT'),
         'Decryption failed - key mismatch'
       );
 
@@ -433,7 +421,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(mockPat);
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await getPersonalAccessToken(mockFastify, mockUserId);
 
       // Assert
       expect(result).toBe(mockPat);
@@ -448,7 +436,7 @@ describe('user.service', () => {
       vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue('sp-token-123');
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await getPersonalAccessToken(mockFastify, mockUserId);
 
       // Assert
       expect(result).toBe('sp-token-123');
@@ -456,17 +444,18 @@ describe('user.service', () => {
       expect(authUtil.getServicePrincipalAccessToken).toHaveBeenCalled();
     });
 
-    it('should fall back to service principal token when encryption not available', async () => {
+    it('should fall back to service principal token when encryption not available and PAT not found', async () => {
       // Arrange
       vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
+      vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(null); // No PAT in DB
       vi.mocked(authUtil.getServicePrincipalAccessToken).mockResolvedValue('sp-token-123');
 
       // Act
-      const result = await getPersonalAccessToken(mockUserId);
+      const result = await getPersonalAccessToken(mockFastify, mockUserId);
 
       // Assert
       expect(result).toBe('sp-token-123');
-      expect(oauthTokensRepo.getDatabricksPat).not.toHaveBeenCalled();
+      expect(oauthTokensRepo.getDatabricksPat).toHaveBeenCalled(); // Still tries to get PAT even in plaintext mode
       expect(authUtil.getServicePrincipalAccessToken).toHaveBeenCalled();
     });
 
@@ -480,7 +469,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        getPersonalAccessToken(mockUserId)
+        getPersonalAccessToken(mockFastify, mockUserId)
       ).rejects.toThrow('Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.');
     });
 
@@ -498,7 +487,7 @@ describe('user.service', () => {
 
       // Act & Assert
       await expect(
-        getPersonalAccessToken(mockUserId)
+        getPersonalAccessToken(mockFastify, mockUserId)
       ).rejects.toThrow('Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.');
 
       consoleWarnSpy.mockRestore();
@@ -506,16 +495,50 @@ describe('user.service', () => {
   });
 
   describe('setDatabricksPat', () => {
-    it('should throw error when encryption not available', async () => {
+    it('should store PAT with warning in plaintext mode', async () => {
       // Arrange
       vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
 
-      // Act & Assert
-      await expect(
-        setDatabricksPat(mockRequestUser, mockPat)
-      ).rejects.toThrow('Encryption not available. Cannot store PAT.');
+      const mockUser: SelectUser = {
+        id: mockUserId,
+        email: mockEmail,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      expect(oauthTokensRepo.setDatabricksPat).not.toHaveBeenCalled();
+      vi.mocked(usersRepo.getUserById).mockResolvedValue(mockUser);
+
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ token_infos: [] }),
+      });
+      vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
+
+      // Act
+      await setDatabricksPat(mockFastify, mockUser, mockPat);
+
+      // Assert
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('PLAINTEXT')
+      );
+      expect(oauthTokensRepo.setDatabricksPat).toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should return PAT when PAT exists (plaintext mode)', async () => {
+      // Arrange
+      vi.mocked(encryptionUtil.isEncryptionAvailable).mockReturnValue(false);
+      vi.mocked(oauthTokensRepo.getDatabricksPat).mockResolvedValue(mockPat);
+
+      // Act
+      const result = await getUserPersonalAccessToken(mockUserId);
+
+      // Assert
+      expect(result).toBe(mockPat);
+      expect(oauthTokensRepo.getDatabricksPat).toHaveBeenCalledWith(mockUserId);
     });
 
     it('should store PAT with expiry when token info is available', async () => {
@@ -550,7 +573,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await setDatabricksPat(mockFastify, mockUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toEqual(new Date(expiryTime));
@@ -593,7 +616,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await setDatabricksPat(mockFastify, mockUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toBe(null);
@@ -629,7 +652,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      const result = await setDatabricksPat(mockRequestUser, mockPat);
+      const result = await setDatabricksPat(mockFastify, mockUser, mockPat);
 
       // Assert
       expect(result.expiresAt).toBe(null);
@@ -666,7 +689,7 @@ describe('user.service', () => {
       vi.mocked(oauthTokensRepo.setDatabricksPat).mockResolvedValue(undefined);
 
       // Act
-      await setDatabricksPat(mockRequestUser, mockPat);
+      await setDatabricksPat(mockFastify, mockUser, mockPat);
 
       // Assert - User should be created
       expect(usersRepo.createUserWithDefaultSettings).toHaveBeenCalled();

@@ -1,3 +1,4 @@
+import type { FastifyInstance } from 'fastify';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,7 +10,11 @@ import {
 } from '../utils/subagents.js';
 import { WorkspaceClient } from '../utils/workspaceClient.js';
 import { getSettingsDirect } from '../db/settings.js';
-import type { RequestUser } from '../models/RequestUser.js';
+import type { User } from '../models/User.js';
+import {
+  getLocalAgentsPath,
+  getRemoteAgentsPath,
+} from '../utils/userPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,12 +49,13 @@ async function getDefaultBranch(repoName: string): Promise<string> {
 
 // Put a single agent to workspace (fire-and-forget)
 async function putAgentToWorkspace(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   agentName: string,
   content: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Subagents] Workspace sync skipped (claudeConfigAutoPush disabled)'
@@ -57,19 +63,19 @@ async function putAgentToWorkspace(
     return;
   }
 
-  const spToken = await getServicePrincipalAccessToken();
+  const spToken = await getServicePrincipalAccessToken(fastify);
   if (!spToken) {
     console.error('[Subagents] Workspace sync skipped (no SP token available)');
     return;
   }
 
   const workspaceAgentPath = path.join(
-    user.remoteAgentsPath,
+    getRemoteAgentsPath(user),
     `${agentName}.md`
   );
 
   const client = new WorkspaceClient({
-    host: process.env.DATABRICKS_HOST!,
+    host: fastify.config.DATABRICKS_HOST,
     getToken: async () => spToken,
   });
 
@@ -79,11 +85,12 @@ async function putAgentToWorkspace(
 
 // Delete an agent from workspace (fire-and-forget)
 async function deleteAgentFromWorkspace(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   agentName: string
 ): Promise<void> {
   // Check if claudeConfigAutoPush is enabled
-  const userSettings = await getSettingsDirect(user.sub);
+  const userSettings = await getSettingsDirect(user.id);
   if (!userSettings?.claudeConfigAutoPush) {
     console.log(
       '[Subagents] Workspace delete skipped (claudeConfigAutoPush disabled)'
@@ -91,7 +98,7 @@ async function deleteAgentFromWorkspace(
     return;
   }
 
-  const spToken = await getServicePrincipalAccessToken();
+  const spToken = await getServicePrincipalAccessToken(fastify);
   if (!spToken) {
     console.error(
       '[Subagents] Workspace delete skipped (no SP token available)'
@@ -100,12 +107,12 @@ async function deleteAgentFromWorkspace(
   }
 
   const workspaceAgentPath = path.join(
-    user.remoteAgentsPath,
+    getRemoteAgentsPath(user),
     `${agentName}.md`
   );
 
   const client = new WorkspaceClient({
-    host: process.env.DATABRICKS_HOST!,
+    host: fastify.config.DATABRICKS_HOST,
     getToken: async () => spToken,
   });
 
@@ -122,9 +129,10 @@ async function deleteAgentFromWorkspace(
 
 // List all subagents for a user
 export async function listSubagents(
-  user: RequestUser
+  fastify: FastifyInstance,
+  user: User
 ): Promise<SubagentListResult> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.USER_BASE_DIR);
 
   // Ensure agents directory exists
   if (!fs.existsSync(agentsPath)) {
@@ -157,10 +165,11 @@ export async function listSubagents(
 
 // Get a single subagent by name
 export async function getSubagent(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   subagentName: string
 ): Promise<Subagent | null> {
-  const subagentPath = path.join(user.agentsPath, `${subagentName}.md`);
+  const subagentPath = path.join(getLocalAgentsPath(user, fastify.config.USER_BASE_DIR), `${subagentName}.md`);
 
   if (!fs.existsSync(subagentPath)) {
     return null;
@@ -179,14 +188,15 @@ export async function getSubagent(
 
 // Create a new subagent
 export async function createSubagent(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   name: string,
   description: string,
   content: string,
   tools?: string,
   model?: 'sonnet' | 'opus'
 ): Promise<Subagent> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.USER_BASE_DIR);
   const subagentPath = path.join(agentsPath, `${name}.md`);
 
   // Ensure agents directory exists
@@ -210,7 +220,7 @@ export async function createSubagent(
   fs.writeFileSync(subagentPath, fileContent, 'utf-8');
 
   // Upload to workspace (fire-and-forget)
-  putAgentToWorkspace(user, name, fileContent).catch((err: Error) => {
+  putAgentToWorkspace(fastify, user, name, fileContent).catch((err: Error) => {
     console.error(`[Subagents] Failed to upload after create: ${err.message}`);
   });
 
@@ -219,14 +229,15 @@ export async function createSubagent(
 
 // Update an existing subagent
 export async function updateSubagent(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   subagentName: string,
   description: string,
   content: string,
   tools?: string,
   model?: 'sonnet' | 'opus'
 ): Promise<Subagent> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.USER_BASE_DIR);
   const subagentPath = path.join(agentsPath, `${subagentName}.md`);
 
   // Check if subagent exists
@@ -245,7 +256,7 @@ export async function updateSubagent(
   fs.writeFileSync(subagentPath, fileContent, 'utf-8');
 
   // Upload to workspace (fire-and-forget)
-  putAgentToWorkspace(user, subagentName, fileContent).catch((err: Error) => {
+  putAgentToWorkspace(fastify, user, subagentName, fileContent).catch((err: Error) => {
     console.error(`[Subagents] Failed to upload after update: ${err.message}`);
   });
 
@@ -254,10 +265,11 @@ export async function updateSubagent(
 
 // Delete a subagent
 export async function deleteSubagent(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   subagentName: string
 ): Promise<void> {
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.USER_BASE_DIR);
   const subagentPath = path.join(agentsPath, `${subagentName}.md`);
 
   // Check if subagent exists
@@ -269,7 +281,7 @@ export async function deleteSubagent(
   fs.unlinkSync(subagentPath);
 
   // Delete from workspace (fire-and-forget)
-  deleteAgentFromWorkspace(user, subagentName).catch((err: Error) => {
+  deleteAgentFromWorkspace(fastify, user, subagentName).catch((err: Error) => {
     console.error(
       `[Subagents] Failed to delete from workspace: ${err.message}`
     );
@@ -331,7 +343,8 @@ export async function listPresetSubagents(): Promise<PresetSubagentListResult> {
 
 // Import a preset subagent to user's subagents (from GitHub)
 export async function importPresetSubagent(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   presetName: string
 ): Promise<Subagent> {
   const branch = await getDefaultBranch(PRESET_REPO);
@@ -348,7 +361,7 @@ export async function importPresetSubagent(
   const presetContent = await response.text();
   const parsed = parseSubagentContent(presetContent);
 
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.USER_BASE_DIR);
   const subagentPath = path.join(agentsPath, `${parsed.name}.md`);
 
   // Ensure agents directory exists
@@ -372,7 +385,7 @@ export async function importPresetSubagent(
   fs.writeFileSync(subagentPath, fileContent, 'utf-8');
 
   // Upload to workspace (fire-and-forget)
-  putAgentToWorkspace(user, parsed.name, fileContent).catch((err: Error) => {
+  putAgentToWorkspace(fastify, user, parsed.name, fileContent).catch((err: Error) => {
     console.error(
       `[Preset Subagents] Failed to upload after import: ${err.message}`
     );
@@ -397,7 +410,8 @@ export function isValidSubagentName(name: string): boolean {
 // agentPath: path to agent file (e.g., "agents/skill-creator.md"), empty for default
 // branch: branch name (optional, defaults to repository's default branch)
 export async function importGitHubSubagent(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   repoName: string,
   agentPath: string,
   branch?: string
@@ -431,7 +445,7 @@ export async function importGitHubSubagent(
     throw new Error('Could not determine agent name');
   }
 
-  const agentsPath = user.agentsPath;
+  const agentsPath = getLocalAgentsPath(user, fastify.config.USER_BASE_DIR);
   const subagentPath = path.join(agentsPath, `${agentName}.md`);
 
   // Ensure agents directory exists
@@ -455,7 +469,7 @@ export async function importGitHubSubagent(
   fs.writeFileSync(subagentPath, formattedContent, 'utf-8');
 
   // Upload to workspace (fire-and-forget)
-  putAgentToWorkspace(user, agentName, formattedContent).catch((err: Error) => {
+  putAgentToWorkspace(fastify, user, agentName, formattedContent).catch((err: Error) => {
     console.error(
       `[GitHub Subagents] Failed to upload after import: ${err.message}`
     );

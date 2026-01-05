@@ -1,4 +1,4 @@
-import { databricks } from '../config/index.js';
+import type { FastifyInstance } from 'fastify';
 
 // Token cache for service principal
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -10,23 +10,25 @@ const TOKEN_EXPIRY_BUFFER_SECONDS = 300;
  * Get service principal access token from Databricks OAuth2.
  * Implements token caching with 5-minute expiry buffer.
  *
+ * @param fastify - Fastify instance for config access
  * @returns Access token
  * @throws Error if credentials not configured
  */
-export async function getServicePrincipalAccessToken(): Promise<string> {
+export async function getServicePrincipalAccessToken(fastify: FastifyInstance): Promise<string> {
   // Check if cached token is still valid
   if (cachedToken && Date.now() < cachedToken.expiresAt) {
     return cachedToken.token;
   }
 
-  if (!databricks.clientId || !databricks.clientSecret) {
+  const { config } = fastify;
+  if (!config.DATABRICKS_CLIENT_ID || !config.DATABRICKS_CLIENT_SECRET) {
     throw new Error(
       'Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.'
     );
   }
 
   // Request token from Databricks OAuth2 endpoint
-  const tokenUrl = `https://${databricks.host}/oidc/v1/token`;
+  const tokenUrl = `https://${config.DATABRICKS_HOST}/oidc/v1/token`;
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
@@ -34,8 +36,8 @@ export async function getServicePrincipalAccessToken(): Promise<string> {
     },
     body: new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: databricks.clientId,
-      client_secret: databricks.clientSecret,
+      client_id: config.DATABRICKS_CLIENT_ID,
+      client_secret: config.DATABRICKS_CLIENT_SECRET,
       scope: 'all-apis',
     }),
   });

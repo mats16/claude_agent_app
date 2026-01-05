@@ -1,29 +1,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock config module - must be inline due to hoisting
-vi.mock('../config/index.js', () => {
-  const mockDatabricks = {
-    host: 'test.databricks.com',
-    hostUrl: 'https://test.databricks.com',
-    clientId: 'test-client-id',
-    clientSecret: 'test-client-secret',
-    appName: 'claude-agent-test',
-  };
-  return {
-    databricks: mockDatabricks,
-  };
-});
-
 // Import after mocks
 import { getServicePrincipalAccessToken } from './auth.js';
-import * as configModule from '../config/index.js';
+
+// Mock Fastify instance with config
+const createMockFastify = (config?: Partial<Record<string, string>>): FastifyInstance => {
+  return {
+    config: {
+      DATABRICKS_HOST: 'test.databricks.com',
+      DATABRICKS_CLIENT_ID: 'test-client-id',
+      DATABRICKS_CLIENT_SECRET: 'test-client-secret',
+      ...config,
+    },
+  } as unknown as FastifyInstance;
+};
 
 describe('auth.ts', () => {
   let testCounter = 0;
+  let mockFastify: FastifyInstance;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -33,9 +32,8 @@ describe('auth.ts', () => {
     testCounter++;
     vi.setSystemTime(new Date(`2024-01-${String(testCounter).padStart(2, '0')}T00:00:00Z`));
 
-    // Reset databricks config to default values
-    vi.mocked(configModule.databricks).clientId = 'test-client-id';
-    vi.mocked(configModule.databricks).clientSecret = 'test-client-secret';
+    // Create fresh mock Fastify instance for each test
+    mockFastify = createMockFastify();
   });
 
   afterEach(() => {
@@ -58,7 +56,7 @@ describe('auth.ts', () => {
       });
 
       // Act
-      const result = await getServicePrincipalAccessToken();
+      const result = await getServicePrincipalAccessToken(mockFastify);
 
       // Assert
       expect(result).toBe(mockToken);
@@ -94,14 +92,14 @@ describe('auth.ts', () => {
       });
 
       // First call - fetches token
-      await getServicePrincipalAccessToken();
+      await getServicePrincipalAccessToken(mockFastify);
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
       // Advance time by 30 minutes (well within cache validity)
       vi.advanceTimersByTime(30 * 60 * 1000);
 
       // Act - Second call should use cache
-      const result = await getServicePrincipalAccessToken();
+      const result = await getServicePrincipalAccessToken(mockFastify);
 
       // Assert
       expect(result).toBe(mockToken);
@@ -123,7 +121,7 @@ describe('auth.ts', () => {
         }),
       });
 
-      await getServicePrincipalAccessToken();
+      await getServicePrincipalAccessToken(mockFastify);
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
       // Advance time past cache expiry (1 hour - 5 min buffer + 1 min)
@@ -139,7 +137,7 @@ describe('auth.ts', () => {
       });
 
       // Act
-      const result = await getServicePrincipalAccessToken();
+      const result = await getServicePrincipalAccessToken(mockFastify);
 
       // Assert
       expect(result).toBe(mockToken2);
@@ -161,7 +159,7 @@ describe('auth.ts', () => {
       });
 
       // First call
-      await getServicePrincipalAccessToken();
+      await getServicePrincipalAccessToken(mockFastify);
       vi.clearAllMocks();
 
       // Advance time to exactly when buffer kicks in (55 minutes)
@@ -177,7 +175,7 @@ describe('auth.ts', () => {
       });
 
       // Act - Should trigger refresh due to buffer
-      const result = await getServicePrincipalAccessToken();
+      const result = await getServicePrincipalAccessToken(mockFastify);
 
       // Assert
       expect(result).toBe('sp-access-token-refreshed');
@@ -185,21 +183,17 @@ describe('auth.ts', () => {
     });
 
     it('should throw error when credentials not configured', async () => {
-      // Arrange - Temporarily set credentials to undefined
-      const originalClientId = vi.mocked(configModule.databricks).clientId;
-      const originalClientSecret = vi.mocked(configModule.databricks).clientSecret;
-      vi.mocked(configModule.databricks).clientId = undefined;
-      vi.mocked(configModule.databricks).clientSecret = undefined;
+      // Arrange - Create Fastify instance with undefined credentials
+      const fastifyWithoutCreds = createMockFastify({
+        DATABRICKS_CLIENT_ID: undefined,
+        DATABRICKS_CLIENT_SECRET: undefined,
+      });
 
       // Act & Assert
-      await expect(getServicePrincipalAccessToken()).rejects.toThrow(
+      await expect(getServicePrincipalAccessToken(fastifyWithoutCreds)).rejects.toThrow(
         'Service Principal credentials not configured. Set DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.'
       );
       expect(mockFetch).not.toHaveBeenCalled();
-
-      // Restore
-      vi.mocked(configModule.databricks).clientId = originalClientId;
-      vi.mocked(configModule.databricks).clientSecret = originalClientSecret;
     });
 
     it('should throw error when OAuth2 endpoint returns error', async () => {
@@ -211,7 +205,7 @@ describe('auth.ts', () => {
       });
 
       // Act & Assert
-      await expect(getServicePrincipalAccessToken()).rejects.toThrow(
+      await expect(getServicePrincipalAccessToken(mockFastify)).rejects.toThrow(
         'Failed to get service principal token: 401 Invalid client credentials'
       );
     });
@@ -225,7 +219,7 @@ describe('auth.ts', () => {
       });
 
       // Act & Assert
-      await expect(getServicePrincipalAccessToken()).rejects.toThrow(
+      await expect(getServicePrincipalAccessToken(mockFastify)).rejects.toThrow(
         'Failed to get service principal token: 500 Internal server error'
       );
     });
@@ -243,7 +237,7 @@ describe('auth.ts', () => {
       });
 
       // Act
-      const result = await getServicePrincipalAccessToken();
+      const result = await getServicePrincipalAccessToken(mockFastify);
 
       // Assert
       expect(result).toBe(mockToken);
@@ -260,7 +254,7 @@ describe('auth.ts', () => {
       });
 
       // Should trigger new fetch
-      await getServicePrincipalAccessToken();
+      await getServicePrincipalAccessToken(mockFastify);
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -269,7 +263,7 @@ describe('auth.ts', () => {
       mockFetch.mockRejectedValue(new Error('Network connection failed'));
 
       // Act & Assert
-      await expect(getServicePrincipalAccessToken()).rejects.toThrow(
+      await expect(getServicePrincipalAccessToken(mockFastify)).rejects.toThrow(
         'Network connection failed'
       );
     });
@@ -288,11 +282,11 @@ describe('auth.ts', () => {
 
       // Act - Make 5 rapid calls
       const results = await Promise.all([
-        getServicePrincipalAccessToken(),
-        getServicePrincipalAccessToken(),
-        getServicePrincipalAccessToken(),
-        getServicePrincipalAccessToken(),
-        getServicePrincipalAccessToken(),
+        getServicePrincipalAccessToken(mockFastify),
+        getServicePrincipalAccessToken(mockFastify),
+        getServicePrincipalAccessToken(mockFastify),
+        getServicePrincipalAccessToken(mockFastify),
+        getServicePrincipalAccessToken(mockFastify),
       ]);
 
       // Assert - All should return a token (either same or race condition)

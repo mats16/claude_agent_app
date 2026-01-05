@@ -1,4 +1,4 @@
-import { databricks } from '../config/index.js';
+import type { FastifyInstance } from 'fastify';
 import { getServicePrincipalAccessToken } from '../utils/auth.js';
 import {
   getDatabricksPat,
@@ -12,7 +12,11 @@ import {
   createUserWithDefaultSettings,
 } from '../db/users.js';
 import { isEncryptionAvailable } from '../utils/encryption.js';
-import type { RequestUser } from '../models/RequestUser.js';
+import type { User } from '../models/User.js';
+import {
+  getRemoteClaudeConfigDir,
+  getRemoteHomeDir,
+} from '../utils/userPaths.js';
 import type { SelectUser } from '../db/schema.js';
 import * as settingsService from './user-settings.service.js';
 import { DEFAULT_USER_SETTINGS, type UserSettings } from './user-settings.service.js';
@@ -68,24 +72,26 @@ export async function ensureUserWithDefaults(
 }
 
 /**
- * Ensure user exists in database (convenience wrapper).
+ * Ensure user exists in database (convenience wrapper, new User interface).
  *
- * @param user - Request user object
+ * @param user - User object
  */
-export async function ensureUser(user: RequestUser): Promise<void> {
-  await ensureUserWithDefaults(user.sub, user.email);
+export async function ensureUser(user: User): Promise<void> {
+  await ensureUserWithDefaults(user.id, user.email);
 }
 
-// Check if user has workspace permission by attempting to create .claude directory
+// Check if user has workspace permission by attempting to create .claude directory (new User interface)
 export async function checkWorkspacePermission(
-  user: RequestUser
+  fastify: FastifyInstance,
+  user: User
 ): Promise<boolean> {
-  const claudeConfigPath = user.remote.claudeConfigDir;
+  const claudeConfigPath = getRemoteClaudeConfigDir(user);
 
   try {
-    const spToken = await getServicePrincipalAccessToken();
+    const spToken = await getServicePrincipalAccessToken(fastify);
+    const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/workspace/mkdirs`,
+      `${databricksHostUrl}/api/2.0/workspace/mkdirs`,
       {
         method: 'POST',
         headers: {
@@ -108,25 +114,26 @@ export async function checkWorkspacePermission(
   }
 }
 
-// Get user info including workspace permission check
-export async function getUserInfo(user: RequestUser): Promise<UserInfo> {
+// Get user info including workspace permission check (new User interface)
+export async function getUserInfo(fastify: FastifyInstance, user: User): Promise<UserInfo> {
   // Ensure user exists
   await ensureUser(user);
 
   // Workspace home from user object
-  const workspaceHome = user.remote.homeDir;
+  const workspaceHome = getRemoteHomeDir(user);
 
   // Check workspace permission
-  const hasWorkspacePermission = await checkWorkspacePermission(user);
+  const hasWorkspacePermission = await checkWorkspacePermission(fastify, user);
 
   // Build Databricks app URL
+  const { config } = fastify;
   const databricksAppUrl =
-    databricks.appName && databricks.host
-      ? `https://${databricks.host}/apps/${databricks.appName}`
+    config.DATABRICKS_APP_NAME && config.DATABRICKS_HOST
+      ? `https://${config.DATABRICKS_HOST}/apps/${config.DATABRICKS_APP_NAME}`
       : null;
 
   return {
-    userId: user.sub,
+    userId: user.id,
     email: user.email,
     workspaceHome,
     hasWorkspacePermission,
@@ -143,20 +150,20 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
 }
 
 /**
- * Update user settings (delegates to settings.service).
+ * Update user settings (new User interface, delegates to settings.service).
  * @deprecated Use settingsService.updateUserSettings() directly
  */
 export async function updateUserSettings(
-  user: RequestUser,
+  user: User,
   settings: { claudeConfigAutoPush?: boolean }
 ): Promise<void> {
   await ensureUser(user);
-  await settingsService.updateUserSettings(user.sub, settings);
+  await settingsService.updateUserSettings(user.id, settings);
 }
 
 // Check if PAT is configured for user
 export async function hasDatabricksPat(userId: string): Promise<boolean> {
-  if (!isEncryptionAvailable()) return false;
+  // Works in both encrypted and plaintext modes
   return hasPatInDb(userId);
 }
 
@@ -172,17 +179,17 @@ export async function hasDatabricksPat(userId: string): Promise<boolean> {
 export async function getUserPersonalAccessToken(
   userId: string
 ): Promise<string | undefined> {
-  if (!isEncryptionAvailable()) return undefined;
-
   try {
     const pat = await getDatabricksPat(userId);
     return pat ?? undefined;
   } catch (error) {
-    // Decryption failure - likely due to encryption key change
+    // Decryption failure (when encryption enabled) OR read failure
     // User will need to re-configure their PAT
     console.warn(
-      `[PAT] Failed to decrypt PAT for user ${userId}. ` +
-        'This may occur if the encryption key was changed. ' +
+      `[PAT] Failed to retrieve PAT for user ${userId}. ` +
+        (isEncryptionAvailable()
+          ? 'This may occur if the encryption key was changed. '
+          : 'Error reading plaintext PAT. ') +
         'User should re-configure their PAT.',
       error instanceof Error ? error.message : error
     );
@@ -193,10 +200,12 @@ export async function getUserPersonalAccessToken(
 // Fetch token info from Databricks API using the PAT
 // Returns the token with the latest creation time, or null if API call fails
 async function fetchDatabricksTokenInfo(
+  fastify: FastifyInstance,
   pat: string
 ): Promise<DatabricksTokenInfo | null> {
   try {
-    const response = await fetch(`${databricks.hostUrl}/api/2.0/token/list`, {
+    const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
+    const response = await fetch(`${databricksHostUrl}/api/2.0/token/list`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${pat}`,
@@ -233,22 +242,26 @@ async function fetchDatabricksTokenInfo(
 }
 
 /**
- * Set PAT (fetches expiry from Databricks API, stores encrypted).
+ * Set PAT (new User interface, fetches expiry from Databricks API, stores encrypted).
  *
  * Note: Encryption is handled automatically by the encryptedText custom type.
  */
 export async function setDatabricksPat(
-  user: RequestUser,
+  fastify: FastifyInstance,
+  user: User,
   pat: string
 ): Promise<{ expiresAt: Date | null; comment: string | null }> {
   if (!isEncryptionAvailable()) {
-    throw new Error('Encryption not available. Cannot store PAT.');
+    console.warn(
+      `[PAT] Storing PAT for user ${user.id} in PLAINTEXT mode. ` +
+      'This is NOT secure for production use.'
+    );
   }
 
   await ensureUser(user);
 
   // Fetch token info from Databricks to get expiry time
-  const tokenInfo = await fetchDatabricksTokenInfo(pat);
+  const tokenInfo = await fetchDatabricksTokenInfo(fastify, pat);
 
   let expiresAt: Date | null = null;
   let comment: string | null = null;
@@ -267,7 +280,7 @@ export async function setDatabricksPat(
   }
 
   // Store PAT (encryption handled by customType)
-  await setPatInDb(user.sub, pat, expiresAt);
+  await setPatInDb(user.id, pat, expiresAt);
 
   return { expiresAt, comment };
 }
@@ -285,12 +298,12 @@ export async function clearDatabricksPat(userId: string): Promise<void> {
  * @returns Access token (PAT or Service Principal)
  * @throws Error if no PAT and SP credentials not configured
  */
-export async function getPersonalAccessToken(userId: string): Promise<string> {
+export async function getPersonalAccessToken(fastify: FastifyInstance, userId: string): Promise<string> {
   const userPat = await getUserPersonalAccessToken(userId);
   if (userPat) {
     return userPat;
   }
 
   // getServicePrincipalAccessToken() now throws if credentials not configured
-  return await getServicePrincipalAccessToken();
+  return await getServicePrincipalAccessToken(fastify);
 }

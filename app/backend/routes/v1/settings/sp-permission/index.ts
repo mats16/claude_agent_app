@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getServicePrincipalAccessToken } from '../../../../utils/auth.js';
-import { databricks } from '../../../../config/index.js';
 
 const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {
   // Get service principal info
@@ -8,11 +7,12 @@ const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (_request, reply) => {
     try {
       // getServicePrincipalAccessToken() throws if credentials not configured
-      const spToken = await getServicePrincipalAccessToken();
+      const spToken = await getServicePrincipalAccessToken(fastify);
 
       // Fetch SP info from Databricks SCIM API
+      const databricksHostUrl = `https://${fastify.config.DATABRICKS_HOST}`;
       const response = await fetch(
-        `${databricks.hostUrl}/api/2.0/preview/scim/v2/Me`,
+        `${databricksHostUrl}/api/2.0/preview/scim/v2/Me`,
         {
           headers: { Authorization: `Bearer ${spToken}` },
         }
@@ -35,7 +35,7 @@ const spPermissionRoutes: FastifyPluginAsync = async (fastify) => {
       return {
         displayName: data.displayName ?? data.userName ?? 'Service Principal',
         applicationId: data.applicationId ?? data.id ?? null,
-        databricksHost: databricks.host ?? null,
+        databricksHost: fastify.config.DATABRICKS_HOST ?? null,
       };
     } catch (error: any) {
       return reply.status(500).send({ error: error.message });

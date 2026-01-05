@@ -6,13 +6,12 @@ import {
   startAgent,
   MessageStream,
 } from '../../../services/agent.service.js';
-import { databricks, paths } from '../../../config/index.js';
 import * as workspaceService from '../../../services/workspace.service.js';
 import * as eventService from '../../../services/event.service.js';
 import * as sessionService from '../../../services/session.service.js';
 import * as userSettingsService from '../../../services/user-settings.service.js';
 import { ensureUser, getPersonalAccessToken, getUserPersonalAccessToken } from '../../../services/user.service.js';
-import { extractRequestContext } from '../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../utils/headers.js';
 import { ClaudeSettings } from '../../../models/ClaudeSettings.js';
 import { SessionDraft } from '../../../models/Session.js';
 import { SessionNotFoundError } from '../../../errors/ServiceErrors.js';
@@ -52,13 +51,13 @@ export async function createSessionHandler(
   // Get user info from request headers
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
   const { user } = context;
-  const userId = user.sub;
+  const userId = user.id;
 
   // Extract first user message
   const userEvent = events.find((e) => e.type === 'user');
@@ -79,12 +78,9 @@ export async function createSessionHandler(
   const userSettings = await userSettingsService.getUserSettings(userId);
   const claudeConfigAutoPush = userSettings.claudeConfigAutoPush;
 
-  // Compute paths (same logic as in agent/index.ts)
-  const localClaudeConfigPath = path.join(
-    paths.usersBase,
-    user.name,
-    '.claude'
-  );
+  // Compute paths from config
+  const { config } = request.server;
+  const localClaudeConfigPath = path.join(config.USER_BASE_DIR, user.name, '.claude');
 
   // Ensure claude config directory exists
   fs.mkdirSync(localClaudeConfigPath, { recursive: true });
@@ -109,11 +105,13 @@ export async function createSessionHandler(
       : userMessage;
 
   // Create SessionDraft for new session
+  const sessionsBase = config.SESSION_BASE_DIR;
   const sessionDraft = new SessionDraft({
     userId,
     model,
     databricksWorkspacePath,
     databricksWorkspaceAutoPush,
+    sessionsBase,
   });
 
   // Create working directory
@@ -141,10 +139,17 @@ export async function createSessionHandler(
     // Get user's PAT (used for: 1) startAgent to avoid re-fetching, 2) title generation)
     const userPersonalAccessToken = await getUserPersonalAccessToken(userId);
 
+    // Get OBO access token from request context
+    if (!request.ctx?.user?.accessToken) {
+      throw new Error('Access token not found in request context');
+    }
+    const userAccessToken = request.ctx.user.accessToken;
+
     // Start processing in background
-    const agentIterator = startAgent({
+    const agentIterator = startAgent(request.server, {
       session: sessionDraft, // Pass SessionDraft - undefined claudeCodeSessionId means new session
       user,
+      userAccessToken, // OBO access token from headers
       messageContent,
       claudeConfigAutoPush,
       messageStream: stream,
@@ -173,6 +178,7 @@ export async function createSessionHandler(
 
             // Convert sessionDraft to Session and save to database
             await sessionService.createSessionFromDraft(
+              request.server,
               sessionDraft,
               sessionId, // SDK session ID from init message
               userId
@@ -188,7 +194,7 @@ export async function createSessionHandler(
             });
 
             // Trigger async title generation (supports both text and images)
-            void generateTitleAsync({
+            void generateTitleAsync(request.server, {
               sessionId: appSessionId,
               messageContent,
               userId,
@@ -282,14 +288,18 @@ export async function listSessionsHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
   const filter = request.query.filter || 'active';
-  const sessions_list = await sessionService.listUserSessions(userId, filter);
+  const sessions_list = await sessionService.listUserSessions(
+    request.server,
+    userId,
+    filter
+  );
 
   // Transform to API response format
   const sessions = sessions_list.map((session) => {
@@ -330,12 +340,12 @@ export async function updateSessionHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   // At least one field must be provided
   if (
@@ -362,7 +372,12 @@ export async function updateSessionHandler(
   }
 
   // Service layer handles validation and business logic
-  await sessionService.updateSessionSettings(sessionId, userId, updates);
+  await sessionService.updateSessionSettings(
+    request.server,
+    sessionId,
+    userId,
+    updates
+  );
   return { success: true };
 }
 
@@ -375,16 +390,20 @@ export async function archiveSessionHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   try {
     // Archive session and enqueue cleanup
-    await sessionService.archiveSessionWithCleanup(sessionId, userId);
+    await sessionService.archiveSessionWithCleanup(
+      request.server,
+      sessionId,
+      userId
+    );
     return { success: true };
   } catch (error: any) {
     if (error instanceof SessionNotFoundError) {
@@ -403,16 +422,16 @@ export async function getSessionEventsHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   try {
     // getSessionMessages includes session ownership check
-    const response = await eventService.getSessionMessages(sessionId, userId);
+    const response = await eventService.getSessionMessages(request.server, sessionId, userId);
 
     return {
       data: response.messages,
@@ -466,15 +485,15 @@ export async function getAppLiveStatusHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   // Get session (includes ownership check)
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -484,7 +503,7 @@ export async function getAppLiveStatusHandler(
   // Get access token (User PAT first, then fallback to Service Principal)
   let accessToken: string;
   try {
-    accessToken = await getPersonalAccessToken(userId);
+    accessToken = await getPersonalAccessToken(request.server, userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -492,8 +511,9 @@ export async function getAppLiveStatusHandler(
 
   // Call Databricks Apps API
   try {
+    const databricksHostUrl = `https://${request.server.config.DATABRICKS_HOST}`;
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
+      `${databricksHostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
       {
         method: 'GET',
         headers: {
@@ -560,14 +580,14 @@ export async function getAppHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -576,15 +596,16 @@ export async function getAppHandler(
 
   let accessToken: string;
   try {
-    accessToken = await getPersonalAccessToken(userId);
+    accessToken = await getPersonalAccessToken(request.server, userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
   }
 
   try {
+    const databricksHostUrl = `https://${request.server.config.DATABRICKS_HOST}`;
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
+      `${databricksHostUrl}/api/2.0/apps/${encodeURIComponent(appName)}`,
       {
         method: 'GET',
         headers: {
@@ -611,14 +632,14 @@ export async function listAppDeploymentsHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -627,15 +648,16 @@ export async function listAppDeploymentsHandler(
 
   let accessToken: string;
   try {
-    accessToken = await getPersonalAccessToken(userId);
+    accessToken = await getPersonalAccessToken(request.server, userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
   }
 
   try {
+    const databricksHostUrl = `https://${request.server.config.DATABRICKS_HOST}`;
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}/deployments`,
+      `${databricksHostUrl}/api/2.0/apps/${encodeURIComponent(appName)}/deployments`,
       {
         method: 'GET',
         headers: {
@@ -662,14 +684,14 @@ export async function createAppDeploymentHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -678,7 +700,7 @@ export async function createAppDeploymentHandler(
 
   let accessToken: string;
   try {
-    accessToken = await getPersonalAccessToken(userId);
+    accessToken = await getPersonalAccessToken(request.server, userId);
   } catch (error: any) {
     console.error('Failed to get access token:', error);
     return reply.status(500).send({ error: 'Failed to get access token' });
@@ -691,8 +713,9 @@ export async function createAppDeploymentHandler(
   }
 
   try {
+    const databricksHostUrl = `https://${request.server.config.DATABRICKS_HOST}`;
     const response = await fetch(
-      `${databricks.hostUrl}/api/2.0/apps/${encodeURIComponent(appName)}/deployments`,
+      `${databricksHostUrl}/api/2.0/apps/${encodeURIComponent(appName)}/deployments`,
       {
         method: 'POST',
         headers: {
@@ -720,15 +743,15 @@ export async function getSessionHandler(
 
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
-  const userId = context.user.sub;
+  const userId = context.user.id;
 
   // Get session from database (includes ownership check)
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(request.server, sessionId, userId);
   if (!session) {
     return reply.status(404).send({ error: 'Session not found' });
   }
@@ -738,6 +761,7 @@ export async function getSessionHandler(
   if (session.databricksWorkspacePath) {
     try {
       const status = await workspaceService.getStatus(
+        request.server,
         session.databricksWorkspacePath
       );
       workspaceUrl = status.browse_url;

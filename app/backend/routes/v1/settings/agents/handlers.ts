@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { extractRequestContext } from '../../../../utils/headers.js';
+import { extractUserRequestContext } from '../../../../utils/headers.js';
 import * as subagentService from '../../../../services/subagent.service.js';
 import { parseGitHubRepo } from '../../../../services/github-client.service.js';
+import { ensureUserLocalDirectories } from '../../../../utils/userPaths.js';
 
 // List all subagents
 export async function listSubagentsHandler(
@@ -10,16 +11,19 @@ export async function listSubagentsHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
 
   // Ensure user's directory structure exists
-  context.user.ensureLocalDirs();
+  ensureUserLocalDirectories(
+    context.user,
+    request.server.config.USER_BASE_DIR
+  );
 
   try {
-    const result = await subagentService.listSubagents(context.user);
+    const result = await subagentService.listSubagents(request.server, context.user);
     return result;
   } catch (error: any) {
     console.error('Failed to list subagents:', error);
@@ -34,7 +38,7 @@ export async function getSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -48,6 +52,7 @@ export async function getSubagentHandler(
 
   try {
     const subagent = await subagentService.getSubagent(
+      request.server,
       context.user,
       subagentName
     );
@@ -76,7 +81,7 @@ export async function createSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -103,6 +108,7 @@ export async function createSubagentHandler(
 
   try {
     const subagent = await subagentService.createSubagent(
+      request.server,
       context.user,
       name,
       description,
@@ -135,7 +141,7 @@ export async function updateSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -163,6 +169,7 @@ export async function updateSubagentHandler(
 
   try {
     const subagent = await subagentService.updateSubagent(
+      request.server,
       context.user,
       subagentName,
       description,
@@ -187,7 +194,7 @@ export async function deleteSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -200,7 +207,7 @@ export async function deleteSubagentHandler(
   }
 
   try {
-    await subagentService.deleteSubagent(context.user, subagentName);
+    await subagentService.deleteSubagent(request.server, context.user, subagentName);
     return { success: true };
   } catch (error: any) {
     if (error.message === 'Subagent not found') {
@@ -234,7 +241,7 @@ export async function importGitHubSubagentHandler(
 ) {
   let context;
   try {
-    context = extractRequestContext(request);
+    context = extractUserRequestContext(request);
   } catch (error: any) {
     return reply.status(400).send({ error: error.message });
   }
@@ -256,6 +263,7 @@ export async function importGitHubSubagentHandler(
 
   try {
     const subagent = await subagentService.importGitHubSubagent(
+      request.server,
       context.user,
       repoName,
       path,

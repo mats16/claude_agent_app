@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import {
   createSessionFromDraft,
   getSession,
@@ -20,6 +21,17 @@ vi.mock('../db/index.js', () => ({
 // Mock dependencies
 vi.mock('../db/sessions.js');
 vi.mock('./workspace-queue.service.js');
+
+// Test data
+const testSessionsBase = '/test/sessions';
+
+// Mock Fastify instance
+const mockFastify = {
+  config: {
+    HOME: '/test/home',
+    SESSION_BASE_DIR: '/test/home/sessions',
+  },
+} as unknown as FastifyInstance;
 
 describe('session.service', () => {
   const mockUserId = 'user-123';
@@ -43,12 +55,14 @@ describe('session.service', () => {
         title: 'Test Session',
         databricksWorkspacePath: '/Workspace/Users/test@example.com/sessions/test',
         databricksWorkspaceAutoPush: true,
+        sessionsBase: testSessionsBase,
       });
 
-      vi.mocked(sessionRepo.createSession).mockResolvedValue(undefined);
+      vi.mocked(sessionRepo.createSessionFromDraft).mockResolvedValue({} as Session);
 
       // Act
       const result = await createSessionFromDraft(
+        mockFastify,
         draft,
         mockClaudeCodeSessionId,
         mockUserId
@@ -87,12 +101,14 @@ describe('session.service', () => {
       const draft = new SessionDraft({
         userId: mockUserId,
         model: 'claude-sonnet-4.5',
+        sessionsBase: testSessionsBase,
       });
 
-      vi.mocked(sessionRepo.createSession).mockResolvedValue(undefined);
+      vi.mocked(sessionRepo.createSessionFromDraft).mockResolvedValue({} as Session);
 
       // Act
       const result = await createSessionFromDraft(
+        mockFastify,
         draft,
         mockClaudeCodeSessionId,
         mockUserId
@@ -109,6 +125,7 @@ describe('session.service', () => {
       const draft = new SessionDraft({
         userId: mockUserId,
         model: 'claude-sonnet-4.5',
+        sessionsBase: testSessionsBase,
       });
 
       const dbError = new Error('Database connection failed');
@@ -116,7 +133,7 @@ describe('session.service', () => {
 
       // Act & Assert
       await expect(
-        createSessionFromDraft(draft, mockClaudeCodeSessionId, mockUserId)
+        createSessionFromDraft(mockFastify, draft, mockClaudeCodeSessionId, mockUserId)
       ).rejects.toThrow(/Failed to create session.*Database connection failed/);
     });
   });
@@ -141,7 +158,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.getSessionById).mockResolvedValue(mockSelectSession);
 
       // Act
-      const result = await getSession(mockSessionId, mockUserId);
+      const result = await getSession(mockFastify, mockSessionId, mockUserId);
 
       // Assert
       expect(result).toBeInstanceOf(Session);
@@ -159,7 +176,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.getSessionById).mockResolvedValue(null);
 
       // Act
-      const result = await getSession('nonexistent-session', mockUserId);
+      const result = await getSession(mockFastify, 'nonexistent-session', mockUserId);
 
       // Assert
       expect(result).toBe(null);
@@ -201,7 +218,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.getSessionsByUserId).mockResolvedValue(mockSelectSessions);
 
       // Act
-      const result = await listUserSessions(mockUserId, 'active');
+      const result = await listUserSessions(mockFastify, mockUserId, 'active');
 
       // Assert
       expect(result).toHaveLength(2);
@@ -218,7 +235,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.getSessionsByUserId).mockResolvedValue([]);
 
       // Act
-      const result = await listUserSessions(mockUserId, 'all');
+      const result = await listUserSessions(mockFastify, mockUserId, 'all');
 
       // Assert
       expect(result).toEqual([]);
@@ -229,7 +246,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.getSessionsByUserId).mockResolvedValue([]);
 
       // Act
-      await listUserSessions(mockUserId);
+      await listUserSessions(mockFastify, mockUserId);
 
       // Assert
       expect(sessionRepo.getSessionsByUserId).toHaveBeenCalledWith(mockUserId, 'active');
@@ -257,7 +274,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.updateSession).mockResolvedValue(undefined);
 
       // Act
-      await updateSessionSettings(mockSessionId, mockUserId, {
+      await updateSessionSettings(mockFastify, mockSessionId, mockUserId, {
         title: 'Updated Title',
       });
 
@@ -275,10 +292,10 @@ describe('session.service', () => {
 
       // Act & Assert
       await expect(
-        updateSessionSettings(mockSessionId, mockUserId, { title: 'New Title' })
+        updateSessionSettings(mockFastify, mockSessionId, mockUserId, { title: 'New Title' })
       ).rejects.toThrow(SessionNotFoundError);
       await expect(
-        updateSessionSettings(mockSessionId, mockUserId, { title: 'New Title' })
+        updateSessionSettings(mockFastify, mockSessionId, mockUserId, { title: 'New Title' })
       ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');
     });
 
@@ -294,12 +311,12 @@ describe('session.service', () => {
 
       // Act & Assert - Should fail when trying to enable auto-push without path
       await expect(
-        updateSessionSettings(mockSessionId, mockUserId, {
+        updateSessionSettings(mockFastify, mockSessionId, mockUserId, {
           databricksWorkspaceAutoPush: true,
         })
       ).rejects.toThrow(ValidationError);
       await expect(
-        updateSessionSettings(mockSessionId, mockUserId, {
+        updateSessionSettings(mockFastify, mockSessionId, mockUserId, {
           databricksWorkspaceAutoPush: true,
         })
       ).rejects.toThrow('databricksWorkspaceAutoPush requires databricksWorkspacePath to be set');
@@ -317,7 +334,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.updateSession).mockResolvedValue(undefined);
 
       // Act
-      await updateSessionSettings(mockSessionId, mockUserId, {
+      await updateSessionSettings(mockFastify, mockSessionId, mockUserId, {
         databricksWorkspaceAutoPush: true,
       });
 
@@ -341,7 +358,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.updateSession).mockResolvedValue(undefined);
 
       // Act
-      await updateSessionSettings(mockSessionId, mockUserId, {
+      await updateSessionSettings(mockFastify, mockSessionId, mockUserId, {
         databricksWorkspacePath: '/Workspace/new/path',
         databricksWorkspaceAutoPush: true,
       });
@@ -363,7 +380,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.updateSession).mockResolvedValue(undefined);
 
       // Act
-      await updateSessionSettings(mockSessionId, mockUserId, {
+      await updateSessionSettings(mockFastify, mockSessionId, mockUserId, {
         databricksWorkspacePath: null,
       });
 
@@ -401,7 +418,7 @@ describe('session.service', () => {
       const enqueueDeleteSpy = vi.mocked(workspaceQueueService.enqueueDelete);
 
       // Act
-      await archiveSessionWithCleanup(mockSessionId, mockUserId);
+      await archiveSessionWithCleanup(mockFastify, mockSessionId, mockUserId);
 
       // Assert
       expect(sessionRepo.archiveSession).toHaveBeenCalledWith(mockSessionId, mockUserId);
@@ -422,7 +439,7 @@ describe('session.service', () => {
       vi.mocked(sessionRepo.archiveSession).mockResolvedValue(undefined);
 
       // Act
-      await archiveSessionWithCleanup(mockSessionId, mockUserId);
+      await archiveSessionWithCleanup(mockFastify, mockSessionId, mockUserId);
 
       // Assert
       expect(sessionRepo.archiveSession).toHaveBeenCalledWith(mockSessionId, mockUserId);
@@ -439,10 +456,10 @@ describe('session.service', () => {
 
       // Act & Assert
       await expect(
-        archiveSessionWithCleanup(mockSessionId, mockUserId)
+        archiveSessionWithCleanup(mockFastify, mockSessionId, mockUserId)
       ).rejects.toThrow(SessionNotFoundError);
       await expect(
-        archiveSessionWithCleanup(mockSessionId, mockUserId)
+        archiveSessionWithCleanup(mockFastify, mockSessionId, mockUserId)
       ).rejects.toThrow('Session session_01h455vb4pex5vsknk084sn02q not found');
 
       // Should not attempt to archive or enqueue

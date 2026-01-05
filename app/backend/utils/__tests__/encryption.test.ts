@@ -1,13 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import crypto from 'crypto';
-
-// Mock the config module before importing encryption
-vi.mock('../../config/index.js', () => ({
-  encryptionKey:
-    'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe',
-}));
-
-// Import after mocking
 import {
   initializeEncryption,
   isEncryptionAvailable,
@@ -18,10 +10,13 @@ import {
   isEncryptedFormat,
 } from '../encryption.js';
 
+// Test encryption key (valid 64-char hex string)
+const testEncryptionKey = 'deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe';
+
 describe('encryption', () => {
   describe('initializeEncryption', () => {
     it('should initialize successfully with valid key', () => {
-      const result = initializeEncryption();
+      const result = initializeEncryption(testEncryptionKey);
       expect(result).toBe(true);
       expect(isEncryptionAvailable()).toBe(true);
     });
@@ -29,7 +24,7 @@ describe('encryption', () => {
 
   describe('encrypt and decrypt', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should encrypt and decrypt a simple string', () => {
@@ -116,11 +111,15 @@ describe('encryption', () => {
 
   describe('decrypt error handling', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should throw on invalid ciphertext format (missing parts)', () => {
-      expect(() => decrypt('invalid')).toThrow('Invalid ciphertext format');
+      // Data without colons is treated as plaintext (no error)
+      const plainResult = decrypt('invalid');
+      expect(plainResult).toBe('invalid');
+
+      // Data with colons but wrong number of parts should throw
       expect(() => decrypt('part1:part2')).toThrow('Invalid ciphertext format');
       expect(() => decrypt('part1:part2:part3:part4')).toThrow(
         'Invalid ciphertext format'
@@ -179,7 +178,7 @@ describe('encryption', () => {
 
   describe('encryptSafe', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should encrypt and return ciphertext when available', () => {
@@ -192,7 +191,7 @@ describe('encryption', () => {
 
   describe('decryptSafe', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should decrypt valid ciphertext', () => {
@@ -201,9 +200,16 @@ describe('encryption', () => {
       expect(result).toBe('test');
     });
 
-    it('should return null for invalid ciphertext', () => {
+    it('should return null for invalid ciphertext with colons', () => {
+      // Data with colons looks like encryption attempt, but invalid format
       const result = decryptSafe('invalid:ciphertext');
-      expect(result).toBeNull();
+      expect(result).toBeNull(); // Decryption fails, returns null
+    });
+
+    it('should return plaintext for data without colons', () => {
+      // Data without colons is clearly plaintext (legacy data)
+      const result = decryptSafe('plaintext-without-colons');
+      expect(result).toBe('plaintext-without-colons');
     });
 
     it('should return null for tampered data', () => {
@@ -217,7 +223,7 @@ describe('encryption', () => {
 
   describe('isEncryptedFormat', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should return true for valid encrypted format', () => {
@@ -269,7 +275,7 @@ describe('encryption', () => {
 
   describe('AES-256-GCM properties', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should use 16-byte IV (128 bits)', () => {
@@ -298,7 +304,7 @@ describe('encryption', () => {
 
   describe('PAT-like tokens', () => {
     beforeEach(() => {
-      initializeEncryption();
+      initializeEncryption(testEncryptionKey);
     });
 
     it('should handle Databricks PAT format', () => {
@@ -327,96 +333,91 @@ describe('encryption', () => {
   });
 });
 
-describe('encryption with invalid key', () => {
-  it('should handle key too short', async () => {
-    // Reset module and mock with short key
-    vi.resetModules();
-    vi.doMock('../../config/index.js', () => ({
-      encryptionKey: 'tooshort',
-    }));
-
-    const mod = await import('../encryption.js');
-    const result = mod.initializeEncryption();
+describe('encryption without valid key', () => {
+  it('should handle empty key (PAT feature disabled)', () => {
+    const result = initializeEncryption('');
 
     expect(result).toBe(false);
-    expect(mod.isEncryptionAvailable()).toBe(false);
+    expect(isEncryptionAvailable()).toBe(false);
   });
 
-  it('should handle missing key', async () => {
-    vi.resetModules();
-    vi.doMock('../../config/index.js', () => ({
-      encryptionKey: undefined,
-    }));
+  it('should return plaintext when encrypting without initialization', () => {
+    initializeEncryption(''); // Returns false
 
-    const mod = await import('../encryption.js');
-    const result = mod.initializeEncryption();
-
-    expect(result).toBe(false);
-    expect(mod.isEncryptionAvailable()).toBe(false);
+    const plaintext = 'my-secret-token';
+    const result = encrypt(plaintext);
+    expect(result).toBe(plaintext); // Returns as-is
   });
 
-  it('should handle non-hex key', async () => {
-    vi.resetModules();
-    vi.doMock('../../config/index.js', () => ({
-      // 64 chars but not hex (contains 'g')
-      encryptionKey:
-        'gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg',
-    }));
+  it('should return plaintext when decrypting without initialization', () => {
+    initializeEncryption(''); // Returns false
 
-    const mod = await import('../encryption.js');
-    const result = mod.initializeEncryption();
-
-    expect(result).toBe(false);
-    expect(mod.isEncryptionAvailable()).toBe(false);
+    const plaintext = 'my-secret-token';
+    const result = decrypt(plaintext);
+    expect(result).toBe(plaintext); // Returns as-is
   });
 
-  it('should throw when encrypting without initialization', async () => {
-    vi.resetModules();
-    vi.doMock('../../config/index.js', () => ({
-      encryptionKey: undefined,
-    }));
+  it('should return plaintext from encryptSafe when not initialized', () => {
+    initializeEncryption(''); // Returns false
 
-    const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
-
-    expect(() => mod.encrypt('test')).toThrow('Encryption not initialized');
+    const plaintext = 'test';
+    const result = encryptSafe(plaintext);
+    expect(result).toBe(plaintext); // Returns plaintext instead of null
   });
 
-  it('should throw when decrypting without initialization', async () => {
-    vi.resetModules();
-    vi.doMock('../../config/index.js', () => ({
-      encryptionKey: undefined,
-    }));
+  it('should return plaintext from decryptSafe when not initialized', () => {
+    initializeEncryption(''); // Returns false
 
-    const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
+    const plaintext = 'test';
+    const result = decryptSafe(plaintext);
+    expect(result).toBe(plaintext); // Returns plaintext instead of null
+  });
 
-    expect(() => mod.decrypt('test:test:test')).toThrow(
-      'Encryption not initialized'
+  it('should handle round-trip in plaintext mode', () => {
+    initializeEncryption('');
+
+    const original = 'test-token-12345';
+    const encrypted = encrypt(original);
+    const decrypted = decrypt(encrypted);
+
+    expect(encrypted).toBe(original);
+    expect(decrypted).toBe(original);
+  });
+
+  it('should warn when storing data in plaintext mode', () => {
+    initializeEncryption('');
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    encrypt('test');
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('PLAINTEXT')
     );
+
+    consoleWarnSpy.mockRestore();
+  });
+});
+
+describe('mixed mode - plaintext to encrypted migration', () => {
+  beforeEach(() => {
+    initializeEncryption(testEncryptionKey);
   });
 
-  it('should return null from encryptSafe when not initialized', async () => {
-    vi.resetModules();
-    vi.doMock('../../config/index.js', () => ({
-      encryptionKey: undefined,
-    }));
+  it('should handle decrypting plaintext data when encryption enabled', () => {
+    // Simulate: data stored in plaintext, now encryption is enabled
+    const plaintextData = 'my-legacy-token';
 
-    const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
-
-    expect(mod.encryptSafe('test')).toBeNull();
+    // decrypt() should detect non-encrypted format and return as-is
+    const result = decrypt(plaintextData);
+    expect(result).toBe(plaintextData);
   });
 
-  it('should return null from decryptSafe when not initialized', async () => {
-    vi.resetModules();
-    vi.doMock('../../config/index.js', () => ({
-      encryptionKey: undefined,
-    }));
+  it('should handle re-encrypting plaintext data', () => {
+    const plaintextData = 'my-legacy-token';
 
-    const mod = await import('../encryption.js');
-    mod.initializeEncryption(); // Returns false
-
-    expect(mod.decryptSafe('test:test:test')).toBeNull();
+    // Can re-encrypt the plaintext
+    const encrypted = encrypt(plaintextData);
+    expect(isEncryptedFormat(encrypted)).toBe(true);
+    expect(decrypt(encrypted)).toBe(plaintextData);
   });
 });

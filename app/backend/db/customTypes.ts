@@ -69,10 +69,11 @@ export const encryptedText = customType<{
     }
 
     if (!isEncryptionAvailable()) {
-      throw new Error(
-        'Encryption not initialized. Cannot store encrypted data. ' +
-          'Ensure ENCRYPTION_KEY is configured and initializeEncryption() was called.'
+      console.warn(
+        '[DB] WARNING: Storing sensitive data in PLAINTEXT (encryption disabled). ' +
+        'This is NOT recommended for production environments.'
       );
+      return value; // Store plaintext when encryption unavailable
     }
     return encrypt(value);
   },
@@ -89,10 +90,10 @@ export const encryptedText = customType<{
     }
 
     if (!isEncryptionAvailable()) {
-      throw new Error(
-        'Encryption not initialized. Cannot read encrypted data. ' +
-          'Ensure ENCRYPTION_KEY is configured and initializeEncryption() was called.'
+      console.warn(
+        '[DB] WARNING: Reading sensitive data as PLAINTEXT (encryption disabled).'
       );
+      return value; // Return plaintext when encryption unavailable
     }
     return decrypt(value);
   },

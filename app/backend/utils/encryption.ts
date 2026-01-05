@@ -13,7 +13,6 @@
  */
 
 import crypto from 'crypto';
-import { encryptionKey as encryptionKeyHex } from '../config/index.js';
 
 // ============================================================================
 // Constants
@@ -46,50 +45,44 @@ let encryptionAvailable = false;
 // ============================================================================
 
 /**
- * Initialize the encryption module with the key from environment/config.
+ * Initialize the encryption module with the provided encryption key.
  * Must be called at server startup before any encrypt/decrypt operations.
  *
+ * Note: ENCRYPTION_KEY is validated by the config plugin (plugins/config.ts).
+ * This function only handles initialization with the validated key.
+ *
+ * @param encryptionKeyHex - The encryption key as a 64-character hex string (32 bytes), or empty to disable
  * @returns true if encryption is available, false otherwise
  *
  * @example
- * // At server startup
- * if (initializeEncryption()) {
+ * // At server startup (after Fastify app is built)
+ * if (initializeEncryption(app.config.ENCRYPTION_KEY)) {
  *   console.log('Encryption ready');
  * } else {
  *   console.warn('PAT storage disabled');
  * }
  */
-export function initializeEncryption(): boolean {
-  const keyHex = encryptionKeyHex;
-
-  if (!keyHex) {
+export function initializeEncryption(encryptionKeyHex: string): boolean {
+  // If key is empty/not provided, disable encryption (PAT storage disabled)
+  if (!encryptionKeyHex) {
+    encryptionKey = null;
+    encryptionAvailable = false;
     console.warn(
       '[Encryption] ENCRYPTION_KEY not set. PAT storage feature disabled.'
     );
     return false;
   }
 
-  if (keyHex.length !== KEY_HEX_LENGTH) {
-    console.error(
-      `[Encryption] ENCRYPTION_KEY must be ${KEY_HEX_LENGTH} hex characters (32 bytes). PAT storage feature disabled.`
-    );
-    return false;
-  }
-
-  // Validate hex format
-  if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
-    console.error(
-      '[Encryption] ENCRYPTION_KEY must contain only hex characters (0-9, a-f). PAT storage feature disabled.'
-    );
-    return false;
-  }
-
+  // Key is provided and already validated by config plugin
+  // Just initialize the Buffer
   try {
-    encryptionKey = Buffer.from(keyHex, 'hex');
+    encryptionKey = Buffer.from(encryptionKeyHex, 'hex');
     encryptionAvailable = true;
     console.log('[Encryption] Initialized successfully.');
     return true;
   } catch (error) {
+    encryptionKey = null;
+    encryptionAvailable = false;
     console.error('[Encryption] Failed to initialize:', error);
     return false;
   }
@@ -124,9 +117,11 @@ export function isEncryptionAvailable(): boolean {
  */
 export function encrypt(plaintext: string): string {
   if (!encryptionKey) {
-    throw new Error(
-      'Encryption not initialized. Call initializeEncryption() first.'
+    console.warn(
+      '[Encryption] WARNING: Storing data in PLAINTEXT (encryption disabled). ' +
+      'Set ENCRYPTION_KEY environment variable for production use.'
     );
+    return plaintext; // Return plaintext as-is
   }
 
   // Generate a random IV for this encryption (critical for GCM security)
@@ -164,11 +159,28 @@ export function encrypt(plaintext: string): string {
  */
 export function decrypt(ciphertext: string): string {
   if (!encryptionKey) {
-    throw new Error(
-      'Encryption not initialized. Call initializeEncryption() first.'
+    console.warn(
+      '[Encryption] WARNING: Reading data as PLAINTEXT (encryption disabled).'
     );
+    return ciphertext; // Return as-is (assume plaintext)
   }
 
+  // Check if data appears to be encrypted format
+  // If encryption is enabled but data is in plaintext (migration scenario),
+  // detect and handle gracefully
+  // IMPORTANT: Only treat as plaintext if it doesn't contain colons (clear plaintext)
+  // If it contains colons, it might be an encryption attempt, so try to decrypt it
+  if (!ciphertext.includes(CIPHERTEXT_DELIMITER)) {
+    // No colons = clearly plaintext (legacy data before encryption was enabled)
+    console.warn(
+      '[Encryption] Data does not appear to be encrypted. ' +
+      'Returning as plaintext (may be legacy data).'
+    );
+    return ciphertext; // Assume plaintext from pre-encryption era
+  }
+
+  // Has colons, so might be encrypted data - proceed with decryption attempt
+  // This will throw errors if format is invalid (which is what we want)
   // Parse the ciphertext components
   const parts = ciphertext.split(CIPHERTEXT_DELIMITER);
   if (parts.length !== 3) {
@@ -233,7 +245,7 @@ export function decrypt(ciphertext: string): string {
  */
 export function encryptSafe(plaintext: string): string | null {
   if (!isEncryptionAvailable()) {
-    return null;
+    return plaintext; // Return plaintext instead of null
   }
   return encrypt(plaintext);
 }
@@ -249,7 +261,7 @@ export function encryptSafe(plaintext: string): string | null {
  */
 export function decryptSafe(ciphertext: string): string | null {
   if (!isEncryptionAvailable()) {
-    return null;
+    return ciphertext; // Return plaintext instead of null
   }
   try {
     return decrypt(ciphertext);

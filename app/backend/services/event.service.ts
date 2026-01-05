@@ -1,4 +1,5 @@
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { FastifyInstance } from 'fastify';
 import * as eventRepo from '../db/events.js';
 import * as sessionService from './session.service.js';
 import { SessionNotFoundError, ValidationError } from '../errors/ServiceErrors.js';
@@ -45,11 +46,12 @@ export async function saveSessionMessage(sdkMessage: SDKMessage): Promise<void> 
  * @returns Session messages with pagination metadata
  */
 export async function getSessionMessages(
+  fastify: FastifyInstance,
   sessionId: string,
   userId: string
 ): Promise<SessionMessagesResponse> {
   // Business logic: Verify session ownership
-  const session = await sessionService.getSession(sessionId, userId);
+  const session = await sessionService.getSession(fastify, sessionId, userId);
 
   if (!session) {
     throw new SessionNotFoundError(sessionId);

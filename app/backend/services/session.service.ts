@@ -1,3 +1,5 @@
+import type { FastifyInstance } from 'fastify';
+import path from 'path';
 import { Session, SessionDraft } from '../models/Session.js';
 import type { SelectSession } from '../db/schema.js';
 import * as sessionRepo from '../db/sessions.js';
@@ -8,6 +10,7 @@ import { SessionNotFoundError, ValidationError } from '../errors/ServiceErrors.j
  * Create session from SessionDraft after receiving SDK session ID.
  * This function orchestrates domain model conversion and database persistence.
  *
+ * @param fastify - Fastify instance for config access
  * @param draft - SessionDraft containing session initialization data
  * @param claudeCodeSessionId - SDK session ID from init message
  * @param userId - User ID for RLS context
@@ -15,12 +18,16 @@ import { SessionNotFoundError, ValidationError } from '../errors/ServiceErrors.j
  * @throws Error if session creation fails
  */
 export async function createSessionFromDraft(
+  fastify: FastifyInstance,
   draft: SessionDraft,
   claudeCodeSessionId: string,
   userId: string
 ): Promise<Session> {
+  // Compute sessionsBase from config
+  const sessionsBase = fastify.config.SESSION_BASE_DIR;
+
   // Domain model conversion (business logic)
-  const session = Session.fromSessionDraft(draft, claudeCodeSessionId);
+  const session = Session.fromSessionDraft(draft, claudeCodeSessionId, sessionsBase);
 
   try {
     // Repository call (data access)
@@ -53,11 +60,13 @@ export async function createSessionFromDraft(
 /**
  * Get session by ID with domain model conversion.
  *
+ * @param fastify - Fastify instance for config access
  * @param sessionId - Session ID (TypeID)
  * @param userId - User ID for RLS context
  * @returns Session domain model or null if not found
  */
 export async function getSession(
+  fastify: FastifyInstance,
   sessionId: string,
   userId: string
 ): Promise<Session | null> {
@@ -67,23 +76,27 @@ export async function getSession(
     return null;
   }
 
-  return Session.fromSelectSession(selectSession);
+  const sessionsBase = fastify.config.SESSION_BASE_DIR;
+  return Session.fromSelectSession(selectSession, sessionsBase);
 }
 
 /**
  * List user sessions with filtering and domain model conversion.
  *
+ * @param fastify - Fastify instance for config access
  * @param userId - User ID for RLS context
  * @param filter - Filter type: 'active', 'archived', or 'all'
  * @returns Array of Session domain models
  */
 export async function listUserSessions(
+  fastify: FastifyInstance,
   userId: string,
   filter: 'active' | 'archived' | 'all' = 'active'
 ): Promise<Session[]> {
   const selectSessions = await sessionRepo.getSessionsByUserId(userId, filter);
+  const sessionsBase = fastify.config.SESSION_BASE_DIR;
 
-  return selectSessions.map((s) => Session.fromSelectSession(s));
+  return selectSessions.map((s) => Session.fromSelectSession(s, sessionsBase));
 }
 
 /**
@@ -91,11 +104,13 @@ export async function listUserSessions(
  * Validates that databricksWorkspaceAutoPush requires databricksWorkspacePath.
  * Always fetches current session first to perform validation and ensure consistency.
  *
+ * @param fastify - Fastify instance for config access
  * @param sessionId - Session ID (TypeID)
  * @param userId - User ID for RLS context
  * @param updates - Fields to update
  */
 export async function updateSessionSettings(
+  fastify: FastifyInstance,
   sessionId: string,
   userId: string,
   updates: {
@@ -106,7 +121,7 @@ export async function updateSessionSettings(
   }
 ): Promise<void> {
   // Always fetch current session for validation
-  const currentSession = await getSession(sessionId, userId);
+  const currentSession = await getSession(fastify, sessionId, userId);
 
   if (!currentSession) {
     throw new SessionNotFoundError(sessionId);
@@ -139,15 +154,17 @@ export async function updateSessionSettings(
  * Archive session and enqueue workspace cleanup.
  * This orchestrates the archival process with cleanup scheduling.
  *
+ * @param fastify - Fastify instance for config access
  * @param sessionId - Session ID (TypeID)
  * @param userId - User ID for RLS context
  */
 export async function archiveSessionWithCleanup(
+  fastify: FastifyInstance,
   sessionId: string,
   userId: string
 ): Promise<void> {
   // Get session to determine if cleanup is needed
-  const session = await getSession(sessionId, userId);
+  const session = await getSession(fastify, sessionId, userId);
 
   if (!session) {
     throw new SessionNotFoundError(sessionId);

@@ -4,6 +4,8 @@ import path from 'path';
 
 const __dirname = import.meta.dirname;
 
+const homeDir = process.env.HOME ?? '/tmp';
+
 // JSON Schema for environment variables
 const schema = {
 	type: 'object',
@@ -20,16 +22,16 @@ const schema = {
 			default: '',
 			description: 'AES-256-GCM encryption key (64 hex chars). Leave empty for plaintext mode (NOT recommended for production).',
 		},
-		// User and working directories (optional)
-		USER_DIR_BASE: {
+		// User and session directories (optional)
+		USER_BASE_DIR: {
 			type: 'string',
-			default: 'users',
-			description: 'The base directory for user directories (relative to HOME).',
+			default: path.join(homeDir, 'users'),
+			description: 'The base directory for user directories (e.g. /home/app/users).',
 		},
-		WORKING_DIR_BASE: {
+		SESSION_BASE_DIR: {
 			type: 'string',
-			default: 'ws',
-			description: 'The base directory for working directories (relative to HOME).',
+			default: path.join(homeDir, 'ws'),
+			description: 'The base directory for working directories (e.g. /home/app/ws).',
 		},
 		// Warehouse IDs (optional)
 		WAREHOUSE_ID_2XS: {
@@ -112,8 +114,8 @@ declare module 'fastify' {
       // Encryption
       ENCRYPTION_KEY?: string
       // User and working directories
-      USER_DIR_BASE: string
-      WORKING_DIR_BASE: string
+      USER_BASE_DIR: string
+      SESSION_BASE_DIR: string
       // Warehouse IDs
       WAREHOUSE_ID_2XS: string
       WAREHOUSE_ID_XS: string
